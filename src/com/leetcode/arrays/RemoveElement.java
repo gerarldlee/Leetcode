@@ -2,7 +2,20 @@ package com.leetcode.arrays;
 
 public class RemoveElement {
 
-    // space: o(1), time o(n) worst o(log n) average
+    // space: o(1), time: o(n)
+    public int removeElement1(int[] nums, int val) {
+
+        int j = 0;
+        for (int i=0; i<nums.length; i++) {
+            if (nums[i] != val) {
+                nums[j] = nums[i];
+                j++;
+            }
+        }
+        return j;
+    }
+
+    // space: o(1), time o(n) worst o(n - m) average
     public int removeElement(int[] nums, int val) {
 
         int k = 0;
