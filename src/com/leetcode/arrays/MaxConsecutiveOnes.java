@@ -16,30 +16,36 @@ public class MaxConsecutiveOnes {
     // space o(1), time o(n)
     public int findMaxConsecutiveOnes(int[] nums) {
         if (nums.length < 2) return 1;
-
         int max = 0;
-        int zero_count = 0;
         int last_zero_index = 0;
         int count = 0;
-
-        for (int i=0; i<nums.length-1; i++) {
-            count++;
+        boolean zero_init = false;
+        for (int i=0; i<nums.length; i++) {
             if (nums[i] == 0) {
-                if (zero_count < 1) {
-                    zero_count++;   // initialize the zero count on the first 0
-                }
-                else {
-                    // this is the 2nd zero.
-                    max = Math.max(max, count); // record the count
-                    count = i - last_zero_index;    // begin counting from the last zero index + 1
-                    zero_count = 0; // reset the zero count
-                }
+                if (zero_init) count = i-(last_zero_index+1);    // begin counting from the last zero index
                 last_zero_index = i;
+                zero_init = true;
             }
-
+            count++;
             max = Math.max(max, count);
         }
+        return max;
+    }
 
+    // sliding window, time o(n), space o(1)
+    public int findMaxConsecutiveOnes1(int[] nums) {
+        if (nums.length < 2) return 1;
+        int left_idx = 0, right_idx = 0, zeros = 0;
+        int max = 0;
+        while (right_idx < nums.length) {
+            if (nums[right_idx] == 0) zeros++;
+            while (zeros > 1) {
+                if (nums[left_idx] == 0) zeros--;
+                left_idx++;
+            }
+            max = Math.max(max, right_idx - left_idx + 1);
+            right_idx++;
+        }
         return max;
     }
 }
