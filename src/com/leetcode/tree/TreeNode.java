@@ -26,7 +26,6 @@ public class TreeNode {
         if (array == null || array.length < 1) return null;
 
         TreeNode currentNode = new TreeNode(array[0]);
-
         Queue<TreeNode> queue = new LinkedList<>();
         queue.offer(currentNode);
 
@@ -42,7 +41,7 @@ public class TreeNode {
                 oldest.left = new TreeNode(array[i]);
                 queue.offer(oldest.left);
             }
-            if (array[i+1] != null) {
+            if (i+1 < array.length && array[i+1] != null) {
                 oldest.right = new TreeNode(array[i+1]);
                 queue.offer(oldest.right);
             }
