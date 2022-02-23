@@ -79,14 +79,14 @@ public class MyDoublyLinkList implements IFLinkList {
     @Override
     public int get(int index) {
         if (index >= size || index < 0) return -1;
-        return getNode(index+1).value;
+        return getNode(index+1).val;
     }
 
     public void print() {
         ListNode curr = head;
         for (int i=0; i < size; i++) {
             curr = curr.next;
-            System.out.printf("%d = %d, ", i, curr.value);
+            System.out.printf("%d = %d, ", i, curr.val);
         }
         System.out.println();
     }
