@@ -5,9 +5,9 @@ import java.util.Queue;
 
 public class TreeNode {
 
-    int val;
-    TreeNode left;
-    TreeNode right;
+    public int val;
+    public TreeNode left;
+    public TreeNode right;
 
     TreeNode() {
     }
@@ -31,12 +31,6 @@ public class TreeNode {
 
         for (int i=1; i<array.length; i += 2) {
             TreeNode oldest = queue.poll();
-            // if the first i is null, continue on
-//            if (array[i] == null) {
-//                i--;
-//                continue;
-//            }
-            // since i develops by 2 increments, we can assert a non-null here
             if (array[i] != null) {
                 oldest.left = new TreeNode(array[i]);
                 queue.offer(oldest.left);
