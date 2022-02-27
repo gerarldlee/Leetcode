@@ -1,8 +1,5 @@
 package com.leetcode.facebook;
 
-import java.nio.charset.StandardCharsets;
-import java.util.function.BinaryOperator;
-
 public class AddBinary {
 
     public String solution(String a, String b) {

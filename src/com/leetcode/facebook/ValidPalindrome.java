@@ -1,9 +1,5 @@
 package com.leetcode.facebook;
 
-import com.leetcode.Main;
-
-import java.util.Locale;
-
 public class ValidPalindrome {
 
     public boolean isPalindrome(String s) {
