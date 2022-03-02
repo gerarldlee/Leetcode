@@ -42,6 +42,25 @@ public class KthSymbolGrammar {
         return sb.toString();
     }
 
+    /*
+    The idea is that
+    https://leetcode.com/explore/learn/card/recursion-i/253/conclusion/1675/discuss/113705/JAVA-one-line
+
+    Each K has an odd or even number "1" in its binary representation:
+
+    k = binary  | odd/even
+    ----------------------
+    1 = 01      | odd
+    2 = 10      | odd
+    3 = 11      | even (2 ones)
+    4 = 100     | odd
+
+    The kth gramar is defined as K = 2 ^ N-1. K = N-1 + flip of N-1, which is just the binary representation
+    of K-1.
+
+    The & 1 or % 2 is just to denote if the K-1 is odd or even, or 1 or 0
+
+     */
     public int kthGrammarBitSolution(int N, int K) {
         return Integer.bitCount(K-1) & 1;
     }
