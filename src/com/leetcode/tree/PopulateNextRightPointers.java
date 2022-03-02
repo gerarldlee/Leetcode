@@ -1,7 +1,6 @@
 package com.leetcode.tree;
 
 import java.util.LinkedList;
-import java.util.Queue;
 
 public class PopulateNextRightPointers {
 
