@@ -24,4 +24,11 @@ public class Node {
         this.children = children;
     }
 
+    @Override
+    public String toString() {
+        return "Node{" +
+                "val=" + val +
+                ", children=" + children +
+                '}';
+    }
 }
