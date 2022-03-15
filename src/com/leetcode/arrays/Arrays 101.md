@@ -110,7 +110,12 @@ array[size] = 0;
 ### Two Pointer technique
 
 - same direction for both pointers
-- opposite direction
+  - iterates the array in single direction
+  - hare and tortoise algorithm for finding cyclic arrays
+
+- opposite direction - when the array is sorted
+  - iterates the array from both ends to the middle
+
 - fixed width
 
 
