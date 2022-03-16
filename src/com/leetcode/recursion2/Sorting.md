@@ -8,7 +8,8 @@ Stability - if the value is equal, then the input's relative order will be prese
 
 ### time: o(n^2), space: o(1)
 
-Bubble sort - compares the value to the next value. if the next value is less than the value, then swap them. repeat until the array size is finished, and repeat until there's nothing to sort and everything is in order.
+#### Bubble sort 
+- compares the value to the next value. if the next value is less than the value, then swap them. repeat until the array size is finished, and repeat until there's nothing to sort and everything is in order.
 
 worse case: o(n^2) - it will still traverse every value and compare them to sort things out.
 
@@ -30,7 +31,8 @@ for (int i=0; i < array.length; i++) {
 
 
 
-Insertion sort - iterates and takes the current element in the list one at a time. comparing and inserting them to the already sorted array one by one. swapping or moving the elements greater than its value.
+#### Insertion sort 
+- iterates and takes the current element in the list one at a time. comparing and inserting them to the already sorted array one by one. swapping or moving the elements greater than its value.
 
 worse case: o(n^2) - if its sorted descending, because it needs to be shifted to the right for every item element
 
@@ -54,7 +56,8 @@ for (int i=1; i < array.length; i++) {
 
 
 
-Selection sort - selects the smallest value in each iteration and swaps them to the current starting point in each iteration.
+#### Selection sort 
+- selects the smallest value in each iteration and swaps them to the current starting point in each iteration.
 
 worse case: o(n^2)
 
@@ -85,7 +88,9 @@ for (int start=0; start < array.length; start++) {
 
 ### time: o(n log(n))
 
-Merge sort - is a divide and conquer algorithm that recursively divides the unsorted array into 2.  when there's nothing more to divide ie. it reaches its base case of array is null, it sorts, merge and combines the result.
+#### Merge sort 
+- is a divide and conquer algorithm that recursively divides the unsorted array into 2.  when there's nothing more to divide ie. it reaches its base case of array is null, it sorts, merge and combines the result.
+- can be easily extended to handle data sets that cannot fit in the RAM, where bottleneck cost is reading and writing the input on disk, not comparing and swapping them
 
 worse case: o(n log(n))
 
@@ -133,7 +138,8 @@ public int[] merge(int[] array) {
 
 
 
-Quick sort - is a divide and conquer algorithm that takes a pivot, usually the last value in the array, and this ultimately divide the array into 2 partitions by swapping the left and right pointer value to the left or right of the pivot - everything less than pivot, pivot, and everything higher than pivot. The pivot is always in its right place, then recursively do this in the left, and the right partition. The base case is when there's no more element in the array.
+#### Quick sort 
+- is a divide and conquer algorithm that takes a pivot, usually the last value in the array, and this ultimately divide the array into 2 partitions by swapping the left and right pointer value to the left or right of the pivot - everything less than pivot, pivot, and everything higher than pivot. The pivot is always in its right place, then recursively do this in the left, and the right partition. The base case is when there's no more element in the array.
 
 worse case: o(n^2)
 
@@ -182,7 +188,11 @@ private void swap(int[] array, int i, int j) {
 
 
 
-Heap sort - more efficient than selection sort.  works by determining largest number in the list, and placing it at the end of the list, and continuing with the list.  The difference with selection sort is that this works via heap data structure (a special case of binary tree)
+#### Heap sort 
+- more efficient than selection sort.  works by determining largest number in the list, and placing it at the end of the list, and continuing with the list.  The difference with selection sort is that this works via heap data structure (a special case of binary tree)
+- if you can't tolerate the worse-case time complexity of quicksort o(n^2) or need low space cost
+- Linux kernel uses heapsort instead of quicksort because of these reasons
+- better than merge sort's O(N) overhead
 
 worse case: o(n log(n))
 
@@ -193,6 +203,23 @@ space: o(1)
 stability: no - 
 
 ```java
+public void heapsort(int[] array) {
+    heapify(array);				// make the array a max-heap
+    int size = array.length;
+    while(size > 0) {
+        int largestValue = removeMax(array, size);	// remove the largest from the max-heap
+        size--;
+        array[size] = largestValue;		// update the array[] from largest to smallest
+    }
+}
+
+private int removeMax(int[] heap, int size) {
+    int maxValue = heap[1];		// non-zero index array
+    // move the last item in the heap to the root partition
+    heap[1] = heap[heap.length-1];
+    siftDown(heap, size-1, 1);
+    
+}
 ```
 
 
@@ -203,7 +230,8 @@ stability: no -
 
 
 
-Timsort - a hybrid of merge sort and insertion sort
+#### Timsort 
+- a hybrid of merge sort and insertion sort
 
 worse case: o(n log(n))
 
@@ -215,7 +243,8 @@ stability: yes
 
 
 
-Introsort - a hybrid of quick sort, heap sort, and insertion sort
+#### Introsort 
+- a hybrid of quick sort, heap sort, and insertion sort
 
 worse case: o(n log(n))
 
@@ -235,6 +264,9 @@ notes: this is the one used in several standard libraries. i.e. C++, C#, .NET, G
 
 Shell sort - 
 
-Counting sort - 
+Counting sort - is a good choice scenarios where there are small number of distinct values to be sorted. But this is pretty rare in practice, so counting sort does not get much use.
 
-Radix sort - 
+Radix sort - fast, O(N) in its worst case time complexity.
+
+- If you're using it to sort binary numbers, then there's hidden constant factor that's usually 32 or 64 (depending on how many bits your numbers are).  This is often way bigger than o(log N)
+- It tends to be slow in practice
