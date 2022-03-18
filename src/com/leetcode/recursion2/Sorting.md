@@ -139,7 +139,9 @@ public int[] merge(int[] array) {
 
 
 #### Quick sort 
-- is a divide and conquer algorithm that takes a pivot, usually the last value in the array, and this ultimately divide the array into 2 partitions by swapping the left and right pointer value to the left or right of the pivot - everything less than pivot, pivot, and everything higher than pivot. The pivot is always in its right place, then recursively do this in the left, and the right partition. The base case is when there's no more element in the array.
+- is a divide and conquer algorithm that takes a pivot, usually the last value in the array, and this ultimately divide the array into 2 partitions by swapping the left and right pointer value to the left or right of the pivot 
+- everything less than pivot, pivot, and everything higher than pivot. The pivot is always in its right place, then recursively do this in the left, and the right partition. 
+- The base case is when there's no more element in the array.
 
 worse case: o(n^2)
 
@@ -262,11 +264,219 @@ notes: this is the one used in several standard libraries. i.e. C++, C#, .NET, G
 
 
 
-Shell sort - 
+#### Shell sort 
 
-Counting sort - is a good choice scenarios where there are small number of distinct values to be sorted. But this is pretty rare in practice, so counting sort does not get much use.
+- is a generalized version of insertion sort. 
+- it first sort elements that are far apart from each other and successively reduces the interval between the elements to be sorted.
+- <u>the performance of shell sort depends on the type of sequence used for a given input array</u>
+  - original sequence: `N/2 , N/4 , …, 1`
+  - knuth's increments: `1, 4, 13, …, (3^k – 1) / 2`
+  - sedgewick's increments: `1, 8, 23, 77, 281, 1073, 4193, 16577...4j+1+ 3·2j+ 1`
+  - hibbard's increments: `1, 3, 7, 15, 31, 63, 127, 255, 511…`
+  - papernov and stasevich increments: `1, 3, 5, 9, 17, 33, 65,...`
+  - pratt's: `1, 2, 3, 4, 6, 9, 8, 12, 18, 27, 16, 24, 36, 54, 81....`
+- time: o(N log N)m,  space: O(1)
 
-Radix sort - fast, O(N) in its worst case time complexity.
+```java
+class ShellSort {
+
+// Rearrange elements at each n/2, n/4, n/8, ... intervals
+void shellSort(int array[], int n) {
+	for (int interval = n / 2; interval > 0; interval /= 2) {
+    	for (int i = interval; i < n; i += 1) {
+        	int temp = array[i];
+	        int j;
+    	    for (j = i; j >= interval && array[j - interval] > temp; j -= interval) {
+        		array[j] = array[j - interval];
+	        }
+    	    array[j] = temp;
+        }
+    }
+}
+
+    public static void main(String args[]) {
+      	int[] data = { 9, 8, 3, 7, 5, 6, 4, 1 };
+	    int size = data.length;
+    	ShellSort ss = new ShellSort();
+	    ss.shellSort(data, size);
+    	System.out.println("Sorted Array in Ascending Order: ");
+	    System.out.println(Arrays.toString(data));
+    }
+}
+```
+
+
+
+
+
+
+
+#### Counting sort 
+
+- is a good choice scenarios where there are ***small number of distinct values to be sorted***. But this is pretty rare in practice, so counting sort does not get much use.
+
+- algorithm
+
+  1. get the maximum value in the unsorted array - `3` in `[1, 0, 3, 1, 3, 1]` and create a new count array of size `3 + 1`.  initialize them to `0`.
+
+  2. count the number of occurrences 
+
+     - the occurences of `[0, 1, 2, 3]` is `[1, 3, 0, 2]` respectively
+
+  3. perform prefix-sum of the count array
+
+     - the prefix sum of `[1, 3, 0, 2]` is `[1, 4, 4, 6]`
+
+  4. shift the count array to the right
+
+     - becomes `[0, 1, 4, 4]` which means the number 3 is in the 4th position in the resulting sorted array
+
+  5. find the index of each element of the original array from the count array
+
+     - the first `1` in  `[1, 0, 3, 1, 3, 1]` will be located in `count[1] = 1` index of the resulting sorted array. 
+     - the second element `0` from the unsorted array, will be located in `count[0] = 0`, so `result[count[0]] = 0`
+     - etc
+
+  6. time - o(n + k), space: o(n + k)
+
+     ```java
+     class CountingSort {
+       void countSort(int array[], int size) {
+         int[] output = new int[size + 1];
+     
+         // Find the largest element of the array
+         int max = array[0];
+         for (int i = 1; i < size; i++) {
+           if (array[i] > max)
+             max = array[i];
+         }
+     
+         // Initialize count array with all zeros.
+         int[] count = new int[max + 1];
+         Arrays.fill(count, 0);
+     
+         // Store the count of each element
+         for (int i = 0; i < size; i++) {
+           count[array[i]]++;
+         }
+     
+         // Store the cummulative count of each array
+         for (int i = 1; i <= max; i++) {
+           count[i] += count[i - 1];
+         }
+     
+         // Find the index of each element of the original array in count array, and
+         // place the elements in output array
+         for (int i = size - 1; i >= 0; i--) {
+           output[count[array[i]] - 1] = array[i];
+           count[array[i]]--;
+         }
+     
+         // Copy the sorted elements into original array
+         for (int i = 0; i < size; i++) {
+           array[i] = output[i];
+         }
+       }
+     
+       public static void main(String args[]) {
+         int[] data = { 4, 2, 2, 8, 3, 3, 1 };
+         int size = data.length;
+         CountingSort cs = new CountingSort();
+         cs.countSort(data, size);
+         System.out.println("Sorted Array in Ascending Order: ");
+         System.out.println(Arrays.toString(data));
+       }
+     }
+     ```
+
+     
+
+
+
+#### Radix sort 
+
+- sort elements by first grouping the individual digits of the same **place value**, then sort the elements according to their increasing/decreasing order
+- fast, O(N) in its worst case time complexity, theoretically
 
 - If you're using it to sort binary numbers, then there's hidden constant factor that's usually 32 or 64 (depending on how many bits your numbers are).  This is often way bigger than o(log N)
-- It tends to be slow in practice
+
+- <u>It tends to be slow in practice</u>
+
+- algorithm:
+
+  1. Find the largest element. `[121, 432, 564, 23, 1, 45, 788]` is `788`. It has 3 digits, therefore loop should go up to the hundredth place (3 times)
+  2. the radixes are:
+     1. single digit:  `[1, 2, 4, 3, 1, 5, 8]`, but lets disregard the tens and hundredth's radixes for now as it will change later based on sorting each.
+  3. Now, go through each significant place one by one. Any stable sort will do, but the Counting Sort is prefered.
+     1. use the **Counting Sort** to sort the single digit radix.  The resulting array becomes `[121, 001, 432, 023, 564, 045, 788]` respectively
+     2. Get the ten's digit radix of the sorted array: `[2, 0, 3, 2, 6, 4, 8]` and sort them using Counting Sort again. The resulting array will be `[001, 121, 023, 432, 045, 564, 788]`
+     3. Get the hundredth's digit radix of the sorted array: `[0, 1, 0, 4, 0, 5, 7]` respectively and sort them using Counting Sort again. The resulting sorted array will be `[001, 023, 045, 121, 432, 564, 788]`
+     4. Done!
+  4. time: o(d(n + k)) - linear time complexity, which is theoretically better than other sorting algorithms that has O(N log N)
+  5. space: O(n + k) - takes huge space, and also because of it uses another sorting algorithm as intermediary
+
+  ```java
+  class RadixSort {
+  
+    // Using counting sort to sort the elements in the basis of significant places
+    void countingSort(int array[], int size, int place) {
+      int[] output = new int[size + 1];
+      int max = array[0];
+      for (int i = 1; i < size; i++) {
+        if (array[i] > max)
+          max = array[i];
+      }
+      int[] count = new int[max + 1];
+  
+      for (int i = 0; i < max; ++i)
+        count[i] = 0;
+  
+      // Calculate count of elements
+      for (int i = 0; i < size; i++)
+        count[(array[i] / place) % 10]++;
+  
+      // Calculate cumulative count
+      for (int i = 1; i < 10; i++)
+        count[i] += count[i - 1];
+  
+      // Place the elements in sorted order
+      for (int i = size - 1; i >= 0; i--) {
+        output[count[(array[i] / place) % 10] - 1] = array[i];
+        count[(array[i] / place) % 10]--;
+      }
+  
+      for (int i = 0; i < size; i++)
+        array[i] = output[i];
+    }
+  
+    // Function to get the largest element from an array
+    int getMax(int array[], int n) {
+      int max = array[0];
+      for (int i = 1; i < n; i++)
+        if (array[i] > max)
+          max = array[i];
+      return max;
+    }
+  
+    // Main function to implement radix sort
+    void radixSort(int array[], int size) {
+      // Get maximum element
+      int max = getMax(array, size);
+  
+      // Apply counting sort to sort elements based on place value.
+      for (int place = 1; max / place > 0; place *= 10)
+        countingSort(array, size, place);
+    }
+  
+    public static void main(String args[]) {
+      int[] data = { 121, 432, 564, 23, 1, 45, 788 };
+      int size = data.length;
+      RadixSort rs = new RadixSort();
+      rs.radixSort(data, size);
+      System.out.println("Sorted Array in Ascending Order: ");
+      System.out.println(Arrays.toString(data));
+    }
+  }
+  ```
+
+  
