@@ -344,5 +344,139 @@ class Solution {
 
 
 
-## A* Algorithm
+## A* Pathfinding Algorithm
+
+- arguiably the best pathfinding algorithm when we have to find the shortest path between 2 nodes
+- like Dijskstra - its a search algorithm, graph traversal, and shortest pathfinding algorithm
+- uses more memory than BFS (greedy), but guarantees that the path found is optimal
+- ues a heuristic function - called cost(n) to reach the node n from starting state
+  - eucledean distance
+  - manhattan distance
+  - cost function - t(n) = v(n) + f(n), where t(n) = total cost, v(n) = variable cost, f(n) = fixed cost
+  - `f(n) = g(n) + h(n)` where g(n) = cost of traversing from one node to another. h(n) = heuristic approximation of the node's value.
+- a small improvement over Dijsktra with BFS added, that have a heuristic that says "we are getting close" or "how far do we have to go"
+- through eucleadean distance
+- [A* Pathfinding (E01: algorithm explanation) - YouTube](https://www.youtube.com/watch?v=-L-WgKMFuhE)
+- [Coding Challenge 51.1: A* Pathfinding Algorithm - Part 1 - YouTube](https://www.youtube.com/watch?v=aKYlikFAV4k)
+
+```
+make an empty list C of closed nodes
+make a list O of open nodes and their respective f values containing the start node
+while O isn't empty:
+    pick a node n from O with the best value for f
+    if n is target:
+        return solution
+    for every m which is a neighbor of n:
+        if (m is not in C) and (m is not in O):
+            add m to O, set n as m's parent
+            calculate g(m) and f(m) and save them
+        else:
+            if f(m) from last iteration is better than g(m) from this iteration:
+                set n as m's parent
+                update g(m) and f(m)
+                if m is in C:
+                    move m to O
+    move n from O to C
+
+return that there's no solution
+```
+
+[Graphs in Java - A* Algorithm (stackabuse.com)](https://stackabuse.com/graphs-in-java-a-star-algorithm/)
+
+### Node Data Structure
+
+```java
+public class Node implements Comparable<Node> {
+      // Id for readability of result purposes
+      private static int idCounter = 0;
+      public int id;
+
+      // Parent in the path
+      public Node parent = null;
+
+      public List<Edge> neighbors;
+
+      // Evaluation functions
+      public double f = Double.MAX_VALUE;
+      public double g = Double.MAX_VALUE;
+      // Hardcoded heuristic
+      public double h; 
+
+      Node(double h){
+            this.h = h;
+            this.id = idCounter++;
+            this.neighbors = new ArrayList<>();
+      }
+
+      @Override
+      public int compareTo(Node n) {
+            return Double.compare(this.f, n.f);
+      }
+
+      public static class Edge {
+            Edge(int weight, Node node){
+                  this.weight = weight;
+                  this.node = node;
+            }
+
+            public int weight;
+            public Node node;
+      }
+
+      public void addBranch(int weight, Node node){
+            Edge newEdge = new Edge(weight, node);
+            neighbors.add(newEdge);
+      }
+
+      public double calculateHeuristic(Node target){
+            return this.h;
+      }
+}
+```
+
+### A* Algorithm
+
+```java
+public static Node aStar(Node start, Node target){
+    PriorityQueue<Node> closedList = new PriorityQueue<>();
+    PriorityQueue<Node> openList = new PriorityQueue<>();
+
+    start.f = start.g + start.calculateHeuristic(target);
+    openList.add(start);
+
+    while(!openList.isEmpty()){
+        Node n = openList.peek();
+        if(n == target){
+            return n;
+        }
+
+        for(Node.Edge edge : n.neighbors){
+            Node m = edge.node;
+            double totalWeight = n.g + edge.weight;
+
+            if(!openList.contains(m) && !closedList.contains(m)){
+                m.parent = n;
+                m.g = totalWeight;
+                m.f = m.g + m.calculateHeuristic(target);
+                openList.add(m);
+            } else {
+                if(totalWeight < m.g){
+                    m.parent = n;
+                    m.g = totalWeight;
+                    m.f = m.g + m.calculateHeuristic(target);
+
+                    if(closedList.contains(m)){
+                        closedList.remove(m);
+                        openList.add(m);
+                    }
+                }
+            }
+        }
+
+        openList.remove(n);
+        closedList.add(n);
+    }
+    return null;
+}
+```
 

@@ -237,9 +237,10 @@ class BottomUpSolution {
 
 
 
-#### Example: Coin Change 2
+#### Example: Coin Change 2 - Unbounded Knapsack
 
-1. function
+1. [Coin Change 2 - Dynamic Programming Unbounded Knapsack - Leetcode 518 - Python - YouTube](https://www.youtube.com/watch?v=Mjy4hd2xgrs)
+1. 
 
 #### Example: Decode Ways
 
