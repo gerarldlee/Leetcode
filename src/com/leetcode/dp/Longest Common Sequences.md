@@ -1,6 +1,20 @@
 Longest Common Sequences
 ====
 
+### LCS Table
+
+```
+S1 = {B, C, D, A, A, C, D}
+S2 = {A, C, D, B, A, C}
+```
+
+Common suibsequences are: `{B, C}, {C, D, A, C}, {D, A, C}, {A, A, C}, {A, C}, {C, D},`
+
+The longest is: `{C, D, A, C}`
+
+1. Create a matrix table with dimension S1.length() + 1 and S2.length() + 1. The first row, and column, fill with zeros
+2. 
+
 ## Longest Common Subsequence
 
 - finding the longest subsequence common to all sequences in a set of sequences
