@@ -12,11 +12,86 @@ Topological Sorting - Kahn's Algorithm
 - provides linear sorting based on the required ordering between vertices in a directed acyclic graphs
   - example: given vertex u and v, to reach vertex v, we must reach vertex u first
   - in topological sorting, u has to appear before v in the ordering
-- Kahn's algorithm is the most popular topological sorting algorithm
+- Kahn's algorithm is the most popular topological sorting algorithm that has O(V+E) time
 
 #### How it works?
 
+- topological  ordering is an ordering of the nodes in a directed graph where for each directed edge from node A to node B, node A appears before node B in the ordering.
 
+- we are interested in getting the topological order of how things happened for example.
+
+- *It iteratively remove nodes in the graph which have no incoming edges. When a node is removed from the graph, it is added to the topological ordering and all its edges are removed allowing for the next set of nodes with no incoming edges to be selected*
+
+- [Topological Sort | Kahn's Algorithm | Graph Theory - YouTube](https://www.youtube.com/watch?v=cIBFEhD77b4)
+
+- Auxiliary variables:
+
+  - a temp array - to hold the result of the preprocessing stage
+  - a visited variable count - to store the number of vertices that have been visited
+  - a string result to hold the topological order
+  - a queue
+
+- Preprocessing
+
+  - calculate the in-degree of each vertex of the graph, and store them in the array
+
+- Algorithm
+
+  1. enqueue the vertices with the in-degree of 0
+  2. while the queue is not empty
+     1. dequeue a vertex
+     2. add this vertex to the result
+     3. increment the visited variable by 1
+     4. decrement the in-degree of all its neighboring vertices by 1 in the temp array
+     5. enqueue the neighboring vertices with the in-degree of 0
+  3. if the value of the visited variable is equal to the number of vertices in the graph, then the graph is *indeed* directed and acyclic and the result will contain the topological sort for the graph
+
+  ```java
+  public class Kahns {
+  
+    // Given a an acyclic graph `g` represented as a adjacency list, return a
+    // topological ordering on the nodes of the graph.
+    public int[] kahns(List<List<Integer>> g) {
+      int n = g.size();
+  
+      // Calculate the in-degree of each node.
+      int[] inDegree = new int[n];
+      for (List<Integer> edges : g) {
+        for (int to : edges) {
+          inDegree[to]++;
+        }
+      }
+  
+      // q always contains the set nodes with no incoming edges.
+      Queue<Integer> q = new ArrayDeque<>();
+  
+      // Find all start nodes.
+      for (int i = 0; i < n; i++) {
+        if (inDegree[i] == 0) {
+          q.offer(i);
+        }
+      }
+  
+      int index = 0;
+      int[] order = new int[n];
+      while (!q.isEmpty()) {
+        int at = q.poll();
+        order[index++] = at;
+        for (int to : g.get(at)) {
+          inDegree[to]--;
+          if (inDegree[to] == 0) {
+            q.offer(to);
+          }
+        }
+      }
+      if (index != n) {
+        throw new IllegalArgumentException("Graph is not acyclic! Detected a cycle.");
+      }
+      return order;
+    }
+  ```
+
+  
 
 #### Limitations
 
