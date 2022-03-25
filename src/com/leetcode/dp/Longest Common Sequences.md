@@ -8,7 +8,7 @@ S1 = {B, C, D, A, A, C, D}
 S2 = {A, C, D, B, A, C}
 ```
 
-Common suibsequences are: `{B, C}, {C, D, A, C}, {D, A, C}, {A, A, C}, {A, C}, {C, D},`
+Common subsequences are: `{B, C}, {C, D, A, C}, {D, A, C}, {A, A, C}, {A, C}, {C, D},`
 
 The longest is: `{C, D, A, C}`
 
@@ -21,7 +21,7 @@ The longest is: `{C, D, A, C}`
 - subsequences are not contiguous
 - example:
   - string1 = "ABCDGH", string2 = "AEDFHR".  The longest common subsequence is "ADH"
-    - it is comon to the both of the strings, and has proper order or letters
+    - it is common to the both of the strings, and has proper order or letters
   - string1 = "AGGTAB", string2 = "GXTXAB". The longest common subsequence is "GTAB"
     - it is common to the both of the strings, and has proper order of letters
     - notice how the first "A" in the string1 is not included even though string2 has "A" as well
