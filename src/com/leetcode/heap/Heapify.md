@@ -2,14 +2,14 @@
 ### Converting Heap into an Array
 
 - parent node - `n / 2`
-- left child - `n * 2`
-  - in a zero-index array heap - `n * 2 + 1`
+- left child in a non-zero-index array - `n * 2`
 
-- right child - `n * 2 + 1`
-  - in a zero-index array heap - `n * 2 + 2`
+- left child in a zero-index array heap - `n * 2 + 1`
+- right child - `leftChild + 1`
 
 - why do we choose non-zero index array i.e. our array root value starts at `array[1]`
   - because we put the size of the entire array in the `array[0]`
+  - ***useful for getting the Kth element, but not for sorting***
 
 - determine if a node is a leaf node from the array 
   - - any node `i`, that's greater than `n/2`, is a leaf node
@@ -88,9 +88,7 @@ while (inserted node value < value of its parent node) {
 void siftUp(iint k) {
 	int parent = k / 2;
 	while (parent > 0 && a[k] < a[parent]) {
-        int tmp = a[parent];
-        a[parent] = a[k];
-        a[k] = tmp;
+		swap(a, k, parent);
         k = parent;
         parent = k / 2;
 	}

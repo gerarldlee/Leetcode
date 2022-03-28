@@ -358,9 +358,7 @@ static void heapify(int[] array, int length, int i) {
 
     // if a swap needs to occur
     if (largest != i) {
-        int temp = array[i];
-        array[i] = array[largest];
-        array[largest] = temp;
+        swap(array, i, largest);
         heapify(array, length, largest);
     }
 }
@@ -375,9 +373,7 @@ public static void heapSort(int[] array) {
         heapify(array, length, i);
 
     for (int i = length-1; i >= 0; i--) {
-        int temp = array[0];
-        array[0] = array[i];
-        array[i] = temp;
+        swap(array, 0, i);
 
         heapify(array, i, 0);
     }
