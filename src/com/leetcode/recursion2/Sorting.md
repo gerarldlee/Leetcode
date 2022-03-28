@@ -44,7 +44,8 @@ stability: yes
 for (int i=1; i < array.length; i++) {
     int j = i-1;
     int tmp = array[i];
-    // swap values for those array[j] > tmp, so that we can insert the tmp (current position),
+    // swap values for those array[j] > tmp, so that we can insert the tmp (current position)
+    // this means that everything to the left of array[i] wi
 	while (j >= 0 && array[j] > tmp) {
         array[j+1] = array[j];
         j--;
@@ -220,7 +221,7 @@ private int removeMax(int[] heap, int size) {
     // move the last item in the heap to the root partition
     heap[1] = heap[heap.length-1];
     siftDown(heap, size-1, 1);
-    
+    return maxValue
 }
 ```
 

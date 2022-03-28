@@ -29,7 +29,7 @@ Heapify
 public void heapify(int[] array) {
     // we only heapify non-leaf nodes
     // it does not make sense for the leaf nodes to be "sifted down" 
-    since theres no way to go down
+    // since theres no way to go down
     for (int i=array.length/2-1; i >= 0; i--) {		
         siftDown(array, i);
     }
@@ -63,7 +63,7 @@ void siftDown(int[] a, int k) {
             k = smaller_child_index;
             left_child_index = k * 2;
         }
-        else {	/
+        else {	
             break;
         }
     }
