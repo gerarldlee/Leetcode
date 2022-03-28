@@ -9,7 +9,7 @@ public class Divide2Integers {
      */
     public int divide(int dividend, int divisor) {
         //Reduce the problem to positive long integer to make it easier.
-        //Use long to avoid integer overflow cases.
+        //Use long to avoid integer overflow cases.`
         int sign = 1;
         if ((dividend > 0 && divisor < 0) || (dividend < 0 && divisor > 0))
             sign = -1;
@@ -51,12 +51,12 @@ public class Divide2Integers {
     public static void main(String[] args) {
         Divide2Integers d = new Divide2Integers();
         long start = System.currentTimeMillis();
-        long d1 = d.divide(999999999, 999);
+        long d1 = d.divide(Integer.MIN_VALUE, 999);
         long end = System.currentTimeMillis();
         System.out.println("Answer: " + d1 + " time: " + (end-start));
 
         long start1 = System.currentTimeMillis();
-        long d2 = d.binaryLongDivide(999999999, 999);
+        long d2 = d.binaryLongDivide(Integer.MIN_VALUE, 999);
         long end1 = System.currentTimeMillis();
         System.out.println("Answer: " + d2 + " time: " + (end1-start1));
     }

@@ -34,6 +34,45 @@ public class ValidPalindrome2 {
         return true;
     }
 
+    public boolean validPalindrome2(String s) {
+        if (s == null || s.length() == 0) return false;
+
+        char[] c = s.toCharArray();
+
+        int mistake = 0;
+        int left = 0;
+        int right = c.length-1;
+
+        int last_left_mistake = 0;
+        int last_right_mistake = 0;
+
+        while (left <= right && mistake <= 2) {
+
+            if (c[left] != c[right]) {
+                if (mistake == 0) {
+                    // but try something if the mistake was made from the left
+                    last_left_mistake = left;
+                    last_right_mistake = right;
+                    left++;
+                }
+
+                // we can then try from the right, recovering from the last left state
+                else if (mistake >= 1) {
+                    left = last_left_mistake;
+                    right = last_right_mistake;
+                    right--;
+                }
+
+                mistake++;
+            }
+            else {
+                left++;
+                right--;
+            }
+        }
+        return mistake < 3;
+    }
+
     public static void main(String[]a) {
         String s = "aguokepatgbnvfqmgmlcupuufxoohdfpgjdmysgvhmvffcnqxjjxqncffvmhvgsymdjgpfdhooxfuupuculmgmqfvnbgtapekouga";
 
