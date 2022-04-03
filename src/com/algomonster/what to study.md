@@ -212,7 +212,51 @@ class UnionFind {
 #### Topological Sort
 
 ```java
+class LinkedNode {
+    int indegrees = 0;
+    List<LinkedNode> children = new LinkedList<>();
+}
+Map<Integer, LinkedNode> counts(Map<Integer, List<Integer>> dependencies) {
+    Map<T, Integer> counts = new HashMap<>();
+    graph.keySet().forEach(node -> {
+        counts.put(node, 0);
+    });
+    // loop through every node and add to the child node 1 parent
+    graph.entrySet().forEach(entry -> {
+        for (T node : entry.getValue()) {
+            counts.put(node, counts.get(node) + 1);
+        }
+    });
+    return counts;
+}
+List<Integer> topologicalSort(Map<Integer, List<Integer>> adjacentMatrix) {
 
+    List<Integer> result = new ArrayList<>();
+    Queue<Integer> queue = new ArrayDeque<>();
+
+    Map<Integer, LinkedNode> counts = counts(adjacentMatrix);
+    // add the 0 in-degree to queue
+    counts.entrySet().forEach(entry -> {
+        if (entry.getValue() == 0) {
+            queue.add(entry.getKey());
+        }
+    });
+
+    // do a BFS and process nodes one by one that does not have in-degrees, as well as decrease the count
+    // of the nodes that have in-degrees > 0
+    while(!queue.isEmpty()) {
+        Integer node = queue.poll();
+        result.add(node);
+
+        for (Integer child : adjacentMatrix.get(node)) {
+            // decrease the dependency of each child to the "processed parent"
+            counts.put(child, counts.get(child) - 1);
+            if (counts.get(child) == 0) {
+                queue.add(child);
+            }
+        }
+    }
+}
 ```
 
 #### Heap
