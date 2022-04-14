@@ -4,6 +4,8 @@ import java.util.Arrays;
 
 public class CoinChange {
 
+    // time: o(N)
+    // space: o(N)
     public int coinChange(int[] coins, int amount) {
 
         int[] dp = new int[amount+1];   // minimal coin change of each amount up to amount, including 0
