@@ -21,7 +21,10 @@ public class CoinChange {
             }
         }
 
-        return dp[amount] > amount ? -1 : dp[amount];
+        if (dp[amount] < 0 || dp[amount] == Integer.MAX_VALUE)
+            return -1;
+        else
+            return dp[amount];
     }
 
     public static void main(String[] a) {
