@@ -1,4 +1,4 @@
-# Graphs in Java: Representing Graphs in Code
+# Representing Graphs in Code
 
 https://stackabuse.com/graphs-in-java-representing-graphs-in-code/
 
