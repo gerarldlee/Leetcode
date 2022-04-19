@@ -28,6 +28,7 @@ public class MaxProfitKTransactions {
             max = Math.max(max,  profits[0][i-1] - prices[i-1]);
             profits[1][i] = Math.max(profits[1][i-1], max+prices[i]);
         }
+        max = Integer.MIN_VALUE;
         for (int i=1; i < prices.length; i++) {
             max = Math.max(max,  profits[1][i-1] - prices[i-1]);
             profits[2][i] = Math.max(profits[2][i-1], max+prices[i]);

@@ -1,0 +1,22 @@
+# Microsoft Online Assessment Questions 2021
+
+- [Min Deletions To Obtain String in Right Format](https://algo.monster/problems/min_deletions_to_obtain_string_in_right_format)
+- [Day of the week that is K days later](https://algo.monster/problems/day_of_week)
+- [Max Network Rank](https://algo.monster/problems/max_network_rank)
+- [Min Adj Swaps to Make Palindrome](https://algo.monster/problems/min_swaps_to_make_palindrome)
+- [Lexicographically Smallest String](https://algo.monster/problems/lexicographically_smallest_string)
+- [Longest Substring Without 3 Contiguous Occurrences of Letter](https://algo.monster/problems/longest_substring_without_3_contiguous_occurrences_letter)
+- [String Without 3 Identical Consecutive Letters](https://algo.monster/problems/string_without_3_identical_consecutive_letters)
+- [Longest Semi-Alternating Substring](https://algo.monster/problems/longest_semi_alternating_substring)
+- [Min Steps to Make Piles Equal Height](https://algo.monster/problems/min_steps_to_make_piles_equal_height)
+- [Max Inserts to Obtain String Without 3 Consecutive 'a'](https://algo.monster/problems/max_inserts_to_obtain_string_without_3_consecutive_a)
+- [Concatenated String Length with unique Characters](https://algo.monster/problems/concatenated_string_length_with_unique_characters)
+- [Largest K such that both K and -K exist in array](https://algo.monster/problems/largest_k_positive_and_negative)
+- [Min Adj Swaps to Group Red Balls](https://algo.monster/problems/min_adj_swaps_to_group_red_balls)
+- [Maximum Length of a Concatenated String with Unique Characters](https://algo.monster/problems/max_length_of_a_concatenated_string_with_unique_characters)
+- [Unique Integers That Sum Up To 0](https://algo.monster/problems/unique_integers_that_sum_up_to_0)
+- [Particle Velocity](https://algo.monster/problems/particle_velocity)
+- [Widest Path Without Trees](https://algo.monster/problems/widest_path_without_trees)
+- [Jump Game](https://algo.monster/problems/jump_game)
+- [Fair Indexes](https://algo.monster/problems/fair_indexes)
+

@@ -1,0 +1,15 @@
+# Google Online Assessment Questions 2021 | Google OA
+
+- [Compare Strings](https://algo.monster/problems/google_oa_compare_strings)
+- [Fill 2D Array](https://algo.monster/problems/google_oa_fill_2d_array)
+- [Largest Subarray](https://algo.monster/problems/google_oa_largest_subarray)
+- [Max Area Serving Cake](https://algo.monster/problems/google_oa_max_area_serving_cake)
+- [Min Decreasing Partitions](https://algo.monster/problems/google_oa_min_decreasing_partitions)
+- [Pick up Coupons](https://algo.monster/problems/google_oa_pick_up_coupons)
+- [Rose Garden](https://algo.monster/problems/google_oa_rose_garden)
+- [Smallest Integer](https://algo.monster/problems/google_oa_smallest_integer)
+- [Watering Plants](https://algo.monster/problems/google_oa_water_plants)
+- [Fill 2D Array](https://algo.monster/problems/google_oa_fill_2d_array)
+- [Split Stringws](https://algo.monster/problems/google_oa_split_strings)
+- [Longest Palindrome](https://algo.monster/problems/google-oa-longest-palindrome)
+- [Rings on Rods](https://algo.monster/problems/google-oa-rings-on-rods)

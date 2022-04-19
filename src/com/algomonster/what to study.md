@@ -1,19 +1,28 @@
-highest roi - dfs, bfs, two pointers, binary search
-linked list, stack and queue
-priority queue, heap
-greedy and dp
-trie, union find,
+highest roi in order of use:
+- binary search
+- dfs 
+- backtracking
+- bfs
+- graph
+- two pointers 
+- priority queue, heap
+- dp
+- divide and conquer
+- greedy
+- linked list, stack and queue
+- trie, union find
 
-almost never used
+almost never used:
 
-minimal spanning tree - kruskal and prims
-minimum cut - ford fulkerson
-shortest path in weighted graph - bellman ford
-string search - boyer moore
+- minimal spanning tree - kruskal and prims
+- minimum cut - ford fulkerson
+- shortest path in weighted graph - bellman ford
+- string search - boyer moore
 
-knuth-morris-pratt vs bug free brute force coding
-dijkstra - shortest path in weighted graph, uses priority queue
-robin-karp rolling hash - solving 2 pointers
+others:
+- knuth-morris-pratt vs bug free brute force coding
+- dijkstra - shortest path in weighted graph, uses priority queue
+- robin-karp rolling hash - solving 2 pointers
 
 ## keywords:
 
