@@ -69,7 +69,7 @@ In our implementation we'll be making our class as versatile as possible. This i
 
 We'll also provide the choice between a directed and undirected graph, as well as a weighted/unweighted one.
 
-```
+```java
 public class Graph {
 
     private int numOfNodes;
@@ -90,7 +90,7 @@ public class Graph {
 
 Then, we'll have a simple constructor:
 
-```
+```java
 public Graph(int numOfNodes, boolean directed, boolean weighted) {
 
     this.directed = directed;
@@ -105,7 +105,7 @@ public Graph(int numOfNodes, boolean directed, boolean weighted) {
 
 Now, let's write a method that allows us to add edges. We want to make sure that in case the graph is weighted and a weight isn't provided we set the edge value to 0, and if isn't weighted to simply add 1:
 
-```
+```java
 /*
  Since matrices for directed graphs are symmetrical, we have to add
  [destination][source] at the same time as [source][destination]
@@ -130,7 +130,7 @@ public void addEdge(int source, int destination) {
 
 In case the graph isn't weighted and a weight is provided, we simply ignore that and set the `[source,destination]` value to 1, indicating that an edge does exist:
 
-```
+```java
 public void addEdge(int source, int destination, float weight) {
 
     float valueToAdd = weight;
@@ -151,7 +151,7 @@ public void addEdge(int source, int destination, float weight) {
 
 At this point, let's add a method that allows us to easily print out the adjacency matrix:
 
-```
+```java
 public void printMatrix() {
     for (int i = 0; i < numOfNodes; i++) {
         for (int j = 0; j < numOfNodes; j++) {
@@ -167,7 +167,7 @@ public void printMatrix() {
 
 And after that, a convenience method that prints out the edges in a more understandable way:
 
-```
+```java
 /*
  We look at each row, one by one.
  When we're at row i, every column j that has a set value represents that an edge exists from
@@ -188,7 +188,7 @@ public void printEdges() {
 
 Finally, let's write two helper methods that'll be used later on:
 
-```
+```java
 public boolean hasEdge(int source, int destination) {
     return isSetMatrix[source][destination];
 }
@@ -202,7 +202,7 @@ public Float getEdgeValue(int source, int destination) {
 
 To showcase how an adjacency matrix works, let's use our class to make a graph, populate it with relations, and print them:
 
-```
+```java
 public class GraphShow {
     public static void main(String[] args) {
 
@@ -236,7 +236,7 @@ public class GraphShow {
 
 Which gives us the output:
 
-```
+```java
      /       /      19.0    -2.0     /
      /       /       3.0     0.0     0.0
     19.0     3.0     /       0.0     /
