@@ -1,32 +1,45 @@
+### Characteristics of DP
+
+- problems can be divided into sub-problems and an optimal solution can be constructed
+- subproblems overlap
+
+DP = DFS + memoization (top-down)
+
+## Patterns / Templates:
+
 ### Sequence
 
-The most common type of DP. The recurrence relation `dp[i]` normally means max / min / best value for the sequence ending at index i.
+- The most common type of DP. 
+- The recurrence relation `dp[i]` normally means max / min / best value for the sequence ending at index i.
 
 #### house robber
 
-find the maximum amount of loot
+find the *maximum* amount of loot
 
 #### Coin change
 
-find the minimum amount of coins needed to make up an amount
+find the *minimum* amount of coins needed to make up an amount
 
 ### Grid
 
-2D version of sequence DP. `dp[i][j]` means max / min / best value of matrix cell ending at index i and j.
+- 2D version of sequence DP.
+-  `dp[i][j]` means max / min / best value of matrix cell ending at index i and j.
 
 #### Number of robot paths
 
-number of ways for robot to move from top left to bottom right
+*number of ways* for robot to move from top left to bottom right
 
 #### Minimal path sum
 
-find path in a grid with minimum cost
+find path in a grid with *minimum* cost
 
 #### Maximal Square
 
-find maximal square of 1s in a grid of 0s and 1s
+find *maximal* square of 1s in a grid of 0s and 1s
 
 #### Plumber
+
+find *maximal* number of coins given 2D grid that contains obstacles and coins
 
 ### Dynamic number of subproblems
 
