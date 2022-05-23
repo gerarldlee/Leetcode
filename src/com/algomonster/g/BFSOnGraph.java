@@ -1,26 +1,15 @@
 package com.algomonster.g;
 
-import com.algomonster.bfs.BinaryTreeMinDepth;
-
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class BFSOnGraph {
     public static class Node<T> {
         public T val;
-        public BinaryTreeMinDepth.Node<T> left;
-        public BinaryTreeMinDepth.Node<T> right;
+        public List<Node<T>> neighbors;
 
         public Node(T val) {
-            this(val, null, null);
-        }
-
-        public Node(T val, BinaryTreeMinDepth.Node<T> left, BinaryTreeMinDepth.Node<T> right) {
             this.val = val;
-            this.left = left;
-            this.right = right;
+            this.neighbors = new ArrayList<>();
         }
     }
 
@@ -56,7 +45,7 @@ public class BFSOnGraph {
 
     // Gets the adjacency list
     public List<Node> getNeighbors(Node node) {
-        return null;
+        return node.neighbors;
     }
 
     /**
