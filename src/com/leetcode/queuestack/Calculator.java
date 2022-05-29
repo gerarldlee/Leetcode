@@ -1,8 +1,7 @@
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
+package com.leetcode.queuestack;
+
+import java.util.ArrayDeque;
+import java.util.Queue;
 
 public class Calculator {
 
@@ -10,67 +9,53 @@ public class Calculator {
         
         String expr = "2+3*((3-2*5)+4)/2"; //2+-9/2 = 2-4 = -2
 
-        System.out.println(calculateGroup(expr));
+//        System.out.println(calculate("3-2*5")); // -7
+        System.out.println(calculate(expr));
+    }
+    public static int calculate(String s) {
+        if (s == null || s.length() == 0) return 0;
+        Queue<Character> queue = new ArrayDeque<>();
+        char[] cs = s.toCharArray();
+        for (char c : cs) {
+            queue.add(c);
+        }
+        queue.add('+');
+        return helper(queue);
     }
 
-    public static int calculateGroup(String expr) {
-        if (expr == null || expr.length() == 0) return 0;
-
-        List<String> stack = new ArrayList()<>();
-        char[] exprs = expr.toCharArray();
-        StringBuilder sb = new StringBuilder();
-        for (int i=0; i<exprs.length; i++) {
-            char c = exprs[i];
+    public static int helper(Queue<Character> queue) {
+        int result = 0, prev = 0;
+        int operand = 0;
+        char operator = '+';
+        while (queue.size() > 0) {
+            char c = queue.poll();
+            if (Character.isDigit(c)) {
+                operand = operand * 10 + (c - '0');
+            }
             if (c == '(') {
-                stack.add(sb.toString());
-                sb.setLength(0);
+                operand = helper(queue);
             }
-            else if (c == ')') {
-                int group = calculate(sb.toString());
-                sb.setLength(0);
-                sb.append(group);
+            if (!Character.isDigit(c)) {
+                switch (operator) {
+                    case '+':
+                    case '-':
+                        result += prev;
+                        prev = (operator == '-' ? -operand : operand);
+                        break;
+                    case '/':
+                        prev /= operand;
+                        break;
+                    case '*':
+                        prev *= operand;
+                        break;
+                }
+
+                operand = 0;
+                operator = c;
             }
-            else {
-                sb.append(c);
-            }
+            if (c == ')') break;
         }
-
-        // create a string from the list
-        String ex = stack.stream().collect(Collectors.joining());
-        return calculate(ex);
-    }
-
-    private static int calculate(String expr) {
-
-        if (expr == null || expr.length() == 0) return 0;
-
-        int result = 0;
-        int operand = 0, prev = 0;
-        int operator = '+';
-        char exprChars = expr.toCharArray();
-        for (int i=0; i<exprChars.length; i++) {
-            if (Character.isDigit(exprChars[i])) {
-                operand = operand * 10 + (exprChars[i] - '0');
-            }
-            char op = exprChars[i];
-            if (!Character.isDigit(op) || i == exprChars.length-1) {
-                if (operator == '*') {
-                    prev *= operand;
-                }
-                else if (operator == '/') {
-                    prev /= operand;
-                }
-                if (operator == '+' || operator == '-') {
-                    result += prev;
-                    if (operator == '-') prev -= operand;
-                    else prev += operand;
-                }
-                operand = 0;    // reset it
-                operator = op;
-            }
-        }
-        result += prev;
-        return result;
+        return result + prev;
     }
 
 }
