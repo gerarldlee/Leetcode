@@ -8,36 +8,28 @@ import java.util.stream.Collectors;
 public class CapacityToShipPackagesWithinDays {
     public static int minMaxWeight(List<Integer> weights, int d) {
         // WRITE YOUR BRILLIANT CODE HERE
-
         if (weights == null || weights.size() == 0) return 0;
 
         int left = 0;	// at the minimum,  truck capacity is >= max weight
         int right = 0;	// at the maximum, truck capacity is the sum(weight) where we delivery everything in 1 day
-
         int ans = -1;	// optimal truck capacity is somewhere in between, given d days
-
         for (int weight : weights) {
             right += weight;
             left = Math.max(weight, left);
         }
 
         while (left <= right) {
-
             int mid_truck_capacity = (left + right) / 2;
             if (isPossible(weights, mid_truck_capacity, d)) {
                 ans = mid_truck_capacity;
-
                 // try to squeeze it further by reducing the right
                 right = mid_truck_capacity - 1;
             }
             else {
                 left = mid_truck_capacity + 1;
             }
-
         }
-
         return ans;
-
     }
 
     /*
@@ -47,10 +39,8 @@ public class CapacityToShipPackagesWithinDays {
     when this is true, increment days
     */
     public static boolean isPossible(List<Integer> weights, int capacity, int days) {
-
         int tmp = capacity;
         int i = 0;
-
         while (i < weights.size()) {
             int w = weights.get(i);
             if (w <= tmp) {
@@ -63,7 +53,6 @@ public class CapacityToShipPackagesWithinDays {
                 days--;
             }
         }
-
         return days >= 1;    // 1 because at the minimum, we should be able to deliver everything in 1 day with max capacity
     }
 
