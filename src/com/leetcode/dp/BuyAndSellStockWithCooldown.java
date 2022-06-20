@@ -26,23 +26,31 @@ public class BuyAndSellStockWithCooldown {
 
 
     public int maxProfit(int[] prices) {
-        int buyDp[] = new int[prices.length];
-        int sellDp[] = new int[prices.length];
-        int cooldownDp[] = new int[prices.length];
+        if (prices == null || prices.length < 2) return 0;
 
-        for(int i = 1; i < prices.length; i++) {
+        int buy[] = new int[prices.length];
+        int sell[] = new int[prices.length];
 
-            int buy = prices[i-1];
-            int sell = buy + prices[i];
-            int cooldown = 0;
+        buy[0] = -prices[0]; // buy the first entry, resulting in negative income
+        buy[1] = Math.max(buy[0], sell[0] - prices[1]); // minimize the loss, by comparing todays sell vs yday buy
+        sell[1] = Math.max(0, buy[0] + prices[1]);    // max profit = max(0, sell the previous bought)
 
+        for(int i = 2; i < prices.length; i++) {
+
+            // recurrence relation for buy
+            // buy[i] = minimze(prev buy, or previous sell + coolldown + today's buy)
+            buy[i] = Math.max(buy[i-1], sell[i-2] - prices[i]);
+
+            // recurrence relation for sell (max profit)
+            // sell[i] = maximze(previous sell, or today's sell)
+            sell[i] = Math.max(sell[i-1], buy[i-1] + prices[i]);
         }
 
-        return buyDp[0];
+        return sell[prices.length-1];
     }
 
     public static void main(String[] a) {
         BuyAndSellStockWithCooldown b = new BuyAndSellStockWithCooldown();
-        System.out.println(b.maxProfitDfs(new int[] {1,2,3,0,2}));
+        System.out.println(b.maxProfit(new int[] {1,2,3,0,2}));
     }
 }
