@@ -1,4 +1,4 @@
-package com.leetcode.dp;
+package com.leetcode.design.dp;
 
 public class MinCostClimbingStairs {
     public int minCostClimbingStairs(int[] cost) {
