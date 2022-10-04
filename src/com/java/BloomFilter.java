@@ -20,7 +20,7 @@ package com.java;
  */
 public class BloomFilter {
 
-    BitSet bitSet;      // the data structure that contains all data in a BloomFilter
+    private final BitSet bitSet;      // the data structure that contains all data in a BloomFilter
 
     public BloomFilter() {
         this.bitSet = new BitSet(10);
@@ -30,7 +30,7 @@ public class BloomFilter {
      * Adds key into the bitSet
      */
     public void add(String key) {
-        int hash = HashUtil.hashCode(key);
+        int hash = Math.abs(BloomFilter.HashUtil.hashCode(key));
         if (!bitSet.contains(hash)) {
             bitSet.add(hash);
         }
@@ -40,7 +40,7 @@ public class BloomFilter {
      * Checks if the bitSet contains a hash
      */
     public boolean contains(String key) {
-        int hash = HashUtil.hashCode(key);
+        int hash = Math.abs(BloomFilter.HashUtil.hashCode(key));
         return bitSet.contains(hash);
     }
 
@@ -49,8 +49,8 @@ public class BloomFilter {
      */
     class BitSet {
 
-        int m;  // the number of bits
-        boolean[] bits;     // the data itself, represented by boolean
+        private final int m;  // the number of bits
+        private final boolean[] bits;     // the data itself, represented by boolean
 
         public BitSet(int m) {
             this.m = m;
@@ -83,9 +83,15 @@ public class BloomFilter {
 
 
     public static void main(String[] argv) {
-        BloomFilter bloom = new BloomFilter();
 
+        BloomFilter bloom = new BloomFilter();
         bloom.add("gerard");
+        bloom.add("gee");
+        bloom.add("gerar");
+
         System.out.println(bloom.contains("gerard"));
+        System.out.println(bloom.contains("gerards"));
+        System.out.println(bloom.contains("gerar"));
+        System.out.println(bloom.contains("g"));
     }
 }
