@@ -1,0 +1,480 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+%%%%% my stuff %%%%%%
+
+\usepackage{mathtools} % \DeclarePairedDelimiter
+
+% Meta-commands
+\newcommand{\nc}{\newcommand}
+\nc{\on}{\operatorname}
+\nc{\DMO}{\DeclareMathOperator}
+\nc{\renc}{\renewcommand}
+
+% Letters in different fonts
+\nc{\BR}{\mathbb R}
+\nc{\BC}{\mathbb C}
+\nc{\BQ}{\mathbb Q}
+\nc{\BZ}{\mathbb Z}
+\nc{\BN}{\mathbb N}
+\nc{\BS}{\mathbb S}
+\nc{\BP}{\mathbb P}
+\nc{\BA}{\mathbb A}
+\nc{\BF}{\mathbb F}
+\nc{\BE}{\mathbb E}
+\nc{\BH}{\mathbb H}
+\nc{\fp}{\mathfrak p}
+\nc{\fR}{\mathfrak R}
+\nc{\fr}{\mathfrak r}
+\nc{\CA}{\mathcal A}
+\nc{\CC}{\mathcal C}
+\nc{\CE}{\mathcal E}
+\nc{\CF}{\mathcal F}
+\nc{\CH}{\mathcal H}
+\nc{\CN}{\mathcal N}
+\nc{\CO}{\mathcal O}
+\nc{\CU}{\mathcal U}
+\nc{\SB}{\mathscr B}
+\nc{\SN}{\mathscr N}
+\nc{\SF}{\mathscr F}
+\nc{\SG}{\mathscr G}
+\nc{\SV}{\mathscr V}
+\nc{\SW}{\mathscr W}
+\nc{\bC}{\mathbf C}
+\nc{\bc}{\mathbf c}
+\nc{\bD}{\mathbf D}
+\nc{\bd}{\mathbf d}
+\nc{\bE}{\mathbf E}
+\nc{\be}{\mathbf e}
+\nc{\bF}{\mathbf F}
+\nc{\bH}{\mathbf H}
+\nc{\bR}{\mathbf R}
+\nc{\bV}{\mathbf V}
+\nc{\bff}{\mathbf f}
+
+% Commonly used
+\nc{\defeq}{\coloneqq}      % Definition :=
+\nc{\eqdef}{\eqqcolon}      % Definition =:
+\nc{\la}{\langle}           % < symbol
+\nc{\ra}{\rangle}           % > symbol
+\nc{\ang}[1]{\la #1\ra}     % Enclose in <>
+\nc{\lrarr}{\leftrightarrow}% <->
+\nc{\larr}{\leftarrow}      % <-
+\nc{\rarr}{\rightarrow}     % ->
+\nc{\mapiso}
+  {\xlongrightarrow{\sim}}  % -> with ~ above
+\nc{\wt}{\widetilde}        % Tilde above
+\nc{\ol}{\overline}         % Overline
+\nc{\ul}{\underline}        % Underline
+\nc{\id}{\on{id}}           % identity
+\nc{\Id}{\on{Id}}           % Identity
+\nc{\Hom}{\on{Hom}}         % Homomorphism
+\nc{\Mat}{\on{Mat}}         % Matrix
+\renc{\Im}{\on{Im}}         % Image
+\nc{\Span}{\on{Span}}       % Span
+\nc{\rank}{\on{rank}}       % Rank
+\nc{\pr}{\on{pr}}           % Projection
+\nc{\res}{\upharpoonright}  % Restricted-to
+\DMO{\du}{\sqcup}           % Disjoint union
+\nc{\cc}{\complement}       % Set complement
+\nc{\Var}{\on{Var}}         % Variance
+
+% \abs and \norm
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+\makeatletter
+\let\oldabs\abs
+\def\abs{\@ifstar{\oldabs}{\oldabs*}}
+\let\oldnorm\norm
+\def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+\makeatother
+
+% \ceil and \floor
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+% \centerfloat
+\makeatletter
+\newcommand*{\centerfloat}{%
+  \parindent \z@
+  \leftskip \z@ \@plus 1fil \@minus \textwidth
+  \rightskip\leftskip
+  \parfillskip \z@skip}
+\makeatother
+
+% \exists and \forall spacing
+\DeclareMathOperator{\Exists}{\exists}
+\DeclareMathOperator{\Forall}{\forall}
+
+% \suchthat, \given (vertical bar)
+\newcommand{\suchthat}{\;\ifnum\currentgrouptype=16 \middle\fi|\;}
+\newcommand{\given}{\suchthat}
+
+% Variations
+%\renc{\leq}{\varleq}
+%\renc{\geq}{\vargeq}
+\renc{\phi}{\varphi}
+\renc{\epsilon}{\varepsilon}
+
+\nc{\normal}{\mathrel{\unlhd}} % Normal subgroup
+\nc{\End}{\on{End}}            % Endomorphism
+\nc{\Maps}{\on{Maps}}          % Maps
+\nc{\Fun}{\on{Fun}}            % Functions
+\nc{\coker}{\on{coker}}        % Cokernel
+\nc{\ev}{\on{ev}}              % Evaluation
+\nc{\Tr}{\on{Tr}}              % Trace
+\nc{\bw}{\bigwedge}            % Wedge product
+\nc{\sub}{\on{sub}}
+\nc{\quot}{\on{quot}}
+\nc{\sign}{\on{sign}}
+%\renc{\ss}{{\on{ss}}}
+\nc{\Avs}{\on{Av}^{\sign}}
+\nc{\wtAv}{\wt{\on{Av}}_{S_n}^{\sign}}
+\nc{\Av}{\on{Av}_{S_n}^{\sign}}
+\nc{\bad}{\on{bad}}
+\nc{\Set}{\on{Set}}% Set
+%\renc{\mod}{\on{-mod}}        % R-module (Careful - turn this off in a number theory setting)
+\nc{\adj}{\on{adj}}           % Adjoint
+\nc{\tensor}[3]{#1 \underset{#2}\otimes #3}
+\nc{\op}{\on{op}}             % Operator (norm)
+\nc{\Spec}{\on{Spec}}         % Spectrum
+\nc{\ns}{\on{non-spec}}       % Non-spectral
+\nc{\univ}{\on{univ}}         % Universal
+\nc{\Sym}{\on{Sym}}           % Symmetry
+\nc{\ch}{\on{ch}}             % Character
+\nc{\nilp}{\on{nilp}}         % Nilpotent
+\nc{\anti}{\on{anti}}         % Antisymmetric
+\nc{\dHom}{\ul{\ul{\Hom}}}    % Double underline Hom
+\nc{\sHom}{\ul{\Hom}}         % Single underline Hom
+\nc{\act}{\on{act}}           % Action map
+\nc{\MC}{\on{MC}}             % Matrix coefficient
+\nc{\Irrep}{\on{Irrep}}       % Irreducible representation
+\nc{\triv}{\on{triv}}         % Trivial representation
+\nc{\Ind}{\on{Ind}}           % Induced representation
+\nc{\Res}{\on{Res}}           % Restricted representation
+\nc{\Reg}{\on{Reg}}           % Regular representation
+\nc{\Stab}{\on{Stab}}         % Stabilizer
+\nc{\ResGH}{\Res_H^G}
+\nc{\IndGH}{\Ind_H^G}
+\nc{\fIndGH}{{}^f\hspace{-0.9mm}\Ind_H^G}
+\nc{\fReg}{{}^f\hspace{-0.9mm}\Reg}
+\nc{\fFun}{{}^f\hspace{-0.9mm}\Fun}
+
+\nc{\Funct}{\on{Funct}}       % Functions
+\nc{\bdd}{\on{bdd}}           % Bounded
+\nc{\cont}{\on{cont}}         % Continuous
+\nc{\vol}{\on{vol}}           % Volume
+\nc{\supp}{\on{supp}}         % Support
+\nc{\Lie}{\on{Lie}}           % Lie
+\nc{\master}{\on{master}}     % Master
+\nc{\pt}{\on{pt}}             % Point
+
+\nc{\lh}{\on{lh}}             % Length
+\nc{\diam}{\on{diam}}         % Diameter
+% Borel/analytic/point sets, e.g. \SIGMA01, \PI11
+\nc{\PI}[2]{\underset{\raisebox{3pt}{$\sim$}}\Pi\hphantom{|\hspace{-3pt}}_{#2}^{#1}}
+\nc{\SIGMA}[2]{\underset{\raisebox{3pt}{$\sim$}}\Sigma\hphantom{|\hspace{-3pt}}_{#2}^{#1}}
+\nc{\GAMMA}{\underset{\raisebox{3pt}{$\sim$}}\Gamma}
+\nc{\GAMMAD}{\widecheck{\underset{\raisebox{3pt}{$\sim$}}\Gamma}}
+\nc{\DELTA}[2]{\underset{\raisebox{3pt}{$\sim$}}\Delta\hphantom{|\hspace{-3pt}}_{#2}^{#1}}
+
+\nc{\rad}{\fr}     % Radical ideal
+
+\nc{\tv}{\mathrel{\pitchfork}} % Transversal
+\nc{\RP}{\mathbf{RP}}          % Real projective space
+\nc{\dd}[2]{\frac{\partial #1}{\partial #2}} % \partial #1 / \partial #2
+\nc{\del}{\nabla}              % del / nabla
+
+\mathchardef\hyph="2D
+\renc{\P}{\mathbf{P}}
+\nc{\NP}{\mathbf{NP}}
+\nc{\coNP}{\mathbf{co\hyph NP}}
+\renc{\RP}{\mathbf{RP}}
+\nc{\coRP}{\mathbf{co\hyph RP}}
+\nc{\BPP}{\mathbf{BPP}}
+\nc{\ZPP}{\mathbf{ZPP}}
+\nc{\PP}{\mathbf{PP}}
+\nc{\DTIME}{\mathbf{DTIME}}
+\nc{\EXPTIME}{\mathbf{EXPTIME}}
+\nc{\prP}{\mathbf{prP}}
+\nc{\prRP}{\mathbf{prRP}}
+\nc{\coprRP}{\mathbf{co\hyph prRP}}
+\nc{\prBPP}{\mathbf{prBPP}}
+\nc{\zigzag}{\textcircled{z}}
+\nc{\repl}{\textcircled{r}}
+\nc{\Enc}{\on{Enc}}
+\nc{\Dec}{\on{Dec}}
+\nc{\Rfrom}{\overset{\mathrm{R}}\leftarrow}
+\nc{\Supp}{\on{Supp}}
+\nc{\CP}{\on{CP}}
+\nc{\Ext}{\on{Ext}}
+\nc{\poly}{\on{poly}}
+\nc{\polylog}{\on{polylog}}
+\nc{\coins}{\on{coins}}
+
+\nc{\vEB}{\on{vEB}}
+\nc{\tr}{\top}
+\nc{\OPT}{\on{OPT}}
+\nc{\sgn}{\on{sgn}}
+\nc{\ic}[1]{\texttt{#1}}
+
+\nc{\one}{\mathbf{1}}
+\nc{\downto}{\downarrow}
+\nc{\upto}{\uparrow}
+\nc{\erf}{\on{erf}}
+
+\begin{document}
+
+\lecture{27 --- April 26, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Jeffrey Cai}
+
+THE DARK SIDE\footnote{is a pathway to many abilities some would consider to be unnatural.} (lower bounds). We will show e.g. link-cut trees are optimal up to $\lg \lg n$ factor: either link or cut has to take at least $\lg n / \lg \lg n$. It was later shown to be $\lg n$ in \cite{PatrascuD04b} (lso ink-cut trees are optimal).
+
+\section{Models of computing}
+Lower bound in what model?
+\begin{itemize}
+\item \emph{Upper bounds}: usually operate in word-RAM model. Instructions operate on values that are $w$ bits long, e.g. $\ic{ADD}(R_1, R_2, R_3)$ puts $\ic{val}(R_2) + \ic{val}(R_3)$ into register $R_1$. $\ic{LOAD}(R_1, R_2)$ put contents of $\ic{Mem}[\ic{val}(R_2)]$ into $R_1$. Not all instruction sets are the same: you can simulate instructions with other instructions, but that might cause blowup in running time (e.g. does the architecture have a $\ic{POPCOUNT}$ instruction). If we can prove lower bounds against the strongest model possible, it will work for many different architectures.
+\item \emph{Lower bounds}: we use the \emph{Cell Probe Model} \cite{Yao78}. In this model, we only charge for memory reads and writes. All other computation is free. Specifics: memory holds $w$-bit words. We may read/write one word at a time. Assume $w \geq \log_2 n$ (because we want indexing in constant time).
+\end{itemize}
+
+\section{Dynamic partial sum}
+We have:
+\begin{itemize}
+\item An array $A[0...n-1]$, starts with $A[i] = 0$ for all $i$.
+\item Support:
+\begin{itemize}
+\item $\ic{update}(i, \Delta): A[i] \leftarrow \Delta$ \\
+\item $\ic{query}(i) : \sum_{j=0}^i A[j]$
+\end{itemize}
+\item Algorithm: can solve with $t_u, t_q = O(\lg n)$ (where $t_u \defeq \text{update time}, t_q \defeq \text{query time}$).
+\item Maintain a binary search tree whose leaves are $0...n$. Each internal node and leaf has a blue number written on it. Queries are answered by traversing to the leaf and adding all the blue numbers.
+\item (Imagine a diagram of a balanced BST with leaves numbered 0...7). Suppose someone says $\ic{update}(2, \Delta)$. Start at the root and walk towards 2. At each step, we know that the entire right subtree is affected by this change. So what we do is, whenever we take a left-child step, we set the right child's blue number to $\Delta$. At the end, when we reach the leaf node for 2, we also set its blue number to $\Delta$. This can be easily modified to handle when we don't start with all zeros.
+\end{itemize}
+
+We now prove a lower bound. We will show that even if we only want
+$$\sum_{j=1}^i A[j] \mod{2} \quad \left(\text{or }\bigoplus_{j=0}^i A[j]\right)$$
+we have the bound. This is a strictly easier problem, so it's a stronger lower bound than what we want. We will use the ``chronogram technique'' \cite{FredmanS89}, which is a kind of encoding/compression argument.
+
+If I give you a uniformly random $t$-bit string, and you have some compression algorithm, the expected number of bits in the result has to be at least $t$ bits. We will show that if a data structure for this problem is faster than our lower bound, then one can use it as a subroutine to construct a compression algorithm that's too good. Specifically, if $\max\{t_u, t_q\} < .0001 \lg n / \lg \lg n$, then we would be able to compress random $t$-bit strings into expected length $\ll t$:
+$$\Exists \Enc\text{ s.t. } \underset{X\sim \{0,1\}^+}\BE \abs{\Enc(x)} \ll t$$
+This is impossible by something known as Shannon's source coding theorem, which we won't cover today.
+
+Chronogram method: Issue a sequence of $n$ updates $U_n, U_{n-1}, \dots, U_1$, then one query $Q$ at the end.
+$$U_n \quad U_{n-1} \quad \dots \quad U_1 \quad Q \quad \text{(time flows left to right}\text{)}$$
+Bin the updates into ``epochs''. Epoch 1 consists of the last $\beta$ updates in time (so $U_1, \dots, U_\beta$). Epoch 2 consists of the $\beta^2$ updates directly before Epoch 1, and so on. The ``last'' epoch contains $\beta^{T}$ updates (so it includes $\dots U_{n-1}, U_n$, and comes first in time). The number of epochs is $T = \Theta(\log_\beta n)$. Finally, $Q$ will be a query to a uniformly random $i \in \{0, \dots, n-1\}$.
+
+Specifics of updates: we have a bit array $A$ of size $n$. Epoch $i$ will update indices of the form $j \cdot \tfrac{n}{\beta^i}$.
+\begin{itemize}
+\item The first epoch will update $0, n/\beta, 2n/\beta, \dots$
+\item The second epoch will update $0, n/\beta^2, 2n/\beta^2, \dots$
+\item The last epoch will update every index.
+\end{itemize}
+What are the values we update them to? They will be i.i.d. random bits. We use the notation $b_{i,1}, \dots, b_{i,\beta^i}$ to denote these bit values, where $b_{i,j}$ is the value assigned to the entry $j\cdot (n/\beta^i)$ during epoch $i$.
+
+For each cell $c$ in memory, we will have a timestamp for $c$ which is the index of the last epoch in which $c$ was written by our data structure $D$. (Epochs later in time will overwrite the timestamp for epochs earlier in time.) Let $C_i$ be the set of cells associated with epoch $i$.
+
+\begin{theorem}
+$$t_q = \Omega\left( \frac{\lg n}{\lg(t_u \cdot w)} \right).$$
+This implies for $w = \lg n$ that
+$$\max\{t_u, t_Q\} = \Omega\left( \frac{\lg n}{\lg \lg n} \right).$$
+\end{theorem}
+\begin{proof}
+We have, over any operation sequence,
+\begin{align*}
+t_q &\geq \sum_{\text{cells }c} \one_{D\text{ reads }c\text{ to answer }Q} && \text{right side = \# of reads}\\
+\BE[t_q] &\geq \BE \sum_{\text{cells }c} \one_{D\text{ reads }c\text{ to answer }Q} \\
+&= \BE \sum_{i=1}^T \abs{B \cap C_i} \\
+&= \Omega(T) && \text{by Lemma~\ref{mainlemma}, to be proved} \\
+&= \Omega(\lg_\beta n) = \Omega(\lg n/\lg b).
+\end{align*}
+\end{proof}
+
+\begin{lemma}[Main Lemma]\label{mainlemma}
+Let $B$ be the (random) set of cells read by $D$ to answer $Q$. The for all epochs $i$,
+$$\BE \abs{B \cap C_i} \geq \Omega(1), \quad (*)$$
+when $\beta$ is set to $(t_u \cdot w)^2$. That is, $D$ has to read at least a constant number of cells from each epoch, in expectation.
+\end{lemma}
+\begin{proof}
+Supose f.s.o.c there exists an $i$ not obeying $(*)$. We will derive a compression scheme for $(b_{i,1}, \dots, b_{i,\beta^i})$ into $\ll \beta^i$ bits. Both the encoder and the decoder will know:
+\begin{itemize}
+\item $b_{i', j}$ for all $i' \neq i$
+\item $R_1, ..., R_{\beta^i}$ a sequence of random indices, specifically: partition the indices $0, \dots, n-1$ into $\beta^i$ blocks of size $n/\beta^i$. Then $R_j$ is chosen uniformly at random from block $j$.
+\end{itemize}
+Now suppose $\BE \abs{B \cap C_i} = \alpha$ (where $\alpha \leq \frac{1}{400}$). Then
+\begin{align*}
+\underset{j, R_1, ..., R_{\beta^i}} \BE \abs{B(R_j) \cap C_i} &= \alpha = \frac{1}{\beta^i} \underset{R_1, ..., R_{\beta^i}}\BE \sum_{j=1}^{\beta_i} \abs{B(R_j) \cap C_i} \\
+\implies \underset{R_1, ..., R_{\beta^i}}\BE \sum_{j=1}^{\beta^i} \abs{B(R_j) \cap C_i} &= \alpha \cdot \beta^i
+\end{align*}
+Then by Markov's inequality, the probability that $\geq 4\alpha \beta^i$ of the $R_j$'s read anything from $C_i$ at all is $\leq \frac{1}{4}$. Hence, with probability $\geq \frac{3}{4}$, at most $4 \alpha \beta^i \leq \frac{1}{100} \beta^i$ of the $R_j$'s read from $C_i$. Call this ``Event E''.
+
+\emph{Encoder:} will do the following.
+\begin{itemize}
+\item If event $E$ doesn't hold, output $1$ followed by $b_{i,1} \dots b_{i,\beta^i}$.
+\item If event $E$ does hold, output $0$ followed by all addresses and contents of $C_{i-1}, C_{i-2}, \dots, C_1$, and a description of which $R_j$ are read from $C_i$, together with query answers for those $R_j$.
+\end{itemize}
+Then for the encoding length, we have:
+$$\BE(\text{encoding length}) = 1 + \tfrac{1}{4} \beta^i + \tfrac{3}{4} \left(\sum_{j=1}^{i-1} \abs{C_j} \cdot (w + w) + \lg \binom{\beta^i}{\beta^i/100} + \frac{\beta^i}{100} \right)$$
+\begin{itemize} % TODO: break down above expression
+\item We have $\binom{n}{k} \leq (en/k)^k$. Therefore, $\leq \beta^i/100 \lg(100e) \ll \beta^i / 5$.
+\item $\abs{C_j} \leq \beta^j t_u$.
+\end{itemize}
+The expected size of the encoding is less than $1+(3/4)(\beta^i/4+ o(\beta^i))(3/4) + (1/4)\beta^i$ bits, thus by Shannon's source coding theorem, the entropy of the encoded message, $M$, is $H(M) < \beta^i/2$ bits.
+
+\begin{figure}
+\begin{center}
+\scalebox{0.678}{\includegraphics{yellow.pdf}}
+\end{center}
+\caption{Above is the array $A$, and its entries are broken into contiguous blocks of size $n/\beta^i$. $R_j$ is then chosen to be a uniformly random index in the $j$th block, i.e.\ $R_j$ is chosen uniformly at random in the interval $[j\cdot (n/\beta^i), (j+1)\cdot (n/\beta^i))$. The entries in $A$ colored in yellow correspond to the entries updated in epoch $i$.}\label{fig:epochs}
+\end{figure}
+
+\emph{Decoder:} We're only halfway there, since we still need a way to (mostly) recover $(b_{i,j})_{j=1}^{\beta^i}$. We will show that a $(1-\beta)$-fraction of the bits $b_{i,1},\dots,b_{i,\beta^i}$ are completely determined from $M$. If we wrote a 0-bit first, then trivially all bits are recovered. If we write a 1-bit first, we first obtain the set of queries that read inside $C_i$ and their corresponding answers. From this, we can also deduce the queries that do not read inside $C_i$. Since the epochs $j\neq i$ are known to the decoder, he can execute the update algorithm of $\mathcal D$ on all updates preceeding epoch $i$. Now, since he knows which queries do not read in $C_i$, he can run $\mathcal D$'s query procedure on those queries. Whenever $\mathcal D$'s query procedure requests a memory cell, he checks whether the cell is included in the sets $C_{i-1},\ldots,C_{1}$ (which is in the encoding). If so, he has the contents and can continue.  Otherwise, he knows they are not in sets $C_i,...,C_1$ and therefore the contents must be the same as they were just before epoch $i$. But these contents are known because he just ran all updates preceeding epoch $i$. He can thus finish the query algorithm and now has the answer to every query $R_1,\ldots,R_{\beta^i}$. 
+
+Now, let us remember which cells are updated in epoch $i$ (the yellow cells in Figure~\ref{fig:epochs}). By the end of epoch $i$, the first yellow cell contains the value $b_{i,1}$, the second yellow cell contains $b_{i,2}$, etc. All the cells which are not yellow in between were written in previous epochs, and thus the decoder knows them. Therefore, by knowing all the answers to the $R_1,\ldots,R_{\beta^i}$, the decoder can recover all the bits written in the yellow positions (since the answer to query $R_j$ is the XOR of all bits up to and including $R_j$, and the decoder knows all of those bits except for one, the one in yellow!). There is a slight catch: epochs $i-1,i-2,\ldots 1$ do overwrite some of the yellow cells with new bits, and thus for the blocks $j$ where this overwriting happens, the decoder will not learn $b_{i,j}$ from the answers to the queries $R_1,\ldots,R_j$. However, note that the only indices that are overwritten in future epochs are the indices $0, n/\beta^{i-1}, 2n/\beta^{i-2}, \ldots = 0, \beta n/\beta^i, 2\beta n/ \beta^i, \ldots$. In other words, only a $\beta$-fraction are overwritten, so the decoder does learn the $(1-\beta)$-fraction of the bits that weren't overwritten. But these are still $(1-\beta)\beta^i$ uniformly random bits, and any encoding to recover them should have expected encoding length at least $(1-\beta)\beta^i$, but we are achieving total expected encoding length $\E |M| < \beta^i/2$, which is still a contradiction. In other words, one can view this entire scheme as a compression scheme not for {\em all} the bits $b_{i,1},\ldots,b_{i,\beta^i}$, but just the $(1-\beta)$-fraction that the decoder actually learns. Alternatively, the encoder can just always write $b_{i,1}, b_{i,\beta + 1},b_{i,2\beta + 1}, \ldots, b_{i, (\beta^{i-1}-1)\beta + 1}$ as part of the encoding as well, which only adds $\beta^{i-1} = o(\beta^i)$ to the encoding length, so that the decoder can in fact learn all the bits at the end of the day.
+\end{proof}
+
+\section{Lower bound for dynamic connectivity}
+
+Given the lower bound of $\max\{t_u, t_q\} = \Omega(\lg n / \lg\lg n)$ of the previous section for dynamic partial sums over $\mathbb Z_2$, we can obtain the same lower bound for dynamic connectivity via a reduction due to \cite{MiltersenSVT94}. In fact the reduction holds even if the underlying graph is promised to always be a collection of two vertex-disjoint trees, which implies optimality of the link-cut trees of Sleator and Tarjan \cite{SleatorT83}. In dynamic connectivity we wish to support the following operations, where the graph $G$ starts as the empty graph on $n$ vertices:
+
+\begin{itemize}
+\item \texttt{insert}$(u, v)$: insert the edge $(u, v)$ into $G$
+\item \texttt{delete}$(u, v)$: delete the edge $(u, v)$ from $G$, if it exists
+\item \texttt{connected}$(u, v)$: return \texttt{True} if $u, v$ are in the same connected component, and false otherwise
+\end{itemize}
+
+The reduction works as follows. Recall we want to solve dynamic partial sums over $\mathbb Z_2$, where there is some underlying array $A\text{[}0\ldots n-1\text{]}$ and the answer to \texttt{query}$(i)$ is $A\text{[}0\text{]}\oplus A\text{[}1\text{]}\oplus \cdots \oplus A\text{[}i\text{]}$. We maintain a graph $G$ on vertex set $[2n+3]$ with the following edge set $E$:
+
+$$
+E = \left(\bigcup_{i : A\text{[}i\text{]} = 0} \{(2i+1, 2i+3), (2i+2, 2i+4)\right) \cup \left(\bigcup_{i : A\text{[}i\text{]} = 1} \{(2i+1, 2i+4), (2i+2, 2i+3) \}\right) .
+$$
+
+\begin{figure}
+\begin{center}
+\scalebox{0.5}{\includegraphics{conn_reduction.pdf}}
+\end{center}
+\caption{Example reduction from dynamic partial sums over $\mathbb Z_2$ to dynamic connectivity. Numbers in the top are vertex ID's. Red edges correspond to $1$'s in the array $A$, and black edges are $0$'s. The underlying array in this example is $A\text{[}0\ldots 6\text{]} = \text{[}1, 0, 0, 1, 1, 1, 0\text{]}$. Thus $n = 7$, so the total number of vertices in $G$ is $2n + 3 = 17$. The blue dashed line is inserted before querying \texttt{connected}$(1, 17)$ to test whether $A\text{[}0\text{]}\oplus A\text{[}1\text{]}\oplus A\text{[}2\text{]}\oplus A\text{[}3\text{]} = 0$.}\label{fig:reduction}
+\end{figure}
+
+Note that a change to some entry $A\text{[}i\text{]}$ corresponds to deleting and inserting $O(1)$ new edges in $G$ (to be precise: two edge removals and two edge insertions into $G$). One can show that $A\text{[}0\text{]}\oplus A\text{[}1\text{]}\oplus \cdots \oplus A\text{[}i\text{]}$ equals $0$ iff \texttt{connected}$(1, 2n+3)$ is \texttt{True} after inserting the edge $(2i+,3, 2n+3)$ into $G$. Thus \texttt{query} in partial sums can be implemented by one edge insertion, one \texttt{connected} query, then one edge deletion in $G$. Thus the maximum operation time in dynamic connectivity must be at least that for partial sums over $\mathbb Z_2$, which is $\Omega(\lg n / \lg\lg n)$ as shown in the last section.
+
+The intuition behind this reduction is the following. If all array entries $A$ had been zero, then $E$ would be $\{(1, 3), (3, 5), (5, 7) \ldots\} \cup \{(2, 4), (4, 6), (6, 8), \ldots \}$. That is, there would be an ``even path'' (only touching vertices with even ID's) and an ``odd path'' (only touching vertices with odd ID's), such that after every index $i$ in $A$, the even path is always one step ahead of the odd path. These are the black edges in Figure~\ref{fig:reduction}. Whenever there is a $1$ at some entry in $A$, it introduces the red edges into $G$ which swap the even and odd paths. That is, it makes the even path the odd path, and the odd path the even path. Note that $1$ and $2n+3$ are both odd numbers, so had all entries of $A$ been $0$, they would both be in the odd path together. However, due to the paths swapping at $1$'s, we essentially want to check that the number of swaps from the beginning up to the edges added by $A\text{[}i\text{]}$ is even.
+
+\section{What's happened since?}
+\begin{itemize}
+\item $\max\{t_q, t_u\} = \Omega(\lg n)$ for both dynamic connectivity and partial sums (over $\mathbb Z_{2^w}$) \cite{PatrascuD04}.
+\item $\max\{t_q, t_u\} = \Omega((\lg n/\lg\lg n)^2)$ for dynamic weighted orthogonal range counting in $2D$ , but only when the weights are $\lg^{2+\epsilon} n$-bit integers \cite{Patrascu07}.
+\item $t_q = \Omega((\lg n / \lg(w t_u))^2)$ for dynamic range counting in $2D$ with $\lg n$-bit weights \cite{Larsen12}.
+\item $\max\{t_u, t_q\} = \tilde{\Omega}(\lg^{1.5} n)$ for parity dynamic range counting in $2D$ \cite{LarsenWY17}.
+\item Many lower bounds known for other problems, e.g.\ union-find, predecessor, dynamic min spanning forest, planarity testing, dynamic marked ancestor, several computational geometry problems, approximate nearest neighbor in $\ell_p$ for various $p$, etc. See \cite{Patrascu11} and also the older survey of Miltersen \cite{Miltersen99}.
+\end{itemize}
+
+\newcommand{\etalchar}[1]{$^{#1}$}
+
+\begin{thebibliography}{FS89}
+
+\bibitem[FS89]{FredmanS89}
+Michael~L.~Fredman, Michael~E.~Saks.
+\newblock The Cell Probe Complexity of Dynamic Data Structures.
+\newblock {\em STOC}, pages 345--354, 1989.
+
+\bibitem[L12]{Larsen12}
+Kasper~Green~Larsen.
+\newblock The cell probe complexity of dynamic range counting. 
+\newblock {\em STOC}, pages 85--94, 2012.
+
+\bibitem[LWY17]{LarsenWY17}
+Kasper~Green~Larsen, Omri~Weinstein, Huacheng~Yu.
+\newblock Crossing the Logarithmic Barrier for Dynamic Boolean Data Structure Lower Bounds.
+\newblock {\em CoRR} abs/1703.03575, 2017.
+
+\bibitem[M99]{Miltersen99}
+Peter~Bro~Miltersen. 
+\newblock Cell probe complexity --- a survey.
+\newblock {\em In 19th Conference on the Foundations of Software Technology and Theoretical Computer Science (FSTTCS)}, 1999. Advances in Data Structures Workshop.
+
+\bibitem[MSVT94]{MiltersenSVT94}
+Peter~Bro~Miltersen, Sairam~Subramanian, Jeffrey~Scott~Vitter, Roberto~Tamassia.
+\newblock Complexity Models for Incremental Computation.
+\newblock {\em Theor. Comput. Sci.} 130(1), pages 203--236, 1994.
+
+\bibitem[P07]{Patrascu07}
+Mihai~P\v{a}tra\c{s}cu.
+\newblock Lower bounds for $2$-dimensional range counting.
+\newblock {\em STOC}, pages 40--46, 2007.
+
+\bibitem[P11]{Patrascu11}
+Mihai~P\v{a}tra\c{s}cu.
+\newblock Unifying the Landscape of Cell-Probe Lower Bounds.
+\newblock {\em SIAM J. Comput.} 40(3), pages 827--847, 2011.
+
+\bibitem[PD04a]{PatrascuD04}
+Mihai~P\v{a}tra\c{s}cu, Erik~D.~Demaine.
+\newblock Tight bounds for the partial-sums problem.
+\newblock {\em SODA}, pages 20--29, 2004.
+
+\bibitem[PD04b]{PatrascuD04b}
+Mihai~P\v{a}tra\c{s}cu, Erik~D.~Demaine.
+\newblock Lower bounds for dynamic connectivity. 
+\newblock {\em STOC}, pages 546--553, 2004.
+
+\bibitem[ST83]{SleatorT83}
+Daniel~Dominic~Sleator, Robert~Endre~Tarjan.
+\newblock A Data Structure for Dynamic Trees.
+\newblock {\em J. Comput. Syst. Sci.} 26(3), pages 362--391, 1983.
+
+\bibitem[Yao78]{Yao78}
+Andrew~Chi-Chih~Yao.
+\newblock Should Tables Be Sorted?
+\newblock {\em FOCS}, pages 22--27, 1978.
+
+\end{thebibliography}
+
+\end{document}

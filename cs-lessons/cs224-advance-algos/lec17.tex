@@ -1,0 +1,377 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+\graphicspath{ {images/} }
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{17 --- 03/21, 2017}{Spring 2017}{Prof.\ Piotr Indyk}{Artidoro Pagnoni, Jao-ke Chin-Lee}
+
+\section{Overview}
+
+In the last lecture we saw semidefinite programming, Goemans-Williamson MaxCut and approximation algorithms in other settings (streaming algorithms, and in particular distinct elements).
+
+In this lecture we cover nearest neighbor search in high dimensions with guest lecturer Prof. Piotr Indyk from MIT.
+
+\section{Definition of the Problem and Applications}
+
+
+We first define the nearest neighbor search problem.
+
+\begin{definition}[Nearest Neighbor Search]
+    Given a set $P$ of $n$ points in $\mathbb{R}^n$, for any query $q$, return the $p \in P$ minimizing $\| p-q \|$, i.e. we wish to find the point closest to $q$ in a metric space.
+\end{definition}
+
+\begin{definition}[$r$-Near Neighbor Search]
+    Given parameter $r$ and a set $P$ of $n$ points in $\mathbb{R}^n$, for any query $q$, if any such exist, return a $p \in P$ s.t. $\| p-q \| \leq r$, i.e. we wish to find points within distance of $r$ from $q$ in a metric space.
+\end{definition}
+
+Note we can consider $r$-near neighbor search to be a decision problem formulation of nearest neighbor search. Instead of optimizing, we want to know if there is any point within the radius.
+
+Nearest neighbor search has applications in both its high-dimensional and low-dimensional version. Classification problems in machine learning are an application of the high dimensional instances. Consider, for example, the problem of classifying a new image of a hand written digit given a set of classified digits. This can be done by finding the closest image to the queried image. In this problem the pixels are the dimensions. The performance of nearest neighbor is comparable to most approaches, besides convolutional neural networks. Another example with high dimensionality is near duplicate retrieval. Each document can be represented as a bag of words, a sparse but very high dimensional vector, where the dimension is the number of words. Once the documents are represented in this feature space, the solution can be found with nearest neighbor.
+
+Given the high dimensionality we have to avoid exponential dependence in the dimensionlity of the data.
+
+
+\textbf{Example: 2-d Nearest Neighbor Search}\\
+We briefly consider the simple case of $d=2$, i.e. the problem of determining the nearest point in a plane. The standard solution is to use \emph{Voronoi diagrams}, which split the space into regions according to proximity, in which case the problem reduces to determining point location within the Voronoi diagram. 
+\begin{center}
+    \includegraphics[scale=0.3]{lec17_images/voronoi}
+\end{center}
+
+We can do this by building a BST quickly to determining the cell containing any given point: this takes $O(n)$ space and $O(\log n)$ query.
+y this is a binary search tree. This approach works well in this example because of the low dimensionality.
+
+
+When we consider higher dimensions, i.e. $d > 2$, however, the Voronoi diagram has size $n^{\lceil d/2 \rceil}$ (although the good querry time), which is prohibitively large.
+An alternative method is to simply perform a linear scan in $O(dn)$ spave and time. These are the only known general solutions (other specific approaches exist but degenerate to this worst case).
+
+Moreover, if there was an algorithm that performed $n$ queries in $O(dn1+\alpha )$ time for $\alpha<1$ (including preprocessing), then there would be an algorithm solving satisfiability in (slightly) sub-exponential time. Many believe that such an algorithm does not exist, which would set a lower bound on the performance of nearest neighbor search. 
+
+
+
+\section{Approximate Nearest Neighbor}
+
+
+We try instead to relax the problem. First, define the approximation version of nearest neighbor search.
+
+\begin{definition}[$c$-Approximate Nearest Neighbor Search]
+    Given approximation factor $c$ and a set $P$ of $n$ points in $\mathbb{R}^n$, for any query $q$, return a $p' \in P$ s.t. $\| p'-q \| \leq cr$ where $r = \| p-q \|$ and $p$ is the true nearest neighbor, i.e. we wish to find a point at most some factor $c$ away from the point closest to $q$.
+\end{definition}
+
+\begin{definition}[$c$-Approximate $r$-Near Neighbor Search]
+    Given approximation factor $c$ and parameter $r$ and a set $P$ of $n$ points in $\mathbb{R}^n$, for any query $q$, if any $p \in P$ exists s.t. $\| p-q \| \leq r$, return a $p' \in P$ s.t. $\| p'-q \| \leq rc$, i.e. we wish to a point at most some factor $c$ away from some point within a range of $q$.
+\end{definition}
+
+Also note that if we enumerate all approximate near neighbors, we can find the exact near neighbor.
+
+We build up a data structure to solve these problems; if, however, in the $c$-approximate $r$-near neighbor search, there is no such point, our data structure can return anything, so instead we can compute the distance to double check, and if the distance places us outside our ball, we know there was no such point.
+
+
+The algorithms that will be described are randomized. The data structure is constructed correctly with non zero probability of success. To improve the probability, we therefore have to create many copies of the data structures.
+
+Now we consider algorithms to solve these search problems.
+
+
+\section{Algorithms}
+
+Most algorithms are randomized, i.e. for any query we succeed with high probability over an the initial randomness used to build our data structure (which is the only randomness introduced into the system). In fact, because our data structure satisfied the desired behavior with probability bounded by a constant. By working iteratively and generating new copies of the data structure, we can therefore bring our probability of failure arbitrarily close to 0.
+
+Some algorithms and their bounds appear below.
+
+We will focus on nearest neighbors with respect to Eucleidean norm, and present algorithms with polynomial dependence on dimension for both space and time. In particular, we will have near-linear space: $O(dn+n^{1+\rho(c)})$, $\rho(c) < 1$; and sub-linear query time: $O(dn^{\rho(c)})$.
+
+Over time there have been constant developments of the exponent, as shown in the picture below. 
+
+\begin{center}
+    \includegraphics[scale=0.4]{lec17_images/rho}
+\end{center}
+
+
+\section{Locality Sensitive Hashing}
+
+
+Recall when we covered hashing that collisions happened more or less on an independent basis. Here, we will use hashing whose probability of collision depends on the similarity between the queries.
+
+\begin{definition}[Sensitivity]
+    We call a family $\mathcal{H}$ of functions $h : \mathbb{R}^d \rightarrow U$ (where $U$ is our hashing universe) \emph{$(P_1, P_2, r, cr)$-sensitive} for a distance function $D$ if for any $p$, $q$:
+        \begin{itemize}
+            \item $D(p,q) < r \Rightarrow \mathbb{P}[h(p) = h(q)] > P_1$, i.e. if $p$ and $q$ are close, the probability of collision is high; and
+            \item $D(p,q) > cr \Rightarrow \mathbb{P}[h(p) = h(q)] < P_2$, i.e. if $p$ and $q$ are far, the probability of collision is low.
+        \end{itemize}
+\end{definition}
+
+\textbf{Special Case: Hamming distance}\\
+Suppose we have $h(p) = p_i$, i.e. we hash to the $i$th bit of length $d$ bitstring $p$, and let $D(p,q)$ be the Hamming distance between $p$ and $q$, i.e. the number of different bits (place-wise) between $p$ and $q$. Then our probability of collision is always $1 - D(p,q)/d$ (since $D(p,q)/d$ is the probability of choosing a different bit).
+
+
+
+\subsection{Algorithm}
+
+In preprocessing, we build our data structure: we choose $L$ hash functions, and hash all the data points. For the hamming distance, hashing consists in the concatenation of $k$ hamming hashfunctions in packets. We select with replacement $k$ dimensions (bits) of the point, and create a hash of the form $g(p) = \langle h_1(p), h_2(p), \ldots, h_k(p) \rangle$.
+
+After selecting $g_1, \ldots, g_L$ independently and at random (where $k$ and $L$ are functions of $c$ and $r$ that we will compute later), hash every $p \in P$ to buckets $g_1(p), \ldots, g_L(p)$.
+
+When querying, we proceed as follows:
+    \begin{itemize}
+        \item retrieve points from buckets $g_1(q), \ldots, g_L(q)$ until:
+        \begin{itemize}
+            \item Either we have retrieved the points from all $L$ buckets, or
+            \item we have retrieved more than $3L$ points in total (to avoid run time of $O(Ln)$, this is the case when many points are within the radius of search) 
+        \end{itemize}
+        \item answer query based on retrieved points (whether procedure terminated from first or second case above)
+    \end{itemize}
+
+Note that hashing takes time $d$, and with $L$ buckets, the total time here is $O(dL)$.
+
+Next we will prove space and query performance bounds as well as the correctness of the parameters.
+
+
+\subsection{Analysis}
+
+We will prove two lemmata for query bounds, the second specifically for Hamming LSH.
+
+\begin{lemma}
+    The above algorithm solves $c$-approximate nearest neighbor with
+    \begin{itemize}
+        \item $L = Cn^\rho$ hash functions, where $\rho = \log P_1 / \log P_2$, where $C$ is a function of $P_1$ and $P_2$, for $P_1$ bounded away from 0, and hence constant; and
+        \item a constant success probability for fixed query $q$
+    \end{itemize}
+\end{lemma}
+
+\begin{proof}
+    We assume that a solution exists, so define
+    \begin{itemize}
+        \item $p$ point s.t. $\| p-q \| \leq r$;
+        \item $\textsc{FAR}(q) = \{ p' \in P : \| p'-q \| > cr \}$ the set of points ``far'' from $q$;
+        \item $B_i(q) = \{ p' \in P : g_i(p') = g_i(q) \}$ the set of points in the same bucket as $q$
+    \end{itemize}
+    
+    We will show that the following two events $E_1$ and $E_2$ occur with nonzero probability.
+    
+    \begin{itemize}
+        \item $E_1 : g_i(p) = g_i(q)$ for some $i = 1, \ldots, L$: the event of colliding in a bucket with the desired query;
+        \item $E_2 : \sum_i |B_i(q) \cap \textsc{FAR}(q)| < 3L$: the event of total number of far points in buckets not exceeding $3L$.
+    \end{itemize}
+
+    The key step is to set $k = \lceil \log_{1/P_2} n \rceil$.\\
+    Observe that for $p' \in \textsc{FAR}(q)$, $\mathbb{P}[g_i(p') = g_i(q)] \leq P_2^k \leq 1/n$. Therefore
+    \begin{align*}
+                    & \mathbb{E}[|B_i(1) \cap \textsc{FAR}(q)|] \leq 1 \\
+        \Rightarrow & \mathbb{E}[\sum_i |B_i(1) \cap \textsc{FAR}(q)|] \leq L \\
+        \Rightarrow & \mathbb{P}[\sum_i |B_i(1) \cap \textsc{FAR}(q)| \geq 3L] \leq \frac{1}{3} \mbox{ by Markov}
+        \intertext{and, picking $L = Cn^\rho$:}
+                    & \mathbb{P}[g_i(p) = g_i(q)] \geq \frac{1}{P_1^k} \geq P_1^{1+\log_{1/P_2} n} \\
+        \Rightarrow & \mathbb{P}[g_i(p) = g_i(q)] \geq \frac{1}{P_1 n^\rho} =: \frac{1}{L} \mbox{ (we choose $L$ accordingly)} \\
+        \Rightarrow & \mathbb{P}[g_i(p) \neq g_i(q), i=1,\ldots,L] \leq \left(1 - \frac{1}{L}\right)^L \leq \frac{1}{e} \\
+        \Rightarrow & \mathbb{P}[E_1 \mbox{ not true }] + \mathbb{P}[E_2 \mbox{ not true }] \leq \frac{1}{3} + \frac{1}{e} \approx .7 \\
+        \Rightarrow & \mathbb{P}[E_1 \cap E_2] \geq 1-\left(\frac{1}{3} + \frac{1}{e}\right) \approx .3
+    \end{align*}
+    Thus also note we can make this probability arbitrarily small.
+\end{proof}
+
+\begin{lemma}
+    For Hamming LSH functions, we have $\rho = 1/c$.
+\end{lemma}
+
+\begin{proof}
+    Observe that with a Hamming distance, $P_1 = 1 - r/d$ and $P_2 = 1 - cr/d$, so it suffices to show $\rho = \log P_1 / \log P_2 \leq 1/c$, or equivalently $P_1^c \geq P_2$. But $(1-x)^c \geq 1-cx$ for any $1 > x > 0$, $c > 1$, so we are done.
+\end{proof}
+
+Also note that space is $nL$, so we have desired space bounds as well.
+
+\section{Beyond}
+
+Now we briefly consider other metrics beyond the Hamming distance, and ways to reduce the exponent $\rho$.
+
+\subsection{Random Projection LSH for $L_2$}
+
+This was introduce by
+Mayur~Datar, Nicole~Immorlica, Piotr~Indyk and Vahab~S.~Mirrokni in '04  \cite{diim04}.
+
+We define $h_{X,b}(p) = \lfloor (p \cdot X + b)/w \rfloor$, where $w \approx r$, $X = (X_1, \ldots, X_d)$, where $X_i$ are i.i.d. Gaussian random variables, and $b$ is a scalar chosen uniformly at random from $[0, w]$. Conceptually, then, our hash function takes $p$, projects it on to $X$, shifts it by some amount $b$, then determines the interval of length $w$ containing it. If points are very far they are unlikely to fall in the same interval. 
+
+\begin{center}
+    \includegraphics[scale=0.4]{lec17_images/projection}
+\end{center}
+
+For the analysis, we need to compute $\mathbb{P}[h(p) = h(q)]$ as a function of $\| p-q\|$ and $w$. This defines $P_1$ and $P_2$. Then, for each $c$ we need to choose $w$ such that $\rho = \log_{1/P_2} (1/P_1)$ is minimized.
+
+This only has a small improvement over the $1/c$ bound, but the hash function is very simple and works directly in $L_2$. In the following image is a plot of the value of $\rho$ with respect to the $1/c$ bound.
+
+\begin{center}
+    \includegraphics[scale=0.5]{lec17_images/improvedrho}
+\end{center}
+
+The exponent was reduce from $0.5$ to $0.45$ for $c = 2$, which is not a dramatic improvement. Therefore we consider alternative ways of projection.
+
+
+\subsection{Ball Lattice Hashing}
+
+This covers work by Alexandr~Andoni and Piotr~Indyk from '06 \cite{ai06}.
+
+Instead of projecting onto $\mathbb{R}^1$, we project onto $\mathbb{R}^t$ for constant $t$. We quantize with a lattice of balls instead of a segment, when we hit empty space, we rehash until we do hit a ball (observe that using a grid would degenerate back to the 1-d case).
+
+\begin{center}
+    \includegraphics[scale=0.5]{lec17_images/balllatiice}
+\end{center}
+
+
+With this, we have $\rho = 1/c^2 + O(\log t/\sqrt{t}))$, but hashing time increases to $t^{O(t)}$ because our changes of hitting a ball gets smaller and smaller with higher dimensions.
+
+Furthermore, O’Donnell, Wu and Zhou showed in '09 that using this approach $\rho \geq 1/c^2 - O(1)$, which set a lower bound on $\rho$ \cite{owz09}. This was thought for a long time to be the optimal value.
+
+\subsection{Data-dependent hashing}
+
+This covers work by Andoni and Razenshteyn from '15 \cite{ar15}. 
+
+They were able to break the previous lower bound. In fact, the aforementioned LSH schemes of Ball Lattice Hashing are optimal, but only  for data oblivious hashing. Which consists in selecting $g_1,\ldots, g_L$ independently at random, hashing all points $p\in P$ into buckets $g_1(p),\ldots, g_L(p)$, and then retrieving points from the buckets $g_1(q), g_2(q), \ldots$.
+
+The new schemes are data dependent, and can therefore go beyond the lower bound of $1/c^2$. Data dependent hashing means that the hash functions are selected based on the clusters of the data.  
+
+With this method, there was an improvement of the exponent from $1/c^2$ to $1/(2c^2 -1$. Which is the best know solution to the problem.
+
+\section{Other LSH Methods}
+
+We have seen Hamming metric, which is a projection on coordinates, and $L_2$ norm with random projection and quantization. There are however, other LSH methods.\\
+Some provable:
+\begin{itemize}
+    \item $L_1$ norm, using random shifted grid.
+    \item Vector angle, by Charikar \cite{cha02} based on Goemans and Williamson \cite{gw94}.
+    \item Jaccard coefficient by Broder, Charikar, Frieze and Mitzenmacher in '98 \cite{bcfm98}
+\end{itemize}
+
+\noindent Some empirical:
+\begin{itemize}
+    \item Inscribed polytopes, by Terasawa and Tanaka from '07 \cite{tt07}
+    \item Orthogonal partition, by Neylon in '10 \cite{ney10}
+\end{itemize}
+
+And others applied: semantic hashing, spectral hashing, kernelized LSH, Laplacian co-hashing, , BoostSSC, WTA hashing...
+
+\subsection{Min-Wise Hasing}
+In many applications, the vectors tend to be quite sparse (high dimension, very few 1’s). It is therefore easier to think about them as sets.
+
+For two sets $A$ and $B$ define the Jaccard coefficient: $J(A,B) = |A\cap B| / |A \cup B|$. The Jaccard coefficient will be equal to 1 if the sets are equal and 0if the are disjoint. We can design LSH families for $J(A,B)$.
+
+Let $h$ be a random permutation of the elements in the universe. Hashing a set consists in taking the minimum of the permuted elements: $g(A) = \min_{a\in A} h(a)$. It then turns out that $\mathbb{P}[g(A) = g(B)] = J(A,B)$.
+
+\begin{proof}
+    The hashes of two sets will be equal if the two permuted sets share same minimum. This means that the minimum has to be the permutation of an element in the intersection of the two sets. Furthermore, since $h$ is a random permutation, all elements are equally likely to be permuted to the minimum. This means that the probability that sets $A$ and $B$ hash to the same number is $J(A,B)$.
+\end{proof}
+
+
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+
+\bibitem[AR15]{ar15}
+Alexandr~Andoni, Ilya~P.~Razenshteyn:
+\newblock Optimal Data-Dependent Hashing for Approximate Near Neighbors. 
+\newblock{\em STOC '15}, 793--801, 2015.
+
+\bibitem[Ney10]{ney10}
+Tyler Neylon.
+\newblock A Locality-Sensitive Hash for Real Vectors. 
+\newblock{\em SODA '10}, 1179--1189, 2010.
+
+\bibitem[OWZ09]{owz09}
+Ryan~O'Donnell, Yi~Wu, Yuan~Zhou:
+\newblock Optimal lower bounds for locality sensitive hashing (except when q is tiny). 
+\newblock{\em Electronic Colloquium on Computational Complexity (ECCC) 16}, 130, 2009.
+
+\bibitem[AI06]{ai06}
+Alexandr~Andoni and Piotr~Indyk.
+\newblock Near-optimal hashing algorithms for approximate nearest neighbor in high dimensions.
+\newblock {\em FOCS '06}, 459-468, 2006.
+
+\bibitem[Cha02]{cha02}
+Moses S.~Charikar.
+\newblock Similarity Estimation Techniques from Rounding Algorithms.
+\newblock {\em STOC '02}, 380--388, 2002.
+
+\bibitem[DIIM04]{diim04}
+Mayur~Datar, Nicole~Immorlica, Piotr~Indyk and Vahab~S.~Mirrokni.
+\newblock Locality-sensitive Hashing Scheme Based on P-stable Distributions.
+\newblock {\em SCG '04}, 253--262, 2004.
+
+\bibitem[TT07]{tt07}
+Kengo Terasawa, Yuzuru Tanaka.
+\newblock Spherical LSH for Approximate Nearest Neighbor Search on Unit Hypersphere
+\newblock{\em WADS '07}, 27--38, 2007.
+
+\bibitem[GIM99]{gim99}
+Aristides~Gionis, Piotr~Indyk and Rajeev~Motwani.
+\newblock Similarity search in high dimensions via hashing.
+\newblock {\em VLDB}, 518--529, 1999.
+
+\bibitem[IM98]{im98}
+Piotr~Indyk and Rajeeve Motwani.
+\newblock Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality.
+\newblock {\em STOC '98}, 604--613, 1998.
+
+\bibitem[BCFM98]{bcfm98}
+Andrei Z. Broder, Moses Charikar, Alan M. Frieze, Michael Mitzenmacher.
+\newblock Min-Wise Independent Permutations. 
+\newblock{\em STOC 1998}, 327--336, 1998.
+
+\bibitem[GW94]{gw94}
+Michel X. Goemans, David P. Williamson.
+\newblock .879-approximation algorithms for MAX CUT and MAX 2SAT. 
+\newblock{\em STOC '94}, 422--431, 1994.
+
+\end{thebibliography}
+
+\end{document}

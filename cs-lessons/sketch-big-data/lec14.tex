@@ -1,0 +1,352 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{algorithm}% http://ctan.org/pkg/algorithms
+\usepackage{algpseudocode}% http://ctan.org/pkg/algorithmicx
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{proofof}{Proof of\!}%
+
+
+\newtheorem{remark}[theorem]{Remark}%
+\def\tail{\mathsf{tail}}
+\def\head{\mathsf{head}}
+\def\mypar#1{\smallskip\noindent\textbf{#1}}
+\def\numcir#1{\raisebox{.9pt}{\textcircled{\raisebox{-.5pt} {#1}}}}
+\newcommand{\RNum}[1]{\uppercase\expandafter{\romannumeral #1\relax}}
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{14 --- October 19, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Ali Vakilian}
+
+\section{Overview}
+
+In the last lecture we started the topic of {\em Compressive Sensing} and in particular we described the {\em Basis Pursuit (BP)} algorithm. In compressive sensing, given measurement matrix $\Pi\in \mathbb{R}^{m\times n}$ and measurement vector $y = \Pi x$, the goal is to recover the vector $x$ which is known to be either exactly or nearly $k$-sparse. 
+
+\begin{center}{
+\fbox{%
+	\parbox{0.23\textwidth}{%
+		\underline{{\bf Basis Pursuit}($\Pi, y$)}:\par
+		\quad\par 
+		\quad {\bf Min} $||z||_1$ \par
+		 
+		\quad \quad {\sf s.t.} $\Pi z = y$	  
+	}%
+}
+}\end{center}
+\begin{remark}
+More generally, we can consider the case in which there is some {\em post measurement} noise $e$ such that $||e||_2 \leq \alpha$. Then, we can adjust the linear program as follows:
+\begin{center}{
+\fbox{%
+	\parbox{0.25\textwidth}{%
+		\underline{{\bf Basis Pursuit}$(\Pi, y, \alpha)$}{\em:}\par
+		\quad\par 
+		\quad {\bf Min} $||z||_1$ \par
+		 
+		\quad \quad {\sf s.t.} $||\Pi z - y||_2 \leq \alpha$	  
+	}%
+}
+}\end{center}
+\end{remark}
+
+The main result we proved in the last lecture is the following.
+\begin{theorem}\label{thm:bp}
+If $\hat{x}$ is output of {\bf Basis Pursuit}$(\Pi, y)$ and $\Pi$ satisfies $(\eps, Ck)$-{\bf RIP} for sufficiently small constant $\eps >0$, and sufficiently large constant $C>1$, then
+\begin{align}\label{eq:bp}
+||\hat{x} - x||_2 \leq O(\frac{1}{\sqrt{k}}).||x_{\tail(k)}||_1
+\end{align}
+\end{theorem}
+\begin{corollary}
+If $x$ is actually $k$-sparse, the is no error in the output of the recovery; {\bf Basis Pursuit}$(\Pi, y)$ returns $x$. 
+\end{corollary}
+
+Though the {\bf BP} works with a single measurement matrix $\Pi$ that works for (recovering) all nearly $k$-sparse vectors $x$, it is not fast enough. The reason is that solving LP generally requires polynomial time in $n$ and is not very fast.
+
+ 
+In this lecture we describe an {\em iterative fast} approach for the sparse recovery task that has a running time which is nearly linear (if the measurement matrix supports nearly linear time matrix-vector multiplication). This approach was first used by Needell and Tropp~\cite{NeedellT08} (CoSAMP). The algorithm we cover here is called {\bf Iterative Hard Thresholding (IHT)} and it is due to Blumensath and Davies~\cite{BlumensathD09}
+
+\section{Iterative Hard Thresholding (IHT) for Compressed Sensing}
+Roughly speaking, the algorithm starts with some guess on vector $x$ (which is the all zero vector) and goes through $T$ iterations of updating the vector. The goal is to show that by these updates, the sequence converges to the {\em true} $x$. More formally, assuming $x^{[1]}, \cdots, x^{[T]}$ are the vectors produced over the $T$ iterations, here is the main theorem of {\bf IHT}:
+\begin{theorem}[\cite{BlumensathD09}]\label{thm:iht}
+If $\Pi$ satisfies $(\eps, 3k)$-RIP for $\eps < \frac 1{4\sqrt 2}$, then $\forall\ T\ge 1$
+\begin{align}\label{eq:iht}
+||x^{[T+1] }- x||_2 \lesssim 2^{-T} ||x||_2 + ||x_{\tail(k)}||_2 + \frac{1}{\sqrt{k}}||x_{\tail(k)}||_1 + ||e||_2
+\end{align}
+
+\end{theorem}
+
+Comparing to the guarantee of {\bf BP} approach (Theorem~\ref{thm:bp}), in (\ref{eq:iht}) we have three extra terms: $2^{-T} ||x||_2$, $||x_{\tail(k)}||_2$ and $ ||e||_2$. Note that the last term corresponds to the post-measurement noise and it is unavoidable. For the second term, $||x_{\tail(k)}||_2$, we shortly shows that it is dominated by $||x_{\tail(k)}||_1 / {\sqrt{k}}$. Hence, the only difference is the exponentially decaying term $2^{-T} ||x||_2$. In turn, the {\bf IHT} algorithm is much faster than {\bf BP}.  
+
+\begin{claim}\label{cl:l2-l1}
+$||x_{\tail(2k)}||_2 \leq \frac{1}{\sqrt{k}} ||x_{\tail(k)}||_1$.
+\end{claim}
+\begin{proof}(shelling method)
+WLOG, let us assume that the coordinate of $x$ are sorted in a decreasing order of their absolute values: $|x_1| \geq |x_2|\geq \cdots \geq |x_{n}|$. Moreover, we partition the coordinates of $x$ into blocks of size $k$ as follows: $B_1 ,\cdots, B_{n/k}$.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1]{block}\label{fig:block}
+\caption{In this example, $k=2$ and $n=12$.}
+\end{figure}
+Now, we apply the shelling method. Since coordinates of $x$ are sorted by their absolute values, for each coordinate $j \in B_t$, $|x_{j}| \leq \frac{1}{k}\sum_{i\in B_{t-1}} |x_i| = \frac{1}{k}||x_{B_{t-1}}||_1$. 
+\begin{align*}
+||x_{\tail(2k)}||_2^2 = \sum_{t=3}^{n/k} ||x_{B_t}||_2^2 \leq \sum_{t=3}^{n/k} k \cdot (\frac{||x_{B_{t-1}}||_1}{k})^2 =\frac{1}{k}\sum_{t=2}^{n/k} ||x_{B_t}||_1^2
+\end{align*} 
+Finally, using the fact that for positive values $A_1,\cdots, A_\ell$, $\sqrt{A_1+\cdots+A_{\ell}} \leq \sqrt{A_1} + \cdots + \sqrt{A_\ell}$:
+\begin{align*}
+||x_{\tail(2k)}||_2 \leq \frac{1}{k}\cdot \sqrt{\sum_{t=2}^{n/k} ||x_{B_{t}}||_1^2} \leq \frac{1}{\sqrt{k}}||x_{\tail(k)}||_1
+\end{align*}
+\end{proof}
+
+Now lets focus on the proof of the convergence of {\bf IHT} algorithm (proof of Theorem~\ref{thm:iht}). Note that, in the analysis we can assume that $x$ is {\em exactly} $k$-sparse. More precisely, we can include the $\tail_{k}(x)$ term in the noise term and denote the new noise as $\tilde{e}$.
+\begin{align}
+\Pi x + e = \Pi(x_{\head(k)} + x_{\tail(k)}) + e = \Pi x_{\head(k)} + \underbrace{(\Pi x_{\tail(k)} + e)}_{\tilde{e}}
+\end{align}
+Setting $\tilde{e} = \Pi x_{\tail(k)} + e$, then we have $||\tilde{e}||_2$ in the error term which is less than:
+\begin{align*}
+||\tilde{e}||_2 \underset{\triangle\text{-inequality}}{\leq} ||e||_2 + ||\Pi x_{\tail(k)}||_2 = ||e||_2 + ||\sum_{t=2} \Pi x_{B_t}||_2 &\leq ||e||_2 + \sum_{t=2} ||\Pi x_{B_t}||_2\\ 
+&\overset{{\bf RIP}}{\leq} ||e||_2 + (1+\varepsilon) \sum_{t=2} ||x_{B_t}||_2\\ 
+&\leq ||e||_2 + \frac{1+\eps}{\sqrt{k}} ||x_{\tail(k)}||_1 
+\end{align*}
+Hence, it does not change the performance guarantee of {\bf IHT} by more than an $\varepsilon$-factor.  In the rest of this section, we assume that the input vector $x$ is $k$-sparse.
+
+
+
+
+\begin{algorithm}
+  \caption{Iterative Hard Thresholding (IHT).
+   \label{alg:iht}}
+  \begin{algorithmic}[1]
+    %\Require{The distributions $h_1$ and $h_2$ are given explicitly to the algorithm}
+    %\Statex
+    \Function{IHT}{$\Pi, y(=\Pi x + e), k, T$}
+		\State{$x^{[1]} \leftarrow 0$}
+		\For{$t=1\cdots T$} 
+			\State{$x^{t+1} \leftarrow H_k(x^{[t]} + \Pi^{\top}(y-\Pi x^{[t]})) \quad\triangleright$ {\sf Hard thresholding operator (project $a^{[t+1]}$ on $x_\head(k)$)}}
+		\EndFor
+		\State{\bf return} $x^{T+1}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+The formal definition of $H_k$ operator is as follows: $H_k(z) := \underset{k\text{-sparse } \hat{z}}{\sf argmin} ||z-\hat{z}||_2$ which is the projection on $\head(k)$ coordinates of $z$.
+
+\mypar{Proof sketch of Theorem~\ref{thm:iht}.} We measure the progress of {\bf IHT} algorithm based on the residual vector $r^{[t]} := x - x^{[t]}$. The hope is to show that $r$ decreases at some rate. For analysis purpose, we define $a^{[t+1]} := x^{[t]} + \Pi^{\top}(y-\Pi x^{[t]})$ (note that $x^{[t+1]} = H_k(a^{[t+1]})$).   
+\begin{align*}
+a^{[t+1]} = x^{[t]} + \Pi^{\top}(y - \Pi x^{[t]}) &= x^{[t]} + \Pi^{\top}(\Pi x + e - \Pi x^{[t]}) \\
+&= x^{[t]} +  \underbrace{\Pi^{\top}(\Pi}_{\approx {\bf I}} r^{[t]} + e) \approx x^{[t]} + r^{[t]} + \Pi^{T} e \approx x^{[t]} + r^{[t]} + e.  
+\end{align*}
+Intuitively, assuming $r^{[t]}$ is decaying, $a^{[t]}$ converges to $x$. The role of {\em hard threshold operator} $H_k$ is to make sure that all vectors are sparse so that $\Pi$ behaves well on them.
+
+\mypar{Notation.} To analyze the {\bf IHT} algorithm, we setup the following notations: 
+\begin{itemize}
+\item $\Gamma^{*}_k= {\sf supp}(x)$, 
+\item $\Gamma^{[t]} = {\sf supp}(x^{[t]})$, and 
+\item $B^{[t]} = \Gamma^{*}_k \cup \Gamma^{[t]}$.
+\end{itemize}
+As we mentioned, the goal is to bound the residual vector $r^{[t+1]}$. In particular, we need to show that $r^{[t+1]}$ is decaying. 
+\begin{align*}
+||r^{[t+1]}||_2 &= ||x - x^{[t+1]}||_2 = ||x_{B^{[t+1]}} - x_{B^{[t+1]}}^{[t+1]}||_2 \\
+&\underset{\triangle\text{-ineq}}\leq \underbrace{||x_{B^{[t+1]}} - a^{[t+1]}_{B^{[t+1]}}||_2}_{\RNum{1}} + \underbrace{||a_{B^{[t+1]}}^{[t+1]} - x^{[t+1]}_{B^{[t+1]}}||_2}_{\RNum{2}}
+\end{align*}
+\begin{claim}\label{clm:bnd}
+$||a_{B^{[t+1]}}^{[t+1]} - x^{[t+1]}_{B^{[t+1]}}||_2 \leq ||x_{B^{[t+1]}} - a^{[t+1]}_{B^{[t+1]}}||_2$ (or $\RNum{2} \leq \RNum{1}$).
+\end{claim}
+\begin{proof}
+By definition of {\em hard threshold operator} $H_k$, $x^{[t+1]}$ is the best $k$-sparse approximate of $a^{[t+1]}$. Since $x$ is also a $k$-sparse vector, $\RNum{2} \leq \RNum{1}$.
+\end{proof}
+For brevity, in the rest of proof, we use $B$ to denote $B^{[t+1]}$ and $B'$ to denote $B^{[t]}$.
+
+\begin{align}
+||r^{[t+1]}||_2 &= ||x - x^{[t+1]}||_2 = ||x_{B} - x_{B}^{[t+1]}||_2 \nonumber \\
+&\underset{\triangle\text{-ineq}}\leq ||x_{B} - a^{[t+1]}_{B}||_2 + ||a_{B}^{[t+1]} - x^{[t+1]}_{B}||_2 \nonumber \\
+&\underset{\text{Claim~\ref{clm:bnd}}}\leq 2 ||x_{B} - a_B||_2 = 2 ||\underbrace{x_B - x_B^{[t]}}_{r^{[t]}} - \Pi_{B}^{\top}(y-\Pi x^{[t]})||_2 \label{eq:r}
+\end{align}
+
+Note that $\Pi_B$ is equal to $\Pi$ but columns in $\bar{B}$ are zero out. Next, by expanding $y$, we have:
+\begin{align}
+&\overset{(\ref{eq:r})}{=} 2||r_B^{[t]} - \Pi_B^{\top}(\Pi r^{[t]} + e)||_2 \quad\text{\color{blue}(write $r^{[t]} = r_B^{[t]} + r_{B'\setminus B}^{[t]}$)} \nonumber \\
+& = 2 || \underbrace{r_B^{[t]}}_{{\bf I}_{B}r^{[t]}} - \Pi_B^{\top}\underbrace{\Pi r_B^{[t]}}_{\Pi_B r_B^{[t]}} - \Pi_B^{\top} \underbrace{\Pi r_{B'\setminus B}^{[t]}}_{\Pi_{B'\setminus B} r_{B'\setminus B}^{[t]}} - \Pi_B^{\top}e||_2 \nonumber \\
+&=2 ||({\bf I}_{B} - \Pi^{\top}_B \Pi_B)r_{B}^{[t]} - \Pi^{\top}_B\Pi_{B'\setminus B} r^{[t]}_{B'\setminus B} -\Pi_B^{\top}e||_2 \nonumber\\
+&\underset{\triangle\text{-ineq}}{\leq} 2 [|| {\bf I}_B - \Pi^{\top}_B \Pi_B|| \cdot ||r_B^{[t]}||_2 \label{eq:clm_1} \\
+		&\qquad \quad + ||\Pi^{\top}_B \Pi_{B'\setminus B}|| \cdot ||r_{B'\setminus B}^{[t]}||_2 \label{eq:clm_2}\\
+		&\qquad \quad + ||\Pi_B|| \cdot ||e||_2] \label{eq:clm_3}
+\end{align}
+By the following claims, we upper bound terms~(\ref{eq:clm_1}), (\ref{eq:clm_2}) and (\ref{eq:clm_3}).  
+\begin{claim}\label{clm:1}
+$||{\bf I}_B - \Pi^{\top}_B \Pi_B|| \leq \eps$.
+\end{claim}
+\begin{proof}
+$\Pi$ is an $\eps$-subspace embedding ($\eps$-s.e.) for colspan($U$) if $||(\Pi U)^{\top}\Pi U - {\bf I}|| \leq \eps$. Since the measurement matrix $\Pi$ is $(\eps, 3k)-$RIP, it is $\eps$-s.e. for all ${n \choose k}$ $k$-dim subspaces (For more details refer to Definition 4 in Lecture 11). 
+\end{proof}
+\begin{claim}\label{clm:2}
+$||\Pi^{\top}_B \Pi_{B'\setminus B}|| \leq \eps$.
+\end{claim}
+\begin{proof}
+By definition of operator norm, $||\Pi^{\top}_B \Pi_{\underbrace{B'\setminus B}_{D}}|| = \underset{||a||, ||s||=1}{\sf sup}\inprod{\Pi_Ba_B, \Pi_D s_D} = \underset{||a||, ||s||=1}{\sf sup} \inprod{\Pi a_B, \Pi s_D}$. Since $\Pi$ satisfies {\bf JL} property, it preserves the dot product. Moreover, since $D\cap B = \emptyset$, $\inprod{a_B, s_D} =0$; hence, $\inprod{\Pi a_B, \Pi s_D}\leq \eps$ (note that $a_B + s_D$ and $a_B - s_D$ are $3k$-sparse and $\Pi$ is a $(\eps,3)$-RIP matrix).
+\end{proof}
+\begin{claim}\label{clm:3}
+$||\Pi^{\top}_B|| = ||\Pi_B|| \leq \sqrt{1+\eps}$.
+\end{claim}
+\begin{proof}
+Note that $\Pi$ satisfies {\bf JL} properties and in particular preserves the $\ell_2$ norm. Then, 
+\[
+||\Pi_B|| = \underset{||a||_2 = 1}{\sf sup} ||\Pi_B a_B||_2 \underset{{\bf JL} \text{ property}}{\leq} \sqrt{1+\eps} ||a_B||_2 = \sqrt{1+\eps}.
+\]
+\end{proof}
+Then, using above three claims, we bound $r^{[t+1]}$ as follows:
+\begin{align}
+||r^{[t+1]}||_2 &\leq 2 [|| {\bf I}_B - \Pi^{\top}_B \Pi_B|| \cdot ||r_B^{[t]}||_2 
+						 + ||\Pi^{\top}_B \Pi_{B'\setminus B}|| \cdot ||r_{B'\setminus B}^{[t]}||_2 
+			   			 + ||\Pi_B|| \cdot ||e||_2] \label{eq:claim_3}\nonumber \\
+&\leq 2\eps(\underbrace{||r_B^{[t]}||_2 + ||r_{B'\setminus B}^{[t]}||_2}_{\text{by Claim~\ref{clm:am-gm}}}) + 3||e||_2 \quad\quad~\text{\color{blue} By Claims~\ref{clm:1},~\ref{clm:2} and~\ref{clm:3}}\nonumber\\
+&\leq 2\sqrt{2} \eps ||r^{[t]}||_2 + 3||e||_2 \qquad\qquad\quad\qquad \text{\color{blue} For sufficiently small $\eps$}\nonumber\\
+&\leq \frac{1}{2} ||r^{[t]}||_2 + 3||e||_2
+\end{align}
+
+
+\begin{corollary}
+$||r^{[T+1]}||_2 \leq 2^{-T}||x||_2 + 6 ||e||_2$
+\end{corollary}
+\begin{proof}
+Using~(8) and by induction, 
+\begin{align*}
+||r^{[T+1]}||_2 &\leq \frac{1}{2^{T}}||r^{[1]}||_2 + 3 (1+1/2 +\cdots 1/2^{T}) ||e||_2 \\
+&\leq 2^{-T}||x||_2 + 6 ||e||_2
+\end{align*}
+\end{proof}
+
+\begin{claim}\label{clm:am-gm}
+$||r_B^{[t]}||_2 + ||r_{B'\setminus B}^{[t]}||_2 \leq  \sqrt{2} \cdot ||r^{[t]}||_2$.
+\end{claim}
+\begin{proof}
+Define $z = r_{B\cup B'}$, $x = r_B$ and $y = r_{B'}$. Then, $||z||_2^2 = ||x||_2^2 + ||y||_2^2$. By ({\bf AM-GM}) inequality, 
+\begin{align*}
+\sqrt{||x||^2_2} + \sqrt{||y||^2_2} \leq \sqrt{2} \sqrt{||x||^2_2 + ||y||^2_2} \leq \sqrt{2} \sqrt{||z||_2^2}.
+\end{align*}
+\end{proof}
+
+\section{Model Based Compressed Sensing}
+%As we saw in the last lecture, {\bf JL} gives {\bf RIP} matrix if we make the failure probability small enough for a single subspace so that by union bound it works for all ${n \choose k}$ subspaces.
+
+In standard {\em compressed sensing}, the assumption is that $x$ is an approximately $k$-sparse vector. This implies that there exists $S\in \Omega_{n,k}$ such that $||x-x_S||_2$ is small where $\Omega_{n,k} = {[n] \choose k}$. Then, to do $k$-sparse recovery, enough for $\Pi$ to be $\eps$-subspace embedding for all $k$-dim coordinates indexed by $\Omega_{n,k}$. This led $\Pi$ to have $\frac{k + \lg|\Omega_{n,k}|}{\eps^2} = {\lg(1/\delta)}{\eps^2}$ ($\delta \ll \frac{1}{C^k |\Omega_{n,k}|}$). 
+Note that $k$ is required for preserving a single $k$-dim subspace and the second term is for preserving all $k$-dim coordinates subspaces in $\Omega_{n,k}$.  But, what if we know more about the structure of $x$? This leads to the {\em model based compressed sensing}.  
+
+In model based compressed sensing, $\Omega_{n,k}$ will be replaced by $\mathcal{M}$ and then it only required to blow up the number of rows in $\Pi$ by a factor of $\lg(\mathcal{M})$ which can be much smaller than $k\lg (n/k)$ ($\lg |\Omega_{n,k}|$).
+
+The model based {\bf RIP} studied by Baraniuk~{et al.}~\cite{BaraniukCDH10}. Using model based {\bf RIP}, we can adopt the {\bf IHT} algorithm slightly to obtain {\em model based} {\bf IHT}. It only suffices to instead of projecting on $\Omega_{n,k}$ (using $H_k$ operator), in each iteration project $x^{[t]}$ to $\mathcal{M}$ via $P_{\mathcal{M}}$ operator: $P_{\mathcal{M}}(z) := \underset{\hat{z}\in \mathcal{M}}{\sf argmin} ||z-\hat{z}||_2$.
+
+\begin{algorithm}
+  \caption{Model Based Iterative Hard Thresholding (MB-IHT).
+   \label{alg:iht}}
+  \begin{algorithmic}[1]
+    %\Require{The distributions $h_1$ and $h_2$ are given explicitly to the algorithm}
+    %\Statex
+    \Function{IHT}{$\Pi, y(=\Pi x + e), k, T$}
+		\State{$x^{[1]} \leftarrow 0$}
+		\For{$t=1\cdots T$} 
+			\State{$x^{[t+1]} \leftarrow {\color{red}P_{\mathcal{M}}}(x^{[t]} + \Pi^{\top}(y-\Pi x^{[t]})) \qquad\triangleright$ {\sf Hard thresholding operator (project $a^{[t+1]}$ on {\color{red}$\mathcal{M}$})}}
+		\EndFor
+		\State{\bf return} $x^{T+1}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+Similarly to the standard compressed sensing in which $\Pi$ is required to be $(\eps, 3k)$-{\bf RIP}, in the model based compressed sensing, we need the measurement matrix $\Pi$ to be RIP for $\mathcal{M}^3 = \{ A\cup B\cup C | A, B, C \in \mathcal{M}\}$ (to show similar results to those in Claim~\ref{clm:1}, \ref{clm:2} and~\ref{clm:3}).
+
+This approach (model based compressed sensing) improves the guarantees of the standard compressed sensing for signals with structured sparsity such as wavelet and block models~\cite{BaraniukCDH10} and tree sparsity~\cite{HegdeIS15,HegdeIS14b,HegdeIS14a,BackursIS17}.
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{BCDH10}
+
+\bibitem[BCDH10]{BaraniukCDH10}
+Richard~G. Baraniuk, Volkan Cevher, Marco~F. Duarte, and Chinmay Hegde.
+\newblock Model-based compressive sensing.
+\newblock {\em IEEE Transactions on Information Theory}, 55(11):5302--5316,
+  2010.
+
+\bibitem[BD09]{BlumensathD09}
+Thomas Blumensath and Mike~E. Davies.
+\newblock A simple, efficient and near optimal algorithm for compressed
+  sensing.
+\newblock In {\em ICASSP}, 2009.
+
+\bibitem[BIS17]{BackursIS17}
+Arturs Backurs, Piotr Indyk, and Ludwig Schmidt.
+\newblock Better approximations for tree sparsity in nearly-linear time.
+\newblock In {\em SODA}, pages 2215--2229, 2017.
+
+\bibitem[HIS14a]{HegdeIS14b}
+Chinmay Hegde, Piotr Indyk, and Ludwig Schmidt.
+\newblock A fast approximation algorithm for tree-sparse recovery.
+\newblock In {\em ISIT}, pages 1842--1846, 2014.
+
+\bibitem[HIS14b]{HegdeIS14a}
+Chinmay Hegde, Piotr Indyk, and Ludwig Schmidt.
+\newblock Nearly linear-time model-based compressive sensing.
+\newblock In {\em ICALP}, pages 588--599, 2014.
+
+\bibitem[HIS15]{HegdeIS15}
+Chinmay Hegde, Piotr Indyk, and Ludwig Schmidt.
+\newblock Approximation algorithms for model-based compressive sensing.
+\newblock {\em IEEE Transactions on Information Theory}, 2015.
+
+\bibitem[NT08]{NeedellT08}
+Deanna Needell and Joel~A. Tropp.
+\newblock {CoSAMP}: Iterative signal recovery from incomplete and inaccurate
+  samples.
+\newblock {\em Applied and Computational Harmonic Analysis}, 2008.
+
+\end{thebibliography}
+
+\end{document}

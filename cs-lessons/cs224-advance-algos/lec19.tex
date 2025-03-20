@@ -1,0 +1,374 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{19 --- March 28, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Nicholas Hasselmo}
+
+\section{Overview}
+
+In the last lecture we covered least squares regression.
+
+In this lecture we cover the first of three algorithms for solving linear programs:
+the Simplex Algorithm, which was first described by George Dantzig in 1947 \cite{Dant1947}.
+
+In following lectures we will cover the ellipsoid method,
+which runs in linear time but is very slow and not used much in practice, and
+Interior Point Methods, which are efficient and often used in practice.
+
+\section{Simplex}
+
+Simplex is more of a family of algorithms.
+There are examples that force each member of the family to take exponential
+time;
+however, the problems people solve in real life usually run more efficiently.
+
+\subsection{LP formulation}
+\subsubsection{Before}
+
+A linear program is a quantity we want to maximize/minimize by changing $x$,
+and a set of linear constraints on $x$:
+\begin{eqnarray*}
+\min(/\max) & c^\top x  \\
+s.t. & \langle a_i,x \rangle & \geq~b \\
+ & & \leq~b  \\
+ & & =~b  \\
+\end{eqnarray*}
+
+Any LP can be written
+\begin{eqnarray*}
+\min & c^\top x  \\
+s.t. & Ax & \geq~b \\
+ & x & \geq~0  \\
+\end{eqnarray*}
+
+Recall that we can use ``slackness'' to go between an inequality constraint
+and an equality constraint.
+\begin{align*}
+\forall i,~& \langle a_i,x \rangle \geq b_i \\
+  \implies & \langle a_i,x \rangle -s_i = b_i
+\end{align*}
+\[\mbox{``slack''} \rightarrow s_i \geq 0\]
+
+\subsubsection{Simplex LP}
+
+The form we use for simplex is
+\begin{eqnarray*}
+\min & c^\top x  \\
+s.t. & Ax & =~b \\
+ & x & \geq~0  \\
+\end{eqnarray*}
+subject to the constraints
+\begin{itemize}
+\item $A \in \R^{m \times n}$
+\item $n \geq m$
+\item the rows of $A$ are linearly independent
+\end{itemize}
+
+\section{Simplex Algorithm}
+
+Simplex is a greedy algorithm that performs the following:
+\begin{itemize}
+\item Start at some vertex (it doesn't matter which).
+\item While there exists a neighboring vertex improving $c^\top v$, move to $v$.
+\item Halt.
+\end{itemize}
+
+An LP looks like \[\min~c^\top x,~s.t.~x\in P\]
+\begin{definition}
+  $x\in \R^n$ is \textbf{feasible} if $x \in P$
+\end{definition}
+\begin{definition}
+  $x$ is a \textbf{vertex} if
+  \[(x+y \in P) \text{ and } (x-y\in P) \implies y = 0\]
+\end{definition}
+
+If we can find an $x$ that lies in $P$, we can solve the linear program.
+If we have some guess $r$ as the output of our LP,
+we can add the constraint $c^\top x \leq r$ and check if the new LP is
+satisfiable. If it is, we have an upper bound for the minimum, and we
+can continue making guesses with a binary search to solve the LP.
+
+The binary search will terminate because the optimal $x$ has finite
+precision (we assume it is a vertex computed by solving a linear system on $A$),
+and the search finds at least a bit of information at each step.
+
+\textbf{Quesitons:}
+\begin{enumerate}
+\item How do we get a starting vertex?
+\item Why is \textsf{OPT} always achieved at a vertex?
+\item Why might we not get stuck at a local \textsf{OPT}?
+\end{enumerate}
+
+\subsection{Obtain a starting vertex}
+We can obtain a starting vertex using the following LP:
+\begin{align*}
+\min~&t \\
+\text{s.t. }& Ax = (1-t)b\\
+& x \geq 0\\
+& 0 \leq t \leq 1
+\end{align*}
+An easy starting vertex is $(\vec x, t)$ with
+$\begin{aligned} x=0 \\ t=1 \end{aligned}$,
+because this is clearly feasible as $Ax = 0 = (1-t)b$,
+and is clearly a vertex because $x-y,x+y\in P$ means $y$ and $-y$ must be
+greater than 0.
+If the original LP is feasible, then the constraint can be met with $t = 0$,
+and we will eventually output $(\vec{x}^*,0)$.
+            
+ We use simplex on the above LP, starting with $x=0, t=1$.
+\subsection{\textsf{OPT} is always achieved at a vertex}
+  \begin{definition}
+    P is \textbf{feasible} if $\exists x \in P$
+  \end{definition}
+  \begin{definition}
+    P \textbf{bounded} if $\inf{c^\top x, x\in P}$ is finite
+  (else, \textbf{unbounded})
+  \end{definition}
+
+\begin{claim}
+  If $(c,P)$ bounded, then
+  \[\forall x \in P,~
+    \exists \text{ vertex } x' \in P \text{ s.t. } c^\top x' \leq c^\top x\]
+\end{claim}
+\begin{proof}
+  
+  \begin{itemize}
+  \item We are done if $x$ is a vertex (set $x' = x$).
+    
+  \item Otherwise, $x$ not vertex
+    $\implies \exists y \neq 0 \text{ s.t. }
+    \begin{aligned}x+y \in P \\ x-y \in P\end{aligned}$
+
+    Note that $Ay = 0$ since
+    $\begin{aligned}
+      A(x+y) = b \\ A(x-y) = b
+    \end{aligned}$ and we know
+    $Ax = b$ for $x \geq 0$.
+  \item wlog $c^\top y \leq 0$
+    (if not, take $-y$, as either $y$ or $-y$ will satisfy this)
+  \item if $c^\top y = 0$, choose $y$ s.t. $\exists j$ with $y_j < 0$:
+    \begin{itemize}
+
+    \item Case 1: $\exists j$ s.t. $y_j < 0$
+      \begin{itemize}
+      \item  Look at $x(t) = x + ty$ for $t>0$.
+        Note $x_i = 0 \implies y_i = 0$.
+
+      \item Let $J = \{j : y_j < 0\}$
+        \begin{itemize}
+        \item $|J| \geq 1$
+        \item $x_J > 0~(\forall j \in J, x_j > 0)$
+        \end{itemize}
+        \item pick \[t^* = \min_{j\in J} \left| \frac{x_j}{y_j} \right|\]
+        \item Note $x(t^*) \in P$, and $t^* > 0$.
+      \item $|\textsf{supp}(x(t^*))| < |\textsf{supp}(x)|$
+
+      \item $|\textsf{supp}(x)|$ starts at $\leq n$ and goes down by $\geq 1$ on each step
+
+        $\implies$ case 1
+        can happen only $\leq n$ times.
+        \[(c^\top x(t^*) \leq c^\top x \text{ because } c^\top y \leq 0)\]
+      \end{itemize}
+    \item Case 2: $y \geq 0 \implies c^\top y < 0$
+      \[\implies x + ty \text{ feasible for all } t \geq 0\]
+      We can make $c^\top y$ arbitrarily small as $t \to \infty$:
+      \[c^\top x(t) = c^\top x + t\cdot \underbrace{c^\top y}_{<0}\]
+      \centering{$\implies$ case 2 impossible if $(c,P)$ bounded}
+    \end{itemize}
+  \end{itemize}
+\end{proof}
+\subsection{Simplex doesn't get stuck at local \textsf{OPT}}
+\begin{itemize}
+\item Given vertex $x \in \R^n$, define $B_x = \{j \in [n] : x_j \neq 0\}$
+  ($B_x$ is the ``basis'' corresponding to vertex $x$)
+\item $A$ is a matrix with columns $A^1,\ldots,A^n$,
+  \[Ax = \sum_{i=1}^n x_iA^i = A_{B_x} x_B\]
+  \begin{claim}
+    $\stackrel{(i)}{\fbox{$x$ is a vertex}}$ iff $\stackrel{(ii)}{\fbox{columns of $A_{B_x}$ are linearly independent}}$.
+
+    ($A_{B_x}$ is the $mx |B_x|$ submatrix of $A$ obtained by taking cols in $B_x$)
+  \end{claim}
+  \begin{proof}
+    \begin{itemize}
+      
+    \item
+      $(\overline{i}) \implies (\overline{ii})$
+      \begin{align*}
+        \text{x not a vertex}\\
+        \implies \exists y \neq 0,~& x+y, x-y \in P \\
+        \implies Ay = 0 \\
+      \end{align*}
+      \begin{align*}
+        x_i = 0 \implies y_i &= 0 ~ (\text{so } B_y \subseteq B_x ) \\
+        Ay &= A_{B_y} y \\
+           &=A_{B_x} y = 0
+      \end{align*}
+      \begin{flushright} \checkmark \end{flushright}
+
+    \item
+      $(\overline{ii}) \implies (\overline{i})$
+
+      $A_{B_x}$ has linearly dependent columns
+
+      $\implies \exists y \in \R^{|B_x|}$ with $A_{B_x} y = 0$
+      \begin{itemize}
+      \item extend $y$ to $\R^n$ by putting $0$'s in $[n]\setminus B_x$
+      \item $Ay = 0 \implies \forall t \geq 0, A(x + ty) = b = A(x - t'y)$
+      \item set $t$ small enough so that $x+ty \geq 0, t > 0$
+
+        $\implies x$ not vertex.
+      \end{itemize}
+    \end{itemize}
+    \begin{flushright} \checkmark \end{flushright}
+  \end{proof}
+
+\end{itemize}
+\subsection{Rewriting the LP}
+\begin{itemize}
+\item Vertices come from subset of $\leq m$ linearly independent columns.
+\item For vertex $v \in P$, will have associated ``basis'' $B \subseteq [n]$
+  indexing linearly independent columns
+  \[A_B v_B = b\]
+\item Simplex pads all bases to have size exactly $m$, full rank
+  ($A_B$ is invertible $m \times m$ matrix)
+\end{itemize}
+
+\textbf{Input LP}
+\begin{eqnarray*}
+\min & c^\top x  \\
+s.t. & Ax & \geq~b \\
+ & x & \geq~0  \\
+\end{eqnarray*}
+Currently at vertex $v$ with basis $B$ $(N = [n] \setminus B)$
+
+\textbf{Rewrite}
+\begin{align*}
+\min~&c_B^\top x_B + c_N^\top x_N \\
+\text{s.t. }& \boxed{A_B x_B + A_N x_N = b} \implies *\\
+& x_B, x_N \geq 0\\
+\end{align*}
+\[*~\boxed{x_B = A_B^{-1} b - A_B^{-1} A_N x_N} \]
+
+\textbf{Rewrite LP again}
+\begin{align*}
+&\stackrel{\boxed{c_B^\top A_B^{-1} b - c_B^\top A_B^{-1} A_N x_N + c_N^\top X_N}}{\downarrow} \\
+\min~&c_B^\top A_B^{-1} b + \underbrace{(c_N - A_N^\top(A_B^{-1})^\top c_B)^\top}_{\mbox{``$\tilde c_N$'' (``reduced cost vector'')}} x_N \\
+  s.t.~& A_B x_B + A_N x_N = b \\
+&x_B, x_N \geq 0
+\end{align*}
+
+\subsection{Algorithm:}
+\begin{enumerate}
+\item We have vertex $v$ and its basis $B$
+\item Rewrite LP as above
+\item If $\tilde c_N \geq 0$, halt and return $x$ since we are at OPT. $(x = A^{-1}_B b \text{ is optimal})$
+\item If $\exists j \in [n]$ such that $\tilde c_j < 0$ then increment $x_j$
+  while maintaining feasibility.
+\end{enumerate}
+
+While incrementing $x_N$ it I am implicitly changing $x_B$.
+I kick out all people in the basis who became 0, and add $j$.
+
+\textbf{One worry:} Since we padded $B$ to be of size $m$ there may be $i \in B$ s.t.
+$x_i = 0$
+
+- Thus we might not be able to increment $x_j$ for $j \in N$ by any nonzero amount
+without violating the non-negativity contraint $x_B \geq 0$.
+(taking $j$ with $(\tilde c_N)_j < 0$)
+
+- In degenerate cases, add $j$ to $B$ then choose which $k \in B$ to remove.
+
+- Need to do carefully to avoid $\infty$-loops.
+
+On each iteration of the simplex method we must choose which elements to pivot on.
+We can choose a ``pivoting rule'' such as ``Bland's Rule'', developed by Robert Bland in 1977
+\cite{BlanMR77}, which provably does not have infinite loops.
+
+\subsection{Runtime}
+Each iteration is poly$(m,n)$ time.
+\begin{align*}
+  \mbox{\#iters} \leq \mbox{\#vertices} &\leq {n \choose m} \geq \left( \frac nm \right)^m\\
+\mbox{\#vertices} &\leq {n - \frac{m}{2} \choose \frac{m}{2}} 
+\end{align*}
+by the ``Upper bound theorem'', which was proved by Peter McMullen in 1970 \cite{McMuMA77}.
+
+For every way of choosing $j$, there are examples that run in exponential time.
+
+\section{Next Time}
+
+We will use Simplex to prove strong duality.
+
+Finally, we will cover the ellipsoid algorithm and begin covering Interior Point Methods.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Dant1947}
+George~B.~Dantzig.
+\newblock Maximization of a linear function of variables subject to linear inequalities.
+\newblock T.C. Koopmans (ed.): Activity Analysis of Production and Allocation, New York-London 1951 (Wiley \& Chapman-Hall), pp. 339-347, 1947.
+
+\bibitem{BlanMR77}
+Robert~Bland.
+\newblock New Finite Pivoting Rules for the Simplex Method.
+\newblock {\em Mathematics of Operations Research}, 2(2):103--107, 1977.
+
+\bibitem{McMuMA77}
+Peter~McMullen.
+\newblock The maximum numbers of faces of a convex polytope.
+\newblock {\em Mathematika}, 17:179--184, 1971.
+
+\end{thebibliography}
+
+\end{document}

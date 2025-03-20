@@ -1,0 +1,291 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{filecontents}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{ #4}{Lecture 10#1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\newcommand{\EquationName}[1]{\label{eq:#1}}
+\newcommand{\Equation}[1]{Eq.\:\eqref{eq:#1}}
+\newcommand{\Eqsub}[1]{\eqref{eq:#1}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{filecontents}{\jobname.bib}
+
+@article{Rudelson99,
+  author = {Mark Rudelson},
+  title = {Random vectors in the isotropic position},
+  journal = {J. Functional Analysis},
+  volume = 164,
+  number = 1,
+  pages = "60--72",
+  year = 1999,
+}
+
+@article{HansonW71,
+    AUTHOR = {David Lee Hanson and Farroll Tim Wright},
+     TITLE = {A bound on tail probabilities for quadratic forms in
+              independent random variables},
+   JOURNAL = {Ann. Math. Statist.},
+  FJOURNAL = {Annals of Mathematical Statistics},
+    VOLUME = {42},
+      YEAR = {1971},
+     PAGES = {1079--1083},
+      ISSN = {0003-4851},
+   MRCLASS = {60.30},
+  MRNUMBER = {0279864 (43 \#5585)},
+MRREVIEWER = {T. M. Liggett},
+}
+
+@BOOK{PenaG99,
+  author = {Victor de la Pe\~{n}a and Evarist Gin\'{e}},
+  title = {Decoupling: From dependence to independence},
+  series = {Probability and its Applications},
+  address = {New York},
+  publisher = {Springer-Verlag},
+  year = 1999,
+}
+
+@inproceedings{DiakonikolasKN10,
+  author    = {Ilias Diakonikolas and
+               Daniel M. Kane and
+               Jelani Nelson},
+  title     = {Bounded Independence Fools Degree-2 Threshold Functions},
+  booktitle = {51th Annual {IEEE} Symposium on Foundations of Computer Science (FOCS)},
+  pages     = {11--20},
+  year      = {2010},
+}
+
+@article{RudelsonV13,
+  author = {Mark Rudelson and Roman Vershynin},
+  title = {{H}anson-{W}right inequality and sub-gaussian concentration},
+  journal = {Electronic Communications in Probability},
+  volume = 18,
+  year = 2013,
+  pages = {1--9},
+}
+
+\end{filecontents}
+
+\usepackage{natbib}
+
+\begin{document}
+
+\lecture{ --- October 8, 2015}{Fall 2015}{Prof.\ Jelani Nelson}
+
+Today we will prove the distributional JL lemma from last lecture. First we collect some notation and basic lemmas we will use.
+
+Throughout, for a random variable $X$, $\|X\|_p$ denotes $(\E|X|^p)^{1/p}$. It is known that $\|\cdot\|_p$ is a norm for any $p\ge 1$ (Minkowski's inequality). It is also known $\|X\|_p \le \|X\|_q$ whenever $p\le q$. Henceforth, whenever we discuss $\|\cdot\|_p$, we will assume $p\ge 1$.
+
+We often use Jensen's inequality below, especially for $F(x) = |x|^p$ ($p\ge 1$).
+
+\begin{lemma}[Jensen's inequality]
+For $F$ convex, $F(\E X) \le \E F(X)$.
+\end{lemma}
+
+\begin{lemma}\label{lem:use-jensen}
+For $1\le p < q < \infty$, $\|X\|_p \le \|X\|_q$.
+\end{lemma}
+\begin{proof}
+Define $f(x) = |x|^{q/p}$. Then $f$ is convex. Thus by Jensen's inequality,
+$$
+(\E|X|^p)^{q/p} \le \E|X|^q .
+$$
+Now raise both sides of the inequality to the $1/p$.
+\end{proof}
+
+\begin{definition}
+The gaussian distribution $\mathcal{N}(0,\sigma^2)$ has density function $f(x) = (2\pi\sigma^2)^{-1/2} e^{-x^2/(2\sigma^2)}$.
+\end{definition}
+
+\begin{fact}\label{fact:gaussian}
+If $g\sim\mathcal{N}(0,\sigma^2)$ then $\E g^p$ for integer $p$ is $0$ for $p$ odd and is $\sigma^p (p-1)\cdot(p-3)\cdots 1 < (\sigma\sqrt{p})^p$ for $p$ even.
+\end{fact}
+
+\begin{lemma}[Khintchine inequality]
+For any $p\ge 1$, $x\in\R^n$, and $(\sigma_i)$ independent Rademachers,
+$$
+\|\sum_i \sigma_i x_i\|_p \lesssim \sqrt{p}\cdot \|x\|_2
+$$
+\end{lemma}
+\begin{proof}
+  Without loss of generality we can assume $p$ is an even integer. (If not, let $q$ be the smallest even integer larger than $p$ then it suffices to have $\|\sum_i \sigma_i x_i\|_q \lesssim \sqrt{p}\|x\|_2$ since $\|\cdot\|_p \le \|\cdot\|_q$ by Lemma~\ref{lem:use-jensen}.) Consider $(g_i)$ independent gaussians of mean zero and variance 1. Expand $\E (\sum_i \sigma_i x_i)^p$ into a sum of monomials. 
+\begin{align*}
+\E (\sum_i \sigma_i x_i)^p &= \sum_{t=1}^{\min\{p,n\}} \sum_{i_1<i_2<\ldots<i_t} \sum_{\substack{d_1,\ldots,d_t\ge 1\\d_1+\ldots+d_t = p}} \binom{p}{d_1,\ldots,d_t} \left(\prod_{j=1}^t x_{i_j}^{d_j}\right)\left(\E_\sigma \prod_{j=1}^t \sigma_{i_j}^{d_j} \right)\\
+{}&=\sum_{t=1}^{\min\{p,n\}} \sum_{i_1<i_2<\ldots<i_t} \sum_{\substack{d_1,\ldots,d_t\ge 1\\d_1+\ldots+d_t = p}} \binom{p}{d_1,\ldots,d_t} \left(\prod_{j=1}^t x_{i_j}^{d_j}\right)\left(\prod_{j=1}^t \E_{\sigma_{i_j}} \sigma_{i_j}^{d_j} \right)
+\end{align*}
+Any monomial with odd exponents (i.e.\ odd $d_j$) vanishes, as in the gaussian case. Meanwhile, monomials with all $d_j$ being even have $\prod_{j=1}^t x_{i_j}^{d_j}$ nonnegative and $\prod_{j=1}^t \E_{\sigma_{i_j}} \sigma_{i_j}^{d_j} = 1$. Meanwhile if the $\sigma_{i_j}$ are replaced by gaussians $g_{i_j}$, then $\prod_{j=1}^t \E_{\sigma_{i_j}} g_{i_j}^{d_j} \ge 1$. Thus the Rademacher $p$th moment is term-by-term dominated by the gaussian case and thus $\|\sum_i \sigma_i x_i\|_p \le \|\sum_i g_i x_i\|_p$. But $\sum_i g_i x_i$ is a gaussian with mean zero and variance $\|x\|_2^2$, and we apply Fact~\ref{fact:gaussian}.
+
+The point of the above argument was to show that the Rademacher case is bounded by the gaussian case, after which point we concluded. Another way to show this is as follows. Now we will not require $p$ to be an even integer.
+\begin{align*}
+\|\sum_i \sigma_i x_i\|_p &= \sqrt{\frac{\pi}2}\cdot\|\E_g \sum_i \sigma_i |g_i| x_i\|_p\text{ (since }\E|g| = \sqrt{2/\pi}\text{)}\\
+{}&\le \sqrt{\frac{\pi}2}\cdot\|\sum_i \sigma_i |g_i| x_i\|_p\text{ (Jensen)}\\
+{}&= \sqrt{\frac{\pi}2}\cdot\|\sum_i g_i x_i\|_p\text{ (}\sigma_i|g_i|\text{ is distributed as }g_i\text{)}\\
+\end{align*}
+\end{proof}
+
+We now prove a decoupling inequality which will be useful for our proof of Hanson-Wright, which we will use to prove distributional JL. We use $\|\cdot\|_{L^p(X)}$ to denote $(\E_X|\cdot|^p)^{1/p}$ when we want to make it clear which random variable we are taking the expectation over.
+
+\begin{lemma}[Decoupling {\cite{PenaG99}}]
+Let $x_1,\ldots,x_n$ be independent and mean zero, and $x_1',\ldots,x_n'$ identically distributed as the $x_i$ and independent of them. Then for any $(a_{i,j})$ and for all $p\ge 1$
+$$
+\|\sum_{i\neq j} a_{i,j} x_i x_j\|_p \le 4 \|\sum_{i,j} a_{i ,j} x_i x_j'\|_p
+$$
+\end{lemma}
+\begin{proof}
+Let $\eta_1,\ldots,\eta_n$ be independent Bernoulli random variables each of expectation $1/2$. Then
+\begin{align}
+\nonumber \|\sum_{i\neq j} a_{i,j} x_i x_j\|_{L^p(x)} &= 4\cdot \|\E_\eta \sum_{i\neq j} a_{i,j} x_i x_j |\eta_i| |1-\eta_j|\|_{L^p(x)}\\
+{}&\le 4\cdot \|\sum_{i\neq j} a_{i,j} x_i x_j \eta_i (1-\eta_j)\|_{L^p(x,\eta)} \text{ (Jensen)}\EquationName{decouple-averaging}
+\end{align}
+Hence there must be some fixed vector $\eta'\in\{0,1\}^n$ which achieves
+$$
+\|\sum_{i\neq j} a_{i,j} x_i x_j \eta_i (1-\eta_j)\|_{L^p(x,\eta)}\le \|\sum_{i\in S}\sum_{j\notin S} a_{i,j} x_i x_j\|_{L^p(\eta)}
+$$
+where $S = \{ i : \eta'_i = 1\}$. Let $x_S$ denote the $|S|$-dimensional vector corresponding to the $x_i$ for $i\in S$.  Then
+\begin{align*}
+\|\sum_{i\in S}\sum_{j\notin S} a_{i,j} x_i x_j\|_{L^p(x)} &= \|\sum_{i\in S}\sum_{j\notin S} a_{i,j} x_i x_j'\|_{L^p(x_S,x'_{\bar{S}})}\\
+{}& = \|\E_{x_S}\E_{x'_{\bar{S}}}\sum_{i, j}a_{i,j} x_i x_j'\|_{L^p(x_S,x'_{\bar{S}})}\text{ (}\E x_i = \E x'_j = 0\text{)}\\
+{}&\le \|\sum_{i, j}a_{i,j} x_i x_j'\|_{L^p(x,x')}\text{ (Jensen)}
+\end{align*}
+\end{proof}
+
+The following proof of the Hanson-Wright was shared to me by Sjoerd Dirksen (personal communication). See also a recent proof in \cite{RudelsonV13}.
+
+Recall that by problem set 1, problem 1, the statement of the Hanson-Wright inequality below is equivalent to the statement that there exists a constant $C>0$ such that for all $\lambda > 0$
+\begin{equation}
+\Pr_\sigma\left(|\sigma^T A\sigma - \E\sigma^T A\sigma| > \lambda\right) \lesssim e^{-C\lambda^2/\|A\|_F^2} + e^{-C\lambda/\|A\|} . \label{eqn:hw-equiv}
+\end{equation}
+
+\begin{theorem}[Hanson-Wright inequality {\cite{HansonW71}}]
+For $\sigma_1,\ldots,\sigma_n$ independent Rademachers and $A\in\R^{n\times n}$ real and symmetric, for all $p\ge 1$
+$$
+\|\sigma^T A \sigma - \E \sigma^T A \sigma\|_p \lesssim \sqrt{p} \cdot \|A\|_F + p\cdot \|A\| .
+$$
+\end{theorem}
+\begin{proof}
+Without loss of generality we assume in this proof that $p\ge 2$ (so that $p/2 \ge 1$). Then
+\allowdisplaybreaks
+\begin{align}
+\|\sigma^T A \sigma &- \E \sigma^T A \sigma\|_p \lesssim \|\sigma^T A \sigma'\|_p\text{ (decoupling)} \EquationName{hwstart}\\
+{}&\lesssim \sqrt{p} \cdot \| \|Ax\|_2 \|_p \text{ (Khintchine)} \EquationName{esquared}\\
+{}& = \sqrt{p} \cdot \| \|Ax\|_2^2 \|_{p/2}^{1/2} \EquationName{induction}\\
+\nonumber {}& \le \sqrt{p} \cdot \| \|Ax\|_2^2 \|_p^{1/2} \\
+\nonumber {}& \le \sqrt{p} \cdot (\|A\|_F^2 + \|\|Ax\|_2^2 - \E \|Ax\|_2^2 \|_p)^{1/2} \text{ (triangle inequality)}\\
+\nonumber {}& \le \sqrt{p} \cdot \|A\|_F + \sqrt{p}\cdot \|\|Ax\|_2^2 - \E \|Ax\|_2^2 \|_p^{1/2}\\
+\nonumber {}& \lesssim \sqrt{p} \cdot \|A\|_F + \sqrt{p}\cdot \|x^T A^T A x'\|_p^{1/2}\text{ (decoupling)}\\
+\nonumber {}& \lesssim \sqrt{p} \cdot \|A\|_F + p^{3/4}\cdot \|\|A^T Ax\|_2\|_p^{1/2}\text{ (Khintchine)}\\
+{}& \lesssim \sqrt{p} \cdot \|A\|_F + p^{3/4}\cdot\|A\|^{1/2} \cdot\|\|Ax\|_2\|_p^{1/2} \EquationName{eagain}
+\end{align}
+
+Writing $E = \|\|Ax\|_2\|_p^{1/2}$ and comparing \Eqsub{esquared} and \Eqsub{eagain}, we see that for some constant $C > 0$,
+$$
+E^2 - Cp^{1/4}\|A\|^{1/2} E - C\|A\|_F \le 0 .
+$$
+Thus $E$ must be smaller than the larger root of the above quadratic equation, implying our desired upper bound on $E^2$.
+\end{proof}
+
+\begin{remark}
+\textup{
+The ``square root trick'' in the proof of the Hanson-Wright inequality above is quite handy and can be used to prove several moment inequalities (for example, you will see how to prove the Bernstein inequality with it in tomorrow's lecture). As far as I am aware, the trick was first used in a work of Rudelson \cite{Rudelson99}.
+}
+\end{remark}
+
+\begin{remark}
+\textup{
+We could have upper bounded \Equation{induction} by 
+$$
+\sqrt{p}\cdot \|A\|_F + \sqrt{p}\cdot \| \|Ax\|_2^2 - \E\|Ax\|_2^2\|_{p/2}^{1/2}
+$$
+by the triangle inequality. Now notice we have bounded the $p$th central moment of a symmetric quadratic form \Eqsub{hwstart} by the $p/2$th moment also of a symmetric quadratic form. Writing $p = 2^k$, this observation leads to a proof by induction on $k$, which was the approach used in \cite{DiakonikolasKN10}.
+}
+\end{remark}
+
+\paragraph{Distributional Johnson-Lindenstrauss (DJL) lemma}
+
+Now we finally prove the {\it Distributional JL Lemma (DJL)} stated in last lecture (which implies the JL lemma itself).
+
+\begin{lemma}{DJL Lemma}
+For any integer $n > 1$ and $\eps,\delta\in (0, 1/2)$, there exists a distribution $\mathcal{D}_{\eps, \delta}$ over $\R^{m\times n}$ for $m \lesssim \eps^{-2}\log(1/\delta))$ such that for any $x\in\R^n$ of unit Euclidean norm,
+$$
+\Pr_{\Pi\sim\mathcal{D}_{\eps,\delta}}(| \|\Pi x\|_2^2 - 1 | > \eps ) < \delta
+$$
+\end{lemma}
+\begin{proof}
+Write $\Pi_{i,j} = \sigma_{i,j}/\sqrt{m}$, where the $\sigma_{i,j}$ are independent Rademachers. Also overload  $\sigma$ to mean these Rademachers arranged as a vector of length $mn$, by concatenating rows of $\Pi$. Note 
+$$
+\Pi x = A_x\sigma,\text{ implying }\|\Pi x\|_2^2 = \|A_x\sigma\|_2^2
+$$
+where
+\begin{equation}
+A_x = \frac 1{\sqrt{m}}\cdot \begin{bmatrix} 
+- x^T - & 0 & \cdots & 0\\
+0 & - x^T - & \cdots & 0\\
+\vdots &\vdots &  &\vdots\\
+0&0&\cdots& - x^T -
+\end{bmatrix} . \EquationName{xmatrix}
+\end{equation}
+
+Thus
+$$
+\Pr(| \|\Pi x\|_2^2 - 1| > \eps) = \Pr(| \|A_x\sigma\|_2^2 - \E \|A_x\sigma\|_2^2 | > \eps) ,
+$$
+where we see that the right-hand side is readily handled by the Hanson-Wright inequality with $A = A_x^T A_x$ (using \eqref{eqn:hw-equiv}). Observe $A$ is a block-diagonal matrix with each block equaling $(1/m)xx^T$, and thus $\|A\| = \|x\|_2^2 / m = 1/m$. We also have $\|A\|_F^2 = 1/m$. Thus Hanson-Wright yields
+$$
+\Pr(| \|\Pi x\|_2 ^2 - 1| > \eps) \lesssim e^{-C\eps^2 m} + e^{-C\eps m} ,
+$$
+which for $\eps < 1$ is at most $\delta$ for $m \gtrsim \eps^{-2}\log(1/\delta)$.
+\end{proof}
+
+\bibliographystyle{alpha}
+\bibliography{\jobname}
+
+\end{document}

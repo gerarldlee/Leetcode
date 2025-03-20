@@ -1,0 +1,200 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{19 -- November 7, 2017}{Fall 2017}{Prof.\ Piotr Indyk}{Kavya Ravichandran}
+
+\section{Overview}
+
+In the last lecture we saw an algorithm for graph sketching. In this lecture we consider streaming algorithms for geometric data of other types for insertion-only streams. The general approach to this type of problem is to construct a core-set, defined as a non-random sample of data that represents the whole data set.
+\\
+Today, we considered the following problems and algorithms:
+\begin{itemize}
+\item develop a constant factor approximation algorithm requiring $O(\sqrt{nk})$ space for the \textbf{metric $k$-median problem} that utilized a ``black-box" off-line algorithm.
+\item{construct a core-set for the \textbf{minimum enclosing ball problem.}}
+\end{itemize}
+
+\section{Metric $k$-Median Problem}
+The metric $k$-median problem essentially asks us to cluster the points in the input and find $k$ medians such that a defined cost function is minimized. We are given the following:
+\begin{itemize}
+\item{``Oracle" access to a \textbf{metric function $D(x,y)$} for points $x,y$ in a metric space. This function satisfies standard properties of a metric function, including symmetry and the triangle inequality.}
+\item{Stream of metric points $p$ defining a set $S$, with $|S| = n$.}
+\item{Objective defined as:
+\begin{equation*}
+D(p,C) = \min_{c \in C} D(p,c)
+\end{equation*}
+\begin{equation*}
+\text{For } |C| = k, \text{cost}(S,C) = \sum_{p \in S} D(p,C)
+\end{equation*}
+\begin{equation*}
+\text{cost}(S,Q) = \min_{\substack{C \subseteq Q, \\ |C| = k}} \text{cost}(S,C)
+\end{equation*}
+}
+\end{itemize}
+Our goal, then is to approximate cost$(S,S)$ and report the medians. 
+
+\paragraph{Intuition:} We don't have much flexibility in what we store. We receive the points one after the other, and we are trying to solve the problem for general metric spaces. We are pretty much limited to storing a subset of points. All we have is the ability to calculate the distances between two points, but we really don't know anything else about the points. So let's do that!
+
+\subsection{Specification and Assumption}
+\paragraph{Specification} We will develop a constant factor approximation algorithm that uses space $O(\sqrt{nk})$. Recursively applying this algorithm gives us an algorithm that takes $O(n^\alpha k)$. This approach is described in Guha, Mishra, Motwani, and O'Callaghan \cite{GMMO_00}.
+\paragraph{Assumption} We will assume that there exists an \textit{offline} $b-$approximate algorithm that uses linear space and works for the weighted version of the problem. (Note that we can show that it is NP-hard to provide an exact solution to this problem.) Indeed, Arya et al.\cite{AGKMMP_01} show a $(3+\varepsilon)-$approximation algorithm for this problem, so this is not a futile assumption.
+
+\subsection{Algorithm}
+\paragraph{Intuition} ``Medians of weighted medians are approximate medians."
+\paragraph{Statement} Our algorithm makes use of the $b-$approximate algorithm that requires linear space. We begin by considering the stream in blocks $S_1, ..., S_L$, where $L = \sqrt{\frac{n}{k}}$. This means $|S_i| = \sqrt{nk}$. For each $S_i$, we first find medians $c_1^i, ..., c_k^i$ which $b-$approximate cost$(S_i, S_i)$. Then, we compute $m_j^i$ representing the number of points in $S_i$ that have been assigned to $c_j^i$ (we will refer to this as ``Phase 1"). Now, we find the $b-$approximate $k$ medians $C'$ for the weighted set $MC = \{m_1^1c_1^1, ..., m_k^Lc_k^L \} $ (we will refer to this as ``Phase 2").
+
+\subsection{Proof}
+\paragraph{Intuition} Apply triangle inequality many times!
+\paragraph{Notation}
+$C$ = the optimum set of medians, such that cost$(S,C)$ = cost$(S,S)$.
+%\subsubsection{Statement}
+\\
+\\
+We proceed by first bounding cost$(S,S)$ and bounding the outcome of Phase 1 by this. Then, we consider %finish this
+\begin{center}
+\line(1,0){400}
+\end{center}
+\paragraph{Claim 1} For any $Q$, not necessarily a subset of S, cost$(S,S) \le 2 \text{cost}(S,Q)$.
+\paragraph{Proof} We can replace each median by the closest point in $S$. Then by the triangle inequality, as we can see in Figure \ref{fig:redorange}, each point is at most twice as far away from the orange point as from the red point. Thus, cost$(S,S) \le 2\text{cost}(S,Q)$
+\begin{figure}
+\includegraphics[width=8cm]{Claim1.png}
+\label{fig:redorange}
+\caption{The red point in the left half is the local median chosen by the algorithm. The closest point to it is the one denoted in orange in the right half of the diagram. By triangle inequality, each point is no more than twice as far away from the orange point as from the red point.}
+\end{figure}
+\begin{center}
+\line(1,0){250}
+\end{center}
+\paragraph{Claim 2} $\sum_i \text{cost}(S_i,S_i) \le 2 \cdot \text{cost}(S,S)$
+\paragraph{Proof} From Claim 1, we have cost$(S_i, S_i) \le 2 \cdot \text{cost}(S_i,Q)$. Therefore, $$\sum_i \text{cost}(S_i, S_i) \le 2 \cdot \sum_i \text{cost}(S_i, S_i) \le 2 \cdot \sum_i \text{cost}(S_i, C) = 2 \cdot \text{cost}(S,S)$$.
+\begin{center}
+\line(1,0){250}
+\end{center}
+\paragraph{Corollary} The algorithm will find $(nk)^{\frac{1}{2}}$ medians MC with cost at most $2b  \text{ cost}(S,S)$.
+\begin{center}
+\line(1,0){250}
+\end{center}
+With that, we have bounded the cost in Phase 1. Now, we consider Phase 2.
+\paragraph{Claim 3} cost$(MC,MC) \le 2(2b \text{ cost}(S,S) + \text{cost})$
+\paragraph{Proof} We start by bounding cost$(MC,C)$, where $C$ is the optimal set of medians.
+\\
+\\
+\textbf{Notation}
+\begin{itemize}
+\item $q \in MC$ a single point, possibly out of many duplicates
+\item $p \in S$ assigned to $q$ in the algorithm's solution to MC
+\item $c \in C$ optimal median to which $p$ is assigned in the optimal solution.
+\end{itemize}
+We once again apply the triangle inequality; we can connect each $q$ to $c$ through $p$. Our total cost breakdown is as follows:
+\begin{itemize}
+\item $\forall  q \text{ to } p$, the cost is $2b \text{ cost}(S,S)$
+\item $\forall  p \text{ to } c$, the cost is $\text{cost}(S,S)$
+\end{itemize}
+Therefore, cost$(MC,C) \le 2b \text{ cost}(S,S) + \text{cost}(S,S)$, so $\text{cost}(MC,MC) \le 2 \text{ cost}(MC,C) \le 2(2b \text{ cost}(S,S) + \text{ cost}(S,S))$.
+\begin{center}
+\line(1,0){250}
+\end{center}
+Altogether, in Phase 1, we connect the stream $S$ to the set of intermediate medians $MC$, and the cost is upper bounded by $2b \text{ cost}(S,S)$, and in Phase 2, we connect MC to the set of calculated $k$ medians, an the cost here is upper bounded by $b \cdot 2(2b \text{ cost}(S,S) + \text{ cost}(S,S))$. The total cost is then $\le \boxed{4b(b+1) \text{ cost}(S,S)}$.
+\subsection{Comments}
+We can execute Phase 1 of this algorithm in a distributed fashion.
+%Best stuff citation see slides
+\section{Core-Sets}
+\subsection{Setup}
+We are given a set of points $P$, and our goal is to \textbf{minimize a function $C_p(o)$, where $o$ is a solution}.
+\\
+\\
+In this lecture, we consider the minimum enclosing ball problem. Our objective function is defined $C_p(o) = $ the smallest radius of a ball centered in $o$ containing $P$.
+\paragraph{Definition} $S \subseteq P$ is a (weak) $c-$core-set for $P$ if, for any $o$ in the space:
+\begin{equation}
+\label{eqn:defncs}
+C_s(o) \le C_p(o) \le c \cdot C_s(o)
+\end{equation}
+\\
+Assuming monotonicity, $C_A(o) \le C_B(o)$ if $A \subseteq B$. This means that the first inequality in \ref{eqn:defncs} is trivially true.
+\subsection{Core-Set for Minimum Enclosing Ball (MEB)}
+\paragraph{Intuition} Remembering multiple points along the same vector is redundant, since we only need to know how far the farthest one is. We compute extremal points in ``all'' directions.
+\\
+\\
+We construct a core-set for MEB as follows:
+\begin{itemize}
+\item choose ``densely'' spaced directions $v_1, ..., v_k$; i.e., for any $u$, there is a $v_i$ such that $$\text{angle}(u,v_i) \le \alpha$$
+\item for each direction, maintain the extremal point.
+\end{itemize}
+In $\R^d, k = O(\frac{1}{\alpha})^{d-1}$ directions suffice. We claim that the resulting set is a $1 + O(\alpha^2)-$core-set for MEB. This then gives us a $1 + O(\varepsilon)$-approximate streaming algorithm for MEB storing $O(1/(\varepsilon^{\frac{d-1}{2}}))$ points.
+\subsection{Proof}
+Consider the smallest ball $B$ containing $S$ centered at $o$. Assume the radius is 1. We must show that:
+$$
+C_p(o) \le (1+O(\alpha^2))C_s(o)
+$$
+i.e., that the points in $P-S$ (say $q$) cannot be too far from $B$. We have 
+$$\cos\left(\frac{\alpha}{2}\right) \le \frac{1}{1+\varepsilon} \approx 1 - \varepsilon.$$
+
+Using a Taylor expansion, we know that $\cos(\alpha) \approx 1-\alpha^2$, so $\varepsilon = O(\alpha^2)$. Thus, we get a $1 + O(\varepsilon)$-core set for MEB of size $O(1/(\varepsilon^{\frac{d-1}{2}}))$.
+%insert figure
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{GMMO_00}
+Sudipto~Guha, Nina~Mishra, Rajeev~Motwani, Liadan~O'Callaghan.
+\newblock Clustering Data Streams. 
+\newblock {\em Proceedings 41st Annual Symposium on Foundations of Computer Science}, 359--366,2000.
+
+\bibitem{AGKMMP_01}
+\newblock Local search heuristic for k-median and facility location problems.
+\newblock {\em Proceedings of the thirty-third annual ACM symposium on Theory of computing}, 21-29,2001.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,215 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{24 --- November 28, 2017}{Fall 2017}{Christopher Musco}{Akshat Agrawal}
+
+\section{Overview}
+
+In this lecture MIT graduate student Chris Musco went over a technique known as random feature maps for Kernel learning. 
+The outline is as follows:
+\begin{enumerate}
+    \item Review of Kernel Methods
+    \item Rahimi-Recht Algorithm
+    \item Cleanup, improvements
+\end{enumerate}
+
+\section{Review of Kernel Methods}
+Kernel methods turn "linear" learning algorithms into nonlinear ones. Examples of such are algorithms are:
+\begin{itemize}
+    \item Linear Regression
+    \item Support Vector Machine
+    \item Principal Components Analysis (Linear Dimensionality Reduction)
+\end{itemize}
+In this lecture we use regression as the example. 
+
+\subsection{Overview of Regression}
+\paragraph{Goal:}
+Given $A \in \mathbb{R}^{n \times d}$, $b \in \mathbb{R}^n$, we wish to learn a function $f$ such that $f(a_i) \approx b_i$. We assume that $f(z) = x^T z$ and we wish to minimize 
+$\min_{x \in \mathbb{R}^d} ||Ax-b||_2$.
+\\ \\
+What happens if we want to learn polynomial $f$? We have two options.
+
+\subsection{Learning Nonlinear Mappings}
+\subsubsection*{Option 1: Explicit Basis Functions}
+Suppose we want to learn quadratic $f$. Given 
+\[z = 
+\begin{bmatrix}
+z_1 \\ z_2 \\ \vdots \\ z_d
+\end{bmatrix} \in \mathbb{R}^d
+\] we let the feature map be
+\[
+\phi(z) = 
+\begin{bmatrix}
+z_1 \\ z_1^2 \\ z_1z_2 \\ \vdots \\ z_d^2
+\end{bmatrix} \in \mathbb{R}^{d^2+d}
+\]
+We then run normal linear regression on $\phi(z)$. The problem is that as you increase dimension of the polynomial $f$ this quickly becomes infeasible as the vector becomes too large. 
+
+\subsubsection*{Option 2: Kernel Trick}
+Two observations:
+\begin{enumerate}
+    \item For linear learning, we need access only to all \textbf{pairwise dot products} $\langle a_i, a_j \rangle$
+    \item We can compute these pairwise dot products faster than through explicit feature computation
+\end{enumerate}
+We first prove the first observation:
+\begin{proof}
+$$\min_{x \in \mathbb{R}^d} ||Ax-b||_2 = \min_{y \in \mathbb{R}^n} ||AA^T y - b||_2$$
+Note that we can let $x = A^Ty$ for some $y$ since $x$ (under optimality) needs to be in the rowspan of $A$. The matrix $K := AA^T$ is called the \textbf{Kernel matrix} with $K_{ij} = \langle a_i, a_j \rangle$ as desired.
+\end{proof}
+Next we prove the second observation. 
+\begin{proof}
+Consider quadratic $f$ for clarity:
+\begin{align*}
+\langle \phi(x), \phi(y) \rangle &= \begin{bmatrix}
+1 \\ \sqrt{2} x_1 \\ x_1^2 \\ \sqrt{2} x_1x_2 \\ \vdots 
+\end{bmatrix}
+\begin{bmatrix}
+1 \\ \sqrt{2} y_1 \\ y_1^2 \\ \sqrt{2} y_1y_2 \\ \vdots 
+\end{bmatrix}\\
+&= 1 + x_1y_1 + 2x_1^2y_1^2 + 2x_1x_2y_1y_2 + \cdots \\
+&= (x_1y_1 + x_2y_2+ \cdots + x_dy_d + 1)^2 \\
+&= (\langle x, y \rangle + 1)^2
+\end{align*}
+It extends further that for a polynomial of degree $q$, the dot product is given by $(\langle x, y \rangle +1)^q$. This is called the \textbf{Kernel function}. In this case it can be computed in $O(d)$ time. 
+\end{proof}
+A few examples of notable Kernel functions include:
+\begin{itemize}
+    \item Gaussian Kernel: $K(x,y) = e^{-||x-y||^2}$
+    \item Exponential Kernel: $K(x,y) = e^{-||x-y||}$
+    \item Laplacian Kernel: $K(x,y) = e^{-||x-y||_1}$
+\end{itemize}
+These Kernels are all \textbf{shift invariant}, i.e. they only depend on $\Delta :=  x-y$. They define a sort of similarity score that goes towards 0 if $x,y$ are far apart, and towards 1 if they are close. 
+
+\section{Rahimi-Recht Algorithm}
+Now onto algorithms. Since linear regression with Kernels requires computing and inverting $K$ as the major operations, we should note the following complexities:
+\begin{itemize}
+\item Constructing K: $O(n^2d)$
+\begin{itemize}
+    \item This is a problem, and the subject of what follows
+\end{itemize}
+\item Inverting K: $O(n^3)$
+    \begin{itemize}
+        \item This can be made faster using methods we have seen previously, such as iterative algorithms, sketching, etc.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Rahimi-Recht for a Gaussian Kernel}
+What follows comes from the 2007 NIPS paper by Ali Rahimi and Benjamin Recht \cite{RahimiRecht07}. 
+\paragraph{Goal:} For a positive definite shift invariant kernel function, give a rank $\frac{\log n}{\epsilon^2}$ approximation to $K$. 
+\\\\
+ This is done by producing a mapping from $A$ to $Z$ where $Z$ has dimensions $n$ by $\frac{\log n}{\epsilon^2}$, and $ZZ^T \approx K$. The algorithm leads to overall $O(nd  \frac{\log n}{\epsilon^2} )$ compute time for $Z$. One can also then invert $ZZ^T$ (use the SVD to see this) in time $O(n \frac{\log^2 n}{\epsilon^4})$ time. The authors proved the claim for all PD shift invariant Kernels, but we restrict ourselves to Gaussian Kernels for simplicity. 
+
+We use the Fourier Transform for a Multidimensional Gaussian and compute:
+\begin{align*}
+    \phi(x)^T\phi(y) &= e^{-||\Delta||^2}\\
+    &= \int_{\mathbb{R^d}} \pi^{d/2} e^{-||\eta||^2 \pi^2} e^{-2\pi i \eta^T \Delta} d\eta\\
+    &= \int_{\mathbb{R^d}} g(\eta) e^{-2\pi i \eta^T \Delta} d\eta\\
+    &= \mathbb{E}_{\eta \sim g}[e^{-2 \pi i \eta^T \Delta}]
+\end{align*}
+Where $g(\eta)>0 \ \forall \eta$ is a valid probability density function (to see why just consider the expression when $\Delta = 0$). Note that \textbf{Bochner's theorem} states that $g \geq 0$ for all shift invariant positive definite kernel functions, and this allows the proof to generalize beyond Gaussians. We note also that $g$ is a multivariate Gaussian, and so we can sample from $g$ efficiently.
+\\\\By Monte Carlo Integration, we take $m$ independent samples of $\eta$ from $g$ and approximate:
+\begin{align*}
+    \mathbb{E}_{\eta \sim g}[e^{-2 \pi i \eta^T \Delta}] &\approx \frac{1}{m} \sum_{j=1}^m e^{-2 \pi i \eta_j^T \Delta}\\
+    &= \frac{1}{m} \sum_{j=1}^m e^{-2 \pi i \eta_j^T x} e^{-2 \pi i \eta_j^T (-y)}\\
+    &= \langle  \Tilde{\phi}(x),  \Tilde{\phi}(y) \rangle
+\end{align*}
+Where we use the complex inner product in the last line and
+\[ \Tilde{\phi}(x) = \begin{bmatrix}
+\frac{1}{\sqrt{m}} e^{-2\pi i \eta_1^T x}\\ \vdots \\ \frac{1}{\sqrt{m}} e^{-2\pi i \eta_m^T x}
+\end{bmatrix}
+\]
+\paragraph{Claim:} If $m = O(\frac{\log \frac{1}{\delta}}{\epsilon^2})$, then with probability at least $1-\delta$, $\langle  \Tilde{\phi}(x),  \Tilde{\phi}(y) \rangle \in [K(x,y)-\epsilon, K(x,y)+\epsilon]$. The proof follows directly from a simple complex-number extension to Chernoff, noting that each term in the sum has norm 1. 
+
+\section{Cleanup, Improvements}
+\subsection{Removing Complex Numbers}
+We note that since imaginary terms have 0 expectation:
+\begin{align*}
+    \mathbb{E}_{\eta \sim g} \Big[ e^{-2 \pi i \eta^T x} e^{-2 \pi i \eta^T (-y)} \Big] &= \mathbb{E} \Big[ (\cos( -2 \pi \eta^T x) + i \sin(-2 \pi \eta^T x)) (\cos(-2 \pi \eta^T y) + i \sin(2 \pi \eta^T y)) \Big]\\
+    &= \mathbb{E} \Big[ \cos( 2 \pi \eta^T x)\cos( 2 \pi \eta^T y) + \sin(2 \pi \eta^T x)\sin(2 \pi \eta^T y) \Big]
+\end{align*}
+It then follows that we can let
+\[
+\Tilde{\phi}(x) = \frac{1}{\sqrt{m}} \begin{bmatrix}
+\cos( 2 \pi \eta_1^T x) \\ \sin( 2 \pi \eta_1^T x) \\ \vdots \\\cos( 2 \pi \eta_m^T x) \\ \sin( 2 \pi \eta_m^T x) 
+\end{bmatrix}
+\]
+
+\subsection{Faster Multiplication by Gaussians}
+
+Note that a significant bottleneck is that to generate the map $\Tilde{\phi}(x)$, one must multiply a $d$-dimensional vector $x$ with $m$ random multivariate Gaussians (which forms a random Gaussian matrix), which is a runtime of $O(dm)$. The question arises as to if one can apply the random Gaussian faster. The answer is yes.
+The \textbf{Fastfood Embeddings} developed by Le, Sarlos, and Smola \cite{Fastfood} approximately apply the Gaussian in $O(\max \{m,d\} \log d)$ time, and one can still recover the same probabilisitic guarantee with this approach. 
+\\\\
+Another relevant paper is Kaprelov, Potluru, and Woodruff's "How to Fake Multiply by a Gaussian" \cite{WoodruffGauss}. It seems there is still significant room for improvement in this domain. 
+
+\subsection{Additive Error Analyis}
+What is the deal with additive error on each entry?
+\\
+We have that $\Tilde{K} \pm \epsilon = K$, however, this may not be good enough, as if each entry is off by $\epsilon$, then $||\Tilde{K}-K||_F \leq \epsilon n$, and this could be huge. With Chernoff, we can show that if $\epsilon = \frac{1}{\sqrt{n}}$ and $m \approx n$, $||\Tilde{K}-K|| \leq \sqrt{n}$, where we are taking the spectral norm. However, using stronger Matrix Norm concentration inequalities, we can get the same bound using $m \approx \sqrt{n}$ samples. 
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{RahimiRecht07}
+Ali Rahimi and Benjamin Recht. \newblock Random Features for Large-Scale Kernel Machines. \newblock {\em Advances in Neural Information Processing Systems}, 20:1177--1184, 2007.
+
+\bibitem{Fastfood}
+Quoc V. Le and Tam{\'{a}}s Sarl{\'{o}}s and Alexander J. Smola. \newblock Fastfood - Computing Hilbert Space Expansions in loglinear time. \newblock {\em Proceedings of the 30th International Conference on Machine Learning}, 30:244--252, 2013.
+
+\bibitem{WoodruffGauss}
+Michael Kapralov and Vamsi K. Potluru and David P. Woodruff. \newblock How to Fake Multiply by a Gaussian Matrix. \newblock {\em Proceedings of the 33nd International Conference on Machine Learning}, 33: 2101--2110, 2016.
+\end{thebibliography}
+
+\end{document}

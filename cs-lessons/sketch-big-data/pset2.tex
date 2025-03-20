@@ -1,0 +1,96 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\inprod}[1]{\langle #1 \rangle}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 226 / 6.889 Sketching Algorithms for Big Data} --- Fall 2017}
+
+\bigskip
+
+{\Large \textsc{Problem Set 2}}
+
+\smallskip
+
+Due: 11:59pm, Monday, October 23rd
+
+Submit to: \url{sketchingbigdata-f17-assignments@seas.harvard.edu}
+
+\bigskip
+
+{\footnotesize See homework policy at \url{http://www.sketchingbigdata.org/fall17/syllabus/}}
+\end{center}
+
+\paragraph{Problem 1: Point queries in insertions-only streams.} (10 points)
+
+Recall the algorithm for finding heavy hitters in insertions-only stream mentioned in Lecture 7. This algorithm, due to Misra and Gries, proceeds as follows. Let $C$ be a parameter, defining the number of counters maintained by the algorithm. The algorithm maintains a set $T$ of up to $C$ elements, and for every $i \in T$ maintains a counter $c_i$. Initially $T=\emptyset$. Then, for each stream element $i$:
+\begin{itemize}
+\item If $i \in T$, then $c_i=c_i+1$
+\item Else
+\begin{itemize}
+\item If $|T|<C$, then $T=T \cup \{i\}$ and $c_i=1$
+\item Else for all $j \in T$ do $c_j=c_j-1$
+\end{itemize}
+\item Remove from $T$ all items $i$ such that $c_i=0$
+\end{itemize}
+
+In Lecture 7, we have seen that some algorithms  do more than just find heavy hitters. In particular, we have seen that Count-Min provides $\ell_1$ point query guarantees, i.e., for each element $i$, it provides an estimate of the $i$-th frequency up to an error term of the form $\frac{1}{k} \|x_{tail(k)}\|_1$, where $x$ is the frequency vector and $tail(k)$ denotes all coordinates of $x$ except for the $k$ largest ones. When the stream contains a small number of very frequent elements, 
+$\|x_{tail(k)}\|_1$ can be much smaller than $\|x\|_1$.
+
+Show that Misra-Gries algorithm also provides $\ell_1$ point query guarantees, and specifically, that each $c_i$ estimates $x_i$ up to an additive error of
+\[ \frac{\|x_{tail(k)}\|_1}{C-k} \]
+where we assume $c_i=0$ for $i \notin T$.
+
+\paragraph{Problem 2: RIP and incoherent matrices.} 
+\begin{itemize}
+\item[(a)] (3 points) Let $A$ be an arbitrary real, square matrix. Show that if $\lambda\in\mathbb C$ is an eigenvalue of $A$, then there exists an $i$ so that $|\lambda - A_{i,i}| \le \sum_{j\neq i} |a_{i,j}|$.
+\item[(b)] (5 points) Show that any $(\eps/k)$-incoherent matrix $\Pi$ satisfies $(\eps, k)$-RIP.
+\item[(c)] (2 points) Conclude that for any $\eps\in(0, 1/2)$ and integer $1 \le k \le n$ with $n$ a prime, there is is an explicit $(\eps,k)$-RIP matrix $\Pi\in\R^{m\times n}$ with $m = O((k^2/\eps^2) \cdot \mathop{poly}(\lg n))$. By explicit, we mean there is a deterministic algorithm which, given $\eps,k,n$ for $1\le k\le n$, returns $\Pi$ as a $2$-dimensional array in time $\mathop{poly}(n)$. You may assume that $\eps>1/\sqrt n$ since otherwise the $1/\eps^2$ term in $m$ is already at least $n$, and there's of course already an simple-to-describe $n\times n$ $(0,k)$-RIP matrix (the $n\times n$ identity matrix).
+\end{itemize}
+
+\paragraph{Problem 3: Chaining with limited independence.} Recall in class the toy example of a random walk on a line: at time $t$ we are at position $\inprod{\sigma, x^{(t)}}$, where $x^{(t)} = \sum_{i=1}^t e_i$ and $\sigma\in\{-1,-1\}^n$ is chosen uniformly at random. We defined $v^{(t)} = x^{(t)}/\|x^{(n)}\|_2$ and showed via Dudley's inequality that
+\begin{equation}
+\E \sup_{1\le t\le n} \inprod{\sigma, v^{(t)}} = O(1) . \label{eqn:walk}
+\end{equation}
+Our goal is to show that this holds even if the $\sigma_i$ are not fully independent, but rather simply $p$-wise independent for some $p = O(1)$.
+
+
+\begin{itemize}
+\item[(a)] (2 points) Show that for integer $p>1$, $\E_\sigma \inprod{\sigma, x}^p$ is completely determined by $p$-wise independence.
+\item[(b)] (2 points) In ``bound 1'' of lecture (the ``union bound'' argument), we showed that if $\sigma$ has independent entries and $T$ is an arbitrary set of vectors in $\R^n$, then $r(T) := \E \sup_{x\in T} \inprod{\sigma, x} \lesssim (\lg^{1/2} |T|)\cdot \rho_{\ell_2}(T)$. Here $\rho_X(T)$ denotes $\sup_{x\in T}\|x\|_X$.  It turns out that an equivalent form of Khintchine's inequality is that for all $p\ge 1$, $\|\inprod{\sigma, x}\|_p \le \sqrt{p} \cdot \|x\|_2$ (you may use this fact without proof). Show that as long as the $\sigma_i$ are $p$-wise independent for some $p\ge 2$, then $r(T) \lesssim \sqrt{p}\cdot |T|^{1/p}\cdot \rho_{\ell_2}(T)$ (note we can then recover the $\lg^{1/2}|T|\cdot \rho_{\ell_2}(T)$ bound under full independence by setting $p = \Theta(\lg |T|)$).
+\item[(c)] (6 points) Conclude via a modified Dudley chaining argument that Eqn.~\eqref{eqn:walk} holds even if the $\sigma_i$ are only $p$-wise independent for some constant $p = O(1)$. (We know how to show it for $p=4$ --- how small of a $p$ can you get to work?)
+\item[(d)] (4 points) Show that if $(x^{(t)})_t$ is not simply the sequence with $x^{(t)} = \sum_{i=1}^t e_i$, but rather is an arbitrary sequence of vectors generated by an insertion-only stream, then Eqn.~\eqref{eqn:walk} still holds.
+\end{itemize}
+
+\paragraph{Problem 4: Sparse Johnson-Lindenstrauss analysis is tight.} (8 points)
+
+Show that the analysis in class of the Sparse Johnson-Lindenstrauss Transform is tight. Specifically, consider the distribution over $\Pi\in\R^{m\times n}$ in which the columns are independent, and in each column there are exactly $s$ non-zero entries chosen at uniformly random locations without replacement, and each one is independently $\pm 1/\sqrt{s}$. Show that for all $\eps,\delta \in (0, 1/2)$ and constant $C>0$ there exists constants $c, n_0 >0$ such that for such $\Pi$ with $m \le C \eps^{-2}\log(1/\delta)$ and $s\le c\eps^{-1}\log(1/\delta)$, for all $n>n_0$ there exists $x\in\R^n$ such that
+$$
+\Pr_\Pi(| \|\Pi x\|_2^2 - 1| > \eps) > \delta .
+$$
+
+That is, there is a significant probability of failure unless $s$ is large (larger than $c\eps^{-1}\log(1/\delta)$). \textbf{Hint:} consider $x$ having its first $t$ coordinates equaling $1/\sqrt t$ and the rest $0$ and choose $t$ appropriately.
+
+\medskip
+
+\noindent\textbf{Bonus:} (3 points --- we do not know the answer!) can considering $x$ being a random vector on the sphere also  give a tight lower bound?
+
+
+\paragraph{Problem 5:} (1 point) How much time did you spend on this problem set? If you can remember the breakdown, please report this per problem. (sum of time spent solving problem and typing up your solution)
+
+\end{document}
+

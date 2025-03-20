@@ -1,0 +1,346 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\usepackage{fullpage}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage{cleveref}
+\usepackage{todonotes}
+
+\newcommand{\C}{\mathbb C}
+\newcommand{\R}{\mathbb R}
+\renewcommand{\L}{\mathcal L}
+\renewcommand{\phi}{\varphi}
+\newcommand{\Laplace}{\bigtriangleup}
+\newcommand{\eps}{\epsilon}
+\renewcommand{\epsilon}{\varepsilon}
+\newcommand{\<}{\langle}
+\renewcommand{\>}{\rangle}
+
+\renewcommand{\th}{\textsuperscript{th}}
+
+\newcommand{\co}{\colon\thinspace}
+
+\newcommand{\columnvector}[1]{\left( \begin{array}{c} #1 \end{array} \right)}
+
+\DeclareMathOperator{\Span}{span}
+\DeclareMathOperator{\im}{im}
+\DeclareMathOperator{\id}{id}
+
+\theoremstyle{definition}
+\newtheorem{problem}{Problem}
+\newenvironment{solution}[1]
+  {\begin{proof}[Solution] \renewcommand{\qedsymbol}{(#1)}}
+  {\end{proof}}
+\numberwithin{problem}{section}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+
+\newcommand{\sse}{\subseteq}
+\newcommand{\ep}{\epsilon}
+\newcommand{\lqq}{``}
+
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{14 ---  March 9, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Demi Guo}
+
+\section{Overview}
+In this lecture, we will talk about:
+\begin{enumerate}
+\item Semi definite programming (SDP)
+\item Goemans-Williamson MaxCut
+\item Approximation in other settings (streaming algorithms)
+\end{enumerate}
+
+\section{Semi Definite Programming}
+\subsection{Initial Motivation}
+A linear programming problem is one in which we wish to maximize or minimize a linear objective function of real variables over a polytope. In semidefinite programming, we instead use real-valued vectors and are allowed to take the dot product of vectors; nonnegativity constraints on real variables in LP are replaced by semidefiniteness constraints on matrix variables in SDP. Specifically, a general semidefinite programming problem can be defined as any mathematical programming problem of the form:
+\begin{align*}
+\min_{x^1,...x^n \in \R^n} & \sum_{i,j\in [n]}c_{i,j}(x^i \cdot x^j) \\
+\text{subject to} & \sum_{i,j\in[n]} a_{i,j,k}(x^i \cdot x^j) \leq b_k \ \forall k
+\end{align*}
+\subsection{Linear Algebra}
+\begin{fact}
+$tr(A^TB) = \sum_{i,j}A_{i,j}B_{i,j}$
+\end{fact}
+\begin{fact}
+X is Positive Semi Definite (PSD) if $\forall z \in \R^n$,  $z^TXz \geq 0$.
+\end{fact}
+\begin{fact}[Loewner Ordering]
+If $A \succeq B$, then $A - B$ is PSD.
+\end{fact}
+\begin{fact}
+For a real symmetric matrix X, we have the following properties: 
+\begin{enumerate}
+\item X is PSD.
+\item All eigenvalues of X are $\geq 0$.
+\item $\exists M$ s.t. $X = M^TM$ 
+\end{enumerate}
+\end{fact}
+
+\subsection{Formal Definition}
+\begin{align*}
+\text{min}\  &tr(C^TX)\\
+\text{subject to}\  &tr(A_k^TX) = b_k, k = 1, 2, ... m\\
+& X \succeq 0
+\end{align*}
+where entry i, j in C is given by $c_{i,j}$ from the previous section and $A_k$ is an $n \times n$ matrix having $i, j$th entry $a_{i,j,k}$ from the previous section. Note that originally, it should be $tr(A_k^TX) = b_k$, but after adding slack variables the inequality can become equality.
+
+\subsection{Relationship to Vector Programming}
+SDP is equivalent to vector programming. By Fact 4, we can write $X = M^TM$. If we have:  
+   \begin{align}
+    M &= \begin{bmatrix}
+           x^1 \\
+           x^2 \\
+           \vdots \\
+           x^n
+         \end{bmatrix}
+  \end{align}
+  where $x^i \in \R^n$, we can write  $X_{i,j} = \<x^i, x^j\> = x^i \cdot x^j$. According to Section 2.1, we can easily see that SDP can be interpreted as vector programming.
+
+\subsection{Properties}
+(see book "semi-definite programming" by Vandem Berghe, Boyd) Given any L, we can solve SDP up to L bits of precision in time poly(n,m,L).
+
+
+
+\section{Goemans -Williamson MaxCut}
+\subsection{Definition}
+\begin{align*}
+\text{max} &\sum_{(i,j) \in E} \frac{1 - x_ix_j}{2} \\
+\text{s.t.}\ &\forall i \in [n], x_i \in \{-1, 1\}
+\end{align*}
+We color every vertex i, $x_i$, using two colors $-1, 1$.
+\subsection{VP Relaxation}
+We can relax the definition above into a VP or SDP problem:
+\begin{align*}
+\text{max} &\sum_{(i,j) \in E} \frac{1-\<v_i, v_j\>}{2} \\
+\text{s.t.} \forall i \in [n], &\<v_i, v_i\> = \|v_i\|_2^2 = 1
+\end{align*}
+In fact, there's an integrality gap between the two problems. In HW5, you are asked to demonstrate that sometimes the optimal solution of VP Relaxation is better than the optimal solution of MaxCut. 
+\subsection{Goemans-Wiliamson}
+The best algorithm so far, by (JACM'95), is a randomized algorithm using hyperplane rounding technique, which in expectation cuts $\alpha \cdot OPT$ edges. More formally, we have:
+\begin{theorem}
+$\forall \eps$, we can obtain an $(\alpha+\eps)-$approximation to MaxCut in time $poly(n, lg\frac{1}{\eps})$, where 
+\[\alpha = \underset{0 \leq \theta \leq \pi}{\inf} \frac{2}{\pi}\frac{\theta}{1-\cos(\theta)} = 0.87856\]
+\end{theorem}
+The above rounding can be derandomized. \cite{derandomize}\\ 
+In fact, the integrality gap can be exactly 0.87856. You can make graphs arbitrarily close to that value. The rough idea of the graph is to throw a lot of random points, and we draw edges depending on whether two points lie within an angle $\theta$. \cite{FeigeAndSchechtman}\\
+In later section, we get rid of $\eps$ by assuming that we can solve SDP exactly (keeping track of the errors).
+\begin{proof}[Algorithm]
+\begin{enumerate}
+	\item Solve SDP relaxation to get $v_1, \ldots, v_n$
+    \item Pick random vector g on sphere.
+    \item Set $x_i = sign(\<g, v_i\>) \in \{-1, 1\}$. 
+\end{enumerate}
+\end{proof}
+\begin{proof}
+Let $v_i$ and g be unit vectors on a sphere sphere located at the origin. Then, $\<v_i, v_j\> = \cos\theta_{i,j}$, where $\theta_{i,j}$ is the angle between $v_i, v_j$. Now, we want to show that $\frac{\E val(x)}{OPT(SDP)} \geq \alpha$, or equivalently: \[\frac{\sum_{e \in E} P(e\ cut)}{\sum_{(i,j)\in E}\frac{1-\cos \theta_{i,j}}{2}} \geq \alpha\ \ \ (1)\] 
+Now, let's analyze what is $P(e\ cut)$ for $e = (i, j)$. We can consider the 2D plane that $v_i, v_j$ span. Since iff e is cut, the sign of $\<g, v_i\>$ will be different from that of $\<g, v_j\>$, or equivalently here the sign of $\cos(\theta_{g, v_i})$ is different from that of $\cos(\theta_{g, v_j})$. By considering the geometric meaning, it's easy to see that $P(e\ cut) = \frac{2\theta_{i,j}}{2\pi} = \frac{\theta_{i,j}}{\pi}$. Now, simplifying, we have $\forall e$, $\frac{P(e\ cut)}{\frac{1 - \cos \theta_{i,j}}{2}} = \frac{2}{\pi} \frac{\theta_{i,j}}{1 - \cos \theta_{i,j}} \geq \alpha$, or $P(e\ cut) \geq \alpha (\frac{1 - \cos \theta_{i,j}}{2})$. Plugging in this inequality into the LHS of (1), we can easily see the inequality (1) follows.
+\end{proof}
+\section{Approximation in Other Settings}
+\subsection{Approx for Streaming Algos}
+\begin{enumerate}
+	\item See Sequence of items in stream (e.g. router sees seq of destination IPs in packets of routes)
+    \item Want to compute some function of input sequence.
+    \item Goal: use very little memory
+    \item Example:
+    	\begin{enumerate}
+        	\item stream is $i_1, i_2, \ldots i_m, \forall j, i,j \in [n]$
+            \item f(stream) = number of distinct integers in stream.
+            \item Easy Solutions:
+            	\begin{enumerate}
+                	\item n-bit vector
+                    \item mlgn bits (remember entire input)
+                \end{enumerate}
+        \end{enumerate}
+     \item Can we solve the problem in much smaller than $min\{n,m\}$ memory using following kinds of algorithms?
+     	\begin{enumerate}
+        	\item Exact, Deterministic \\
+            	It is shown that it can't be done. See Claim 6.
+           \item Exact, Random\\
+            	It is shown that it can't be done. (Alon, Matias, Szegedy, JCSS'99)
+            \item Approx, Deterministic\\
+            	It is shown that it can't be done. (Alon, Matias, Szegedy, JCSS'99)
+            \item Approx, Random\\
+            	This can be done. See later section. \cite{fm}. 
+        \end{enumerate}
+\end{enumerate}
+
+           	\begin{claim}
+                Any exact.,det. alg needs to use at least $min\{n,m\}$ bits of space.
+                \end{claim}
+                \begin{proof}
+                	Encoding Argument.
+                	\begin{enumerate}
+                    	\item If A is exact/det, using S bits memory, we will show $\exists$ injection from $\{0, 1\}^n$ into $\{0,1\}^S$. Thus, we can prove our claim.	
+                        \item Encoding($x \in \{0,1\}^n$):
+                        	\begin{enumerate}
+                            	\item create a stream containing all $i$ s.t. $x_i = 1$
+                                \item run A on stream
+                                \item output mem content of A
+                                
+                            \end{enumerate}
+                        \item Now, we prove it's an injection by giving a decoding algorithm which is guaranteed to cover x. If M stands for mem footprint of A, we have Decoding(M):
+                        \begin{enumerate}
+                        	\item init A with mem contents M
+                            \item T $\leftarrow$ A.query(). Here, $T =$ support size of x. 
+                            \item $x \leftarrow (1, 1,\ldots, 1) \in \{0, 1\}^n$
+                            \item for $i = 1$ to $n$:
+                            	1.Tack on i to stream
+                                2.If A.query() == T + 1: T ++, $x_i \leftarrow 0$.
+                                3.Return x
+                        \end{enumerate}
+                    \end{enumerate}	
+                \end{proof}
+          Now, let's show the general idea of the Approx, Random Algorithm in (FM'85). 
+          \begin{proof}[Algorithm]
+            The idealized algorithm is following:
+          	\begin{enumerate}
+            	\item Pick a random hash function $h:[n] \rightarrow [0, 1]$ (This is idealized)
+                \item Store in memory $z = \min_{\text{i in stream}} h(i)$
+                \item output $\frac{1}{z} - 1$.
+            \end{enumerate}
+            The intuition is following: let's say $t = $ number of distinct elements. You expect the numbers are evenly spaced. The min number is thus expected to be $z=\frac{1}{t+1}$. \\
+            Expectation might not be reality. To decrease variance, we can come up with a better algorithm:
+           \begin{enumerate}
+           	\item Pick $h_1, \ldots h_k: [n] \rightarrow [0, 1]$ ($k = \theta (\frac{1}{\eps^2}))$
+            \item Store $z_k = \min_{\text{i in stream}} h_k(i)$
+            \item Output $\frac{1}{\frac{1}{k}(\sum_i z_i)} - 1$
+           \end{enumerate}
+          \end{proof}
+          Now, let's analyze the above algorithm.
+          \begin{claim}
+          $\E(z) = \frac{1}{t+1}$.
+          \end{claim}
+          \begin{proof}
+          	$\E(z) = \int_{0}^{1} P(z > x)dx = \int_{0}^{1}(1 - x)^tdx = \ldots = \frac{1}{t + 1}$
+          \end{proof}
+          We can use a similar idea to prove the following claim:
+          \begin{claim}
+          $\E(z^2) = \frac{2}{(t + 1)(t + 2)}$
+          \end{claim}
+          \begin{proof}[Analysis]
+          Now, let's continue our analysis.
+          $\bar{z} = \frac{1}{k} \sum_{i=1}^{k}z_i$. By markov or chebyshev inequality, $P(|\bar{z} - \E(z)| > \eps \E(\bar{z})) < \frac{1}{\eps^2(\E(\bar{z}))^2}\cdot \E((\bar{z}-\E(\bar{z}))^2)$. \\
+          $ \E((\bar{z}-\E(\bar{z}))^2) = Var[\bar{z}] = Var[\frac{1}{k}\sum_{i=1}^{k}z_i] = \frac{1}{k}\sum_{i=1}^{k}Var[z_i] = \frac{1}{k}Var[z] = \frac{1}{k}(\E(z^2) - (\E(z))^2)$.\\
+          Combining all, we have $P(|\bar{z}-\E\bar{z}| > \frac{\eps}{t+1}) < \frac{(t+1)^2}{\eps^2}\frac{1}{k} \theta(\frac{1}{t^2}) = \theta(\frac{1}{k\eps^2}) < \frac{1}{3}$ for $k = \Omega(\frac{1}{\eps^2})$.
+          \end{proof}
+    Now, let's talk about a non-idealized algorithm. \cite{non-idealized}
+    \begin{proof}[Algorithm]
+    \begin{enumerate}
+    	\item Pick one random hash function h : $[n] \rightarrow [0, 1]$ from a 2-wise family.
+        \item Store the k smallest hash values $h(i)$ ever seen. $z_1 < z_2 < ... < z_k$, where $k = \theta(\frac{1}{\eps^2})$.
+        \item Output: $\frac{k}{z_k} - 1$.
+    \end{enumerate} 
+    
+    \end{proof}
+    \subsection{More Streaming Algorithms on Other Problems}
+    \begin{enumerate}
+    	\item Turnstile Streaming: 
+        	\begin{enumerate}
+            	\item Maintain $x \in \R^n$ subject to updates of the form "$x_i \leftarrow x_i + \Delta$ ", $\Delta \in \R$.
+                \item For query(), you should output approximately $f(x)$.
+            \end{enumerate}
+            Examples of f:
+            \begin{enumerate}
+            	\item $|supp(x)| = |\{i, x_i \neq 0\}|$
+                \item $\|x\|_2 = (\sum_{i}x_i^2)^{\frac{1}{2}}$
+                \item $f_i(x) = x_i$ (plus or minus some error)
+                \item freq items: $\{i:|x_i|\ large\}$
+            \end{enumerate}
+            More information about the l2 estimation:
+            \begin{enumerate}
+            	\item We want $(1\pm \eps)\|x\|_2^2$
+                \item Algorithm: (AMS Sketch) \cite{ams-sketch}: \\
+                	We use "linear sketching".
+                    \begin{enumerate}
+                    	\item maintain $y = \pi x$ in memory. ($\pi$ is a $m \times n$ matrix, where m is much smaller than n. $x \in \R^n$, $y \in \R^m$)
+                        \item will estimate $f(x)$ using y.
+                        
+                    \end{enumerate}
+                    Let the ith column in $\pi$ be $\pi_i$. Then, we know $x_i \leftarrow x_i + \Delta \Leftrightarrow x \leftarrow x + \Delta \cdot e_i$, so $y \leftarrow y + \Delta \cdot \pi e_i$ where $\pi e_i = \pi_i$. \\
+                    Now, the AMS Sketch is:
+                    \begin{enumerate}
+                    	\item $\sigma: [m] \times [n] \rightarrow \{-1,1\}$ from 4-wise family
+                        \item $\pi_{i,j} = \frac{\sigma(i,j)}{\sqrt(m)}$
+                        \item will estimate $\|x\|_2^2$ by $\|y\|_2^2$. 
+                    \end{enumerate}
+                    \begin{claim}
+                    	$m = \Omega(\frac{1}{\eps^2}) \Rightarrow P_{\sigma}(|\|y\|_2^2 - \|x\|_2^2| > \eps \|x\|_2^2) \leq \frac{1}{3}$
+                    \end{claim}
+            \end{enumerate}
+    \end{enumerate}
+    \subsection{Next Time}
+    We will show $\E \|y\|_2^2 = \|x\|_2^2$ and $Var[\|y\|_2^2] \leq \frac{2}{m} \cdot \|x\|_2^4 \Rightarrow P(|\|y\|_2^2 - \|x\|_2^2| > \eps \|x\|_2^2) < \frac{1}{\eps^2\|x\|_2^4}\frac{2}{m}\|x\|_2^4$
+\begin{thebibliography}{42}
+\bibitem{derandomize}
+Sanjeev Mahajan, H. Ramesh, Derandomizing Semidefinite
+Programming Based Approximation Algorithms, \textit{Random
+Struct. Algorithms}, 20(3):403–440, 2002.
+
+\bibitem{FeigeAndSchechtman}
+U. Feige and G. Schechtman. On the optimality of the random hyperplane rounding technique
+for max cut. \textit{Random Struct. Algorithms}, 20(3):403–440, 2002.
+\bibitem{fm}
+Flajolet, Philippe; Martin, G. Nigel. Probabilistic counting algorithms for data base applications (PDF). \textit{Journal of Computer and System Sciences.}, 1985.
+
+\bibitem{non-idealized}
+Ziv Bar-Yossef, T. S. Jayram, Ravi Kumar, D. Sivakumar, and Luca Trevisan. Counting distinct elements in a data stream. \textit{Random} 2002.
+
+\bibitem{ams-sketch}
+Noga Alon, Yossi Matias, and Mario Szegedy. The Space Complex- ity of Approximating the Frequency Moments. \textit{J. Comput. Syst. Sci.}, 58(1):137–147, 1999.
+\end{thebibliography}
+
+\end{document}
+

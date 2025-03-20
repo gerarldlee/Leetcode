@@ -1,0 +1,288 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
+\newcommand{\tab}[1]{\hspace{.05\textwidth}\rlap{#1}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{26 --- December 1, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Zezhou Liu}
+
+\section{Overview}
+Final project presentations on Thursday. Jelani has sent out emails about the logistics: 8 minute presentation with 1-2 minutes for questions. Groups can split up the work however they want (one person can make the slides and the other presents, etc.)
+
+This time, we want to cover algorithms in a distributed environment, maybe 1M machines.  How to do this efficiently? Work starts as early as ('76 Csanky)\cite{csanky}, with a survey by ('88, Eppstein, Galil) on PRAM.
+
+PRAM: ignore communication (shared memory across all processors) and synchronization. The goal is to understand time vs. number of processors. However, shared memory is unrealistic, and somewhere in late 80s/early 90s, PRAM wasn't studied much anymore because you had to consider communication and syncrhonization.
+
+Bulk Synch Parallel (BSP) \cite{bsp}: You should explicitly worry about communication and synchronization.  BSP today: Apache, Hama, Google, Pragel.
+
+Today: MapReduce \cite{mr}. This system was built and used at Google to deal with massively parallel jobs.
+Hadoop is an open-source version. This system is used by Google, Facebook, Amazon, ...
+
+How do we work with these systems and build efficient algorithms on these models?
+
+\section{MapReduce}
+In this model, data items are each $\langle key, value\rangle$ pairs. Computation is broken up into rounds:
+
+Round:
+\begin{itemize}
+\item Map: Each item is processed by some \textit{map} function, and emits a set of new $\langle key, value\rangle$ pairs.
+\item Shuffle: This step is oblivious to the programmer. All items emitted in the map phase are grouped by key, and items with the same key are sent to the same reducer.
+\item Reducer: Receives $\langle k, v_1, v_2, ..., v_3 \rangle$ and emits new set of items.
+\end{itemize}
+
+Goals: 
+\begin{itemize}
+\item Few number of rounds
+\item Want to use $<< n$ mem per reducer.
+\item Want $<< n^2$ total mem used.
+\item Small total work (\# machines * max(work per machine))
+\item Small parallel work (What max(time per machine)?)
+\end{itemize}
+
+\section{MapReduce Problems}
+Example: Sorting.
+
+\begin{theorem}
+TeraSort (O'Malley, '08) \cite{terasort}. Sorts arbitrary and comparable elements (although the original was on bounded integers and used tricks to speed that up).
+\end{theorem}
+
+Input elements are $\langle i; A[i]\rangle$, where A is an unsorted array A[1..n].
+
+Say we want to use p-machines in parallel. So we want to divide it into the smallest $n/p$ elements, next smallest $n/p$ elements, etc. so we can send the $j$th $n/p$ elements to machine $j$ to be sorted.
+
+Two-round algorithm:
+
+\textbf{Round 1: }
+Sample $T = log(p)/\varepsilon^2)$
+
+def map1 $\langle i, A[i]\rangle$:
+
+\tab{emit $\langle i \% p, A[i]\rangle$}
+    
+\tab{w.p T/n:}
+
+\tab{}\tab{for j = 0...p:}
+
+\tab{}\tab{}\tab{emit $\langle j, A[i]\rangle$}
+
+First partition the values, and then for some random samples, send to some reducer.
+
+def reduce1 $\langle j; X \rangle$:
+    % Find approximate quantiles
+
+\tab{B are the (i, A[i]), and S is set of sampled elements}
+
+\tab{S $\leftarrow$ sort(S)}
+
+    % Find the corresponding and find out where in the sorted order they are to may to the next reducer for round 2
+\tab{for each (i, x) $\in$ B:}
+
+\tab{}\tab{find some r $\in {0, ... p-1}$ that x should map to in relation to S, and emit $\langle r; (i, x)\rangle$}
+
+\textbf{Round 2:} 
+
+def map2: identity
+
+def reduce2 $\langle j, B\rangle$:
+
+\tab{Sort B by 2nd element (recall B is (i, x))}
+
+\tab{write output to j.out}
+    
+At this point, each machine has their own sorted list, so we just need to concatenate the sorted lists from each machine.
+
+Analysis:
+First, I have to choose epsilon.  There are two things I want to balance: 1) Each reducer is getting set of size $n/p$, but also getting some additional sampled elements $log(p)/\varepsilon^2$. So want $log(p)/\varepsilon^2 \le n/p$.
+2) Chernoff bound says: if we sample $T = log(1/delta) * C/\varepsilon^2$ elements and look at $\alpha$th smallest element in sample, its rank in actual sorted order of A is $\alpha n +- \varepsilon n$ w.p. $1 - \delta$.
+Union bound says that with high probability, each reducer in the second round gets $\le n/p + \varepsilon n$ items to sort. (set $\varepsilon = 1/p \rightarrow T = log(p) \ p^2$) 
+
+Going back, we want $p^2 lg(p) \le n/p$, so $p = n^{1/3}/lg(n) \rightarrow$ with high probability each of the p machines needs to sort $\le O(n/p) = O(n^{2/3} lg(n))$.
+
+\section{Min Spanning Tree (MST)}
+In the case where it is not too sparse, with $m = \# edges = n ^{1 + c}$ for some $c > 0$. We want memory per machine to be $<< m(m^{1-\delta})$.
+Algorithm by (Karloff, Suri, Vassilivitskii, SODA '10)\cite{KSV10}.
+
+For each pair $(i, j) \in [k]^2$:
+\begin{itemize}
+ 
+
+\item Let $G_{ij}=(V_i\cup V_j,E_{ij})$ be the induced graph on $V_i\cup V_j$
+\item Compute using any sequential algorithm $M_{ij}=MSF(G_{ij})$
+\item Send $H=\bigcup_{i,j} M_{ij}$ to a single reducer and output $M=MST(H)$.
+\end{itemize}
+    
+MapReduce:
+
+\textbf{Round1: }
+
+def map1 $\langle (u, v); NULL\rangle$:
+
+\tab{emit $\langle h(u), h(v); (u, v)\rangle$}
+
+\tab{if h(u) == h(v) = i:}
+
+\tab{}\tab{for each j = 1, ..., k}
+
+\tab{}\tab{}\tab{emit $\langle (i, j); (u, v)\rangle$}
+    
+def reduce1 $\langle (i, j), E_{i,j}\rangle$:
+
+\tab{let $e_1, ..., e_t$ be MSF of $E_{ij}$}
+
+\tab{for a = 1..t:}
+
+\tab{}\tab{emit$\langle \$, (e_a, (i, j))\rangle$}
+
+This is emitting all the edges of $M_{i,j}$.
+
+def map2: identity
+
+def reduce2: Take all previous edges and call MST of this set of edges.
+
+Analysis: (memory)
+- mem per machine round 2: $\le k^2 \cdot O(n/k) = O(kn) = O(n^{1 + c/2}) << m = n^{1 + c}$
+- mem per machine round 1: max$_i,j$ $|E_{i,j}|$. The expected size of $E_{i,j} = \sum_{p \in E} \Pr($\text{endpoints of e in} $Vi \cup Vj) = 2m/k$
+
+For Chernoff, we have that $\E_{i,j} \le \sum_{v \in V} \mathbb{1}_{h(u) \in \{i,j\}} \cdot deg(v)$.  You can do better than this, as shown in KSV '10: partition V according to degrees. 
+$V_t = \{v : 2^{t - 1} \le deg(v) < 2^{t}\}$.  This means with high probability max$_{i,j} |E_{i,j}| = O(n^{1 + c/2})$
+
+Downside: Total memory needed $\sim k^2 \cdot n^{1 + c/2} = n^{1 + 3c/2} = n^{2 + c/2} = m^{2 - \varepsilon}$ (Lattanzi et all, SPAA '11) with O($n^c$) machines, O($n^{1 - \varepsilon}$) mem per machine, and ceil($c/\varepsilon$) rounds.
+
+\section{Triangle Counting}
+For Triangle Counting, the input is an undirected graph, and we want to output $|\{u<v<w\in V|(u,v),(v,w),(w,u)\in E\}|$. With no parallelism, there is a simple $O(n^3)$ algorithm using 3 nested for-loops by looping over all $(u, v, w)$. You can even get $m^{3/2}$. MapReduce can implement this with $\sqrt(m)$ machines.
+
+$x\leftarrow 0$
+\\$\mbox{ }\mbox{ }\mbox{ }$for $v\in V$
+\\$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$for $u\in\Gamma(v)$ s.t. $\deg(u)\ge \deg(v)$
+\\$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$ for $w\in \Gamma(v)$ s.t. $\deg(w)\ge \deg(v)$
+\\$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$ if $(u,w)\in E$
+\\$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$$\mbox{ }\mbox{ }\mbox{ }$ $x\leftarrow x+1$
+\\return $x/2$
+
+We can implement the above algorithm in MapReduce, with the the following properties: 
+\begin{itemize}
+\item No reducer gets more than $O(\sqrt{m})$ items
+\item The total work done is $O(m^\frac{3}{2})$
+\item The number of rounds is $2$
+\end{itemize}
+\subsection{MapReduce algorithm}
+
+Round 1:
+\\
+def map1: The input is $<(v, u);\varnothing>$.
+
+\tab{} if $u \succ v:$ emit $\langle v, u \rangle$
+
+def reduce1: The input is $<v;S\subseteq T(v)>$.
+
+\tab{} for $<u, w> \in S$:
+
+\tab{}\tab{} emit $<u,w>$ if is an edge.
+
+Round 2:
+
+def map2:
+
+\tab{} if input is $<v, (u, w)>$:
+
+\tab{}\tab{} emit $<(u, w); v>$
+
+\tab{} if input is $<(u,w), \varnothing)>$:
+
+\tab{}\tab{} emit $<(u, w), \$>$
+
+def reduce2 $<(u, w); S>$:
+
+\tab{} if $\$ \in S$: then
+
+\tab{}\tab{} for each $v \in S$ s.t. $v \ne \$$:
+
+\tab{}\tab{}\tab{} emit $<v, 1>$
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{csanky}
+Csanky, L., Fast parallel matrix inversion algorithms, {\em SIAM J. Computing} 5, 1976,
+
+\bibitem[BSP]{bsp}
+Leslie G. Valiant. 1990. A bridging model for parallel computation. {\em Commun. ACM 33}, 8 (August 1990), 103-111. DOI=10.1145/79173.79181 http://doi.acm.org/10.1145/79173.79181
+
+\bibitem[DG08]{mr}
+Jeffrey Dean and Sanjay Ghemawat.
+\newblock Mapreduce: simplified data processing on large clusters.
+\newblock {\em Communications of the ACM}, 51(1):107--113, 2008.
+
+\bibitem{terasort} O'Malley, O. TeraByte sort on Apache Hadoop, 2008;
+
+\bibitem{KSV10}
+Howard J. Karloff, Siddharth Suri, Sergei Vassilvitskii.
+\newblock  A Model of Computation for MapReduce.
+\newblock {\em SODA 2010}: 938-948.
+
+\bibitem{LMSV11}
+Silvio Lattanzi, Benjamin Moseley, Siddharth Suri, Sergei Vassilvitskii. 
+\newblock  Filtering: a method for solving graph problems in MapReduce. 
+\newblock {\em SPAA 2011}: 85-94.
+
+\bibitem{SV11}
+Siddharth Suri, Sergei Vassilvitskii.  
+\newblock  Counting triangles and the curse of the last reducer
+\newblock {\em WWW 2011}: 607-614.
+
+  
+\end{thebibliography}
+
+\end{document}

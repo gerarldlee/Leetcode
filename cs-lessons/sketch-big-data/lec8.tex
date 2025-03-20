@@ -1,0 +1,299 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand\myeq{\mathrel{\stackrel{\makebox[0pt]{\mbox{\normalfont\tiny def}}}{=}}}
+
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{8 --- September 26, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Sebastian Gehrmann}
+
+\section{Overview}
+
+\begin{enumerate}
+\item Continuous monitoring
+\item Chaining
+\end{enumerate}
+
+
+\section{Continuous Monitoring}
+
+In previous lectures, we considered problems in which we observe a stream of data and then query information about it. In continuous monitoring (CM), we consider data streams with continuous, more involved querying. 
+An an example, consider a router that sees a stream of IP's and at every point in time we are interested in what the heavy hitters are, how skewed the distribution is, or whether we can detect trends and anomalies in the traffic. 
+In addition, we are interested in identifying when the answer to a query changes. 
+
+\paragraph{Dynamic Data Structures Refresher} Generally, data structures (DS) are ways of laying out data in memory. A dynamic DS is a structure that allows updates, opposed to a static structure that does not allow them. A stream is an example of a dynamic DS (with the goal of sublinear memory).
+
+\paragraph{Problem Description} formalize the CM problem, we consider an operation sequence that looks like $up_1, q_1, up_2, q_2, \ldots, up_n, q_n$ for updates $up_i$ and queries $q_i$. So far, we have considered Monte-Carlo randomized algorithms (that fail with a certain probability). We typically want $f(x)$ and algorithmic output $\tilde{f}$ s.t.
+$\mathbb{P}(|f(x)-\tilde{f}| > \gamma) < \delta$ (*).
+
+In CM, we have $x^{(1)}, x^{(2)}, \ldots, x^{(m)}$, where $x^{(t)}$ is the frequency vector after the first $t$ updates. An algorithm should output $\tilde{f}^{(1)}, \tilde{f}^{(2)}, \ldots, \tilde{f}^{(m)}$ s.t. $\mathbb{P}(\exists_{t\in [m]} |\tilde{f}^{(t)} - f(x^{(t)})| > \gamma_{(t)}) < \delta$ (**).
+We can derive (**) from (*) by setting $\delta' = \frac{\delta}{m}$, and then take the union bound oder all $t\in [m]$
+
+However, by doing this, we blow up the space and query time by $\log n$. The goal is to prevent this from happening? 
+
+\paragraph{Approach} Our hope is to define an event $E_t$ that algorithmically fails at time $t$ ($\tilde{f}$ is a bad estimate). We want to bound 
+
+\begin{equation*}
+\mathbb{P}(\bigvee\limits_{t=1}^m E_t) = \sum\limits_{t=1}^m \mathbb{P}(E_t|\bar{E_1} \wedge \bar{E_2} \wedge \ldots \wedge \bar{E}_{t-1})
+\end{equation*}
+
+So far, most algorithms we have seen are unlikely to fail at time $t+1$ if they worked $t$ times. An example for this is the sketch by Alon, Matias, and Szegedy~\cite{AlonMS99} for insertion-only streams (each update does $c \leftarrow x + 1$ for some $i$). Let us assume that we only have one row. Then, we maintain a random sign vector $\sigma$ (as opposed to a matrix) that we maintain the dot-product with stream $X$ with. The intuition is now that the dot-product does not change much over time.
+
+\begin{equation*}
+\underbrace{\mathbb{E}|X| \leq (\mathbb{E}X^2)^{\frac{1}{2}}}_{\text{Jensen's inequality}} = (\mathbb{E}(\sum\limits_{i=1}^t \sigma_i)^2)^{\frac{1}{2}} = \sqrt{t}
+\end{equation*}
+
+The trick here is to see that $\mathbb{E}(\sum\limits_{i=1}^t \sigma_i)^2$ is 0 for off-diagonals while the diagonals are $\pm 1$, which means that the expectation is $t$.
+
+%--------------------------------------TOY EXAMPLE ------------
+\subsection*{Toy Example - Random Walk on a Line}
+
+For demonstration purposes, we are going to assume the following problem. We have a line (\ldots, -4, -3, -2, -1, 0, 1, 2, 3, 4, \ldots). At each step we either take a step right or left With equal probability. We run this for $N$ time steps. The evolution can then be described by a row of the AMS sketch. If we define 
+
+\begin{equation*}
+x^{(t)} = \overbrace{(1,1, \ldots, 1}^{t}, \overbrace{0, \ldots, 0}^{N-t})
+\end{equation*}
+
+then at time $t$, we are at position $\langle\sigma, x^{(t)}\rangle$, $\sigma \in {-1,1}^N$, and $\mathbb{E}|\langle\sigma, x^{(N)}\rangle| \leq \sqrt{N}$ (same as above). We want to guarantee that we never leave this $\sqrt{N}$ area:
+
+\begin{equation*}
+\mathbb{E}\sup_{t \in [N]}|\langle\sigma, x^{(N)}\rangle| = O(\sqrt{N})
+\end{equation*}
+
+\framebox[1.1\width]{We have $\mathbb{P}^{(t)} = \frac{x^{(t)}}{\sqrt{N}}$, and want $\mathbb{E}\sup_{t}|\langle \sigma, x \rangle| = O(1)$} \par
+
+We are going to prove this via chaining (which is not the usual way). For the proof we need the Khintchine inequality:
+
+\begin{equation*}
+\forall x \in \mathbb{R}^N\ \mathbb{P}(\langle \sigma, x \rangle > \lambda) < \exp(\frac{-\lambda^2}{\delta \lVert x \rVert_2^2})
+\end{equation*}
+
+We can restate the dot product as $s \sum_i \sigma_i x_i$. Now, using Markov:
+
+\begin{equation*}
+\mathbb{P}(e^{s \sum_i \sigma_i x_i} > e^{s\lambda}) < e^{s\lambda} \mathbb{E}e^{s \sum_i \sigma_i x_i}
+\end{equation*}
+
+We can now calculate an upper bound on the last expectation in this equality: 
+
+\begin{align*}
+\mathbb{E}e^{s \sum_i \sigma_i x_i} &= \mathbb{E}\prod_i e^{s \sum_i \sigma_i x_i} && {} \\
+                                 {} &= \prod_i\mathbb{E} e^{s \sum_i \sigma_i x_i} && \text{Linearity of expectations} \\
+                                 {} &= \prod_i \frac{1}{2} (e^{s x_i} + e^{-s x_i}) && \text{Taylor exp. of } e = \sum_{k=1}^\infty \frac{z^k}{k} \\
+                                 {} &= \prod_i \cosh(sx_i) \\
+                                 {} &\leq \prod_i e^{\frac{s^2x_i^2}{2}} \\
+                                 {} &= e^{\frac{s^2\lVert x\rVert _2^2}{2^{-s\lambda}}} && \text{choose } s = \frac{\lambda}{\lVert x \rVert _2^2}
+\end{align*}
+
+% ----------------------CHAINING--------------------------------------------
+\section{Chaining}
+
+Chaining is a method for computing bounds on $\mathbb{E}\sup_{z\in Z} Z$ that leverages correlations across the $Z$. For the lecture today, every $Z$ looks like $\langle \sigma, x \rangle$ for some $x$. We want to bound 
+
+\framebox[1.1\width]{$\mathbb{E}\sup_{x \in T} \langle \sigma, x \rangle \myeq r(T)$} \par
+
+The reasoning is that if you bound this and the negative of this, we have a guarantee. If you have two vectors $x$ and $y$ where $|x-y|$ is close to 0, then $\langle \sigma, x \rangle$ is close to $\langle \sigma, y \rangle$. 
+
+\subsection{Bounding $r(t)$}
+
+We are going to explore four ways of bounding $r(T)$ that are increasingly tight. We will use the property that $r(T) \lesssim \text{rad}(T) * \lg^{\frac{1}{2}}|T|$.
+
+
+\paragraph{(1) - Union Bound}
+
+First, we normalize $T$ so that all $x \in T$ have $\lVert x\rVert_2^2 \leq 1$ (we can later reverse this). We can then use the fact that $\E Z \leq \E |Z| \leq \int_0^\infty \Pr (|Z| > u) du$
+
+\begin{equation*}
+r(T) \leq \int_0^\infty \Pr (\sup_{x\in T} \langle \sigma, x \rangle > u) du
+\end{equation*}
+
+We can then break up the integral and use the fact that the full integral over a distribution is 1. 
+
+\begin{equation*}
+\underbrace{\int_0^{C\sqrt{\lg|T|}} \Pr (\ldots)du}_{\leq C\sqrt{\lg|T|}} + \int_{C\sqrt{\lg|T|}}^\infty \Pr (\exists x\in T |\langle \sigma, x \rangle| > u)du
+\end{equation*}
+
+Since the left part is bounded, we can focus on the right part and union bound the tail down. 
+
+\begin{align*}
+\int_{C\sqrt{\lg|T|}}^\infty \Pr (\exists x\in T |\langle \sigma, x \rangle| > u)du &\leq \int_{C\sqrt{\lg|T|}}^\infty \sum_{x\in T} \Pr (|\langle \sigma, x \rangle| > u)du \\
+{} &\leq 2|T|\int_{C\sqrt{\lg|T|}}^\infty e^{\frac{-u^2}{2}}du \\
+{} &= O(1)
+\end{align*}
+
+We have found bounds for both terms, but we do not achieve the desired overall $O(1)$ due to the left term. 
+
+\paragraph{(2) - $\epsilon$-net argument}
+
+Let $T'$ be the smallest $\epsilon$-net of $T$ under $l_2$. For $x\in T$, let $x' \in T'$ be the closest point to $x$ in $T'$. Then
+
+\begin{align*}
+\E \sup_{x \in T} \langle \sigma, x \rangle &= \E \sup_{x \in T}\langle \sigma, x' + (x - x') \rangle \\
+											&\leq r(T') +  \E \sup_{x \in T}\langle \sigma, x - x' \rangle
+\end{align*}
+
+Here, the first term is $\leq \lg^{\frac{1}{2}}\mathcal{N}(T,l_2, \epsilon)$. Using Cauchy-Schwarz and property of the $\epsilon$-net, we can bound the second term to $\leq \lVert\sigma\rVert_2 \lVert x-x' \rVert_2 \leq \epsilon\sqrt{N}$. Now we choose the best $\epsilon$:
+
+\begin{equation*}
+r(T) \leq \inf_{\epsilon \rightarrow 0} \{ \lg^{\frac{1}{2}}\mathcal{N}(T,l_2, \epsilon) + \epsilon\sqrt{N} \}
+\end{equation*}
+ 
+Remember that 
+
+\begin{equation*}
+x^{(t)} = \overbrace{(1,1, \ldots, 1}^{t}, \overbrace{0, \ldots, 0}^{N-t})
+\end{equation*}
+
+Now we need to estimate $\mathcal{N}(T, l_2, \epsilon)$. We plug in the representation above to receive
+
+\begin{equation*}
+(0, \frac{(1,0,\ldots,0)}{\sqrt{N}},  \frac{(1,0,\ldots,0)}{\sqrt{N}}, \ldots, \frac{(1,1,\ldots,1)}{\sqrt{N}})
+\end{equation*}
+
+For two time-points $t > s$, $r^{(t)} - r^{(s)} = \sqrt{\frac{t-s}{N}}$, since
+
+\begin{equation*}
+\lVert r^{(t)} - r^{(s)} \rVert_2 = \lVert \frac{\overbrace{(0,0,1,1,\ldots, 0,1)}^{t-s}}{\sqrt{N}} \rVert_2 = \sqrt{\frac{t-s}{N}}
+\end{equation*}
+
+This implies that $\mathcal{N}(T, l_2, \epsilon) \leq \frac{1}{\epsilon^2}$. If we plug this in above, we arrive at the same guarantee as in the union-bound approach. 
+
+%------------------------------------------DUDLEY------------------------------------------------
+\paragraph{(3) - Dudley's inequality} For this approach, we assume that $\text{rad}(T) \leq 1$. The idea is that instead of stopping after the expansion $x' + (x - x')$, we recurse and create more $\epsilon$-nets. Let $S_k$ be a $\frac{1}{2^k}$-net of $T$ under $l_2$ (the choice does not matter for this example, but it does for others). Let $x^{(k)}$ be the closest point to $x$ in $S_k$. Now the full expansion becomes
+
+\begin{equation*}
+\langle \sigma, x \rangle = \langle \sigma, x^{(0)} + \sum_{k=1}^\infty x^{(k)} - x^{(k-1)} \rangle
+\end{equation*}
+
+Now we can use Dudley's inequality~\cite{Dudley67} to compute an upper bound.
+
+\begin{align*}
+\E \sup_{x\in T} \langle \sigma, x \rangle &= \E \sup_{x\in T} \langle \sigma, x^{(0)} + \sum_{k=1}^\infty x^{(k)} - x^{(k-1)} \rangle \\
+										   &\leq \underbrace{\E \langle \sigma, 0 \rangle}_{=0} + \underbrace{\E \sup_{x\in T} \sum_{k=1}^\infty}_{\text{switching makes worse}} \langle \sigma, x^{(k)} - x^{(k-1)} \rangle \\
+                                           &\leq \sum_{k=1}^\infty \E \sup_{x\in T} \underbrace{\langle \sigma, x^{(k)} - x^{(k-1)} \rangle}_{\text{norm} \leq \frac{3}{2^k} = \frac{1}{2^k} + \frac{1}{2^{k-1}}} \\
+                                           &\lesssim \sum_{k=1}^\infty \frac{1}{2^k} \lg^{\frac{1}{2}} (\mathcal{N}(T, l_2, \frac{1}{2^k}) \cdot \mathcal{N}(T, l_2, \frac{1}{2^{k-1}})) \\
+                                           &\lesssim  \sum_{k=1}^\infty \frac{1}{2^k} \lg^{\frac{1}{2}} \mathcal{N}(T, l_2, \frac{1}{2^k})  \ \leftarrow \text{(*) Dudley's inequality} \\
+                                           &\left( \leq \int_0^\infty \lg^{\frac{1}{2}} \mathcal{N}(T, l_2, u)du \right)
+\end{align*}
+
+RWL: (*) $\lesssim \sum_{k=1}^\infty \frac{\sqrt{k}}{2^k} = O(1)$
+
+This shows that the random walk on a line is bounded. 
+
+
+\paragraph{(4) - Last approach (not full proof)} First, observe the following. Say $T_0 \leq T_1 \leq T_2 \leq \ldots \leq T$ is "admissible" if (a) $|T_0| = 1$, (b) $|T_r| \leq 2^{2^r}$. The claim now is that 
+
+\begin{align*}
+(^*) &\simeq \inf_{\{T_r\}_{r=0}^\infty} \sum_{r=1}^\infty \underbrace{2^{\frac{r}{2}}}_{\sqrt{\log} \text{ of net in (3)}} \sup_{x\in T} d_{l_2}(x,T_r)
+\end{align*}
+
+The intuition for the $\sup$ is that it stays close to 1, then drops to $\leq .5$. Altogether it gives you the same bound as (3). The idea behind this proof is to find the best possible solution with a budget of $2^{2^r}$.
+
+\paragraph{Generic Chaining} The technique of generic chaining can be traced back to Fernique~\cite{Fernique75}. The idea is required to get from the random walk on a line example to streaming
+
+\begin{equation*}
+r(T) \lesssim \inf_{\{T_r\}} \sup_{x\in T} \sum_{r=1}^\infty 2^{\frac{r}{2}} d_{l_2}(x,T_r)
+\end{equation*}
+
+Now, $x^{(t)}$ refers to where the stream is after the first $t$ updates. We claim that if we define $r^{(t)} = \frac{x^{(t)}}{\lVert x^{(m)} \rVert_2}$, then 
+
+\begin{equation*}
+\forall u \in (0,1) \ \mathcal{N}(\{r^{(t)}\}_{t=1}^m, l_2, u) \leq \frac{1}{u^2}
+\end{equation*}
+
+The proof for this is similar to the line using chaining and Dudley's inequality. We can use this to estimate $l_2$ in a stream. Let the output at time $t$ be $\tilde{f}^{(t)}$. 
+
+\begin{definition}
+We achieve weak tracking if $\forall t \in [m] |\tilde{f}^{(t)} - \lVert x^{(t)} \rVert_2 | < \epsilon \lVert x^{(m)} \rVert_2$
+\end{definition}
+\begin{definition}
+We achieve strong tracking if $\forall t \in [m] |\tilde{f}^{(t)} - \lVert x^{(t)} \rVert_2 | < \epsilon \lVert x^{(t)} \rVert_2$
+\end{definition}
+
+We can use today's techniques to show that the AMS sketch with $k=O(\frac{1}{\epsilon^2 \lg \frac{1}{\epsilon}}$ rows provides weak tracking (and it can be improved to $k=O(\frac{1}{\epsilon^2}$ with a different chaining argument by Braverman et al.~\cite{Braverman17}).  
+
+\paragraph{Why is this relevant?} AMS maintains $y_j = \langle \sigma(j), x \rangle$ for $j = 1, \ldots, k$. $\lVert x \rVert_2^2$ is estimated as $\sum_j y_j^2 = \sum_j \langle \sigma(j), x \rangle^2$. We can use the media of $\lg \frac{1}{d}$ repetitions to get a low failure probability. We can argue that  $\langle \sigma(j), x^{(t)}-x^{(s)} \rangle$ is never big when we plug it into the equation from the line-walking example: 
+
+\begin{align*}
+\langle \sigma(j), x^{(t_2)} \rangle &=  \langle \sigma(j), x^{(t_1)}+(x^{(t_2)}-x^{(t_1)}) \rangle \\
+  								 {}  &=  \langle \sigma(j), x^{(t_1)} \rangle + \langle \sigma(j), x^{(t_2)}-x^{(t_1)} \rangle
+\end{align*}
+
+
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AlonMS99}
+Noga~Alon, Yossi~Matias, Mario~Szegedy.
+\newblock The Space Complexity of Approximating the Frequency Moments.
+\newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+\bibitem{Dudley67}
+Richard~M.~Dudley.
+\newblock The sizes of compact subsets of Hilbert space and continuity of Gaussian processes.
+\newblock {\em J. of Func. Anal.}, 1(3):290--330.
+
+\bibitem{Fernique75}
+Xavier~Fernique.
+\newblock Regularit{\'e} des trajectoires des fonctions al{\'e}atoires gaussiennes.
+\newblock {\em Ecole d’Et{\'e} de Probabilit{\'e}s de Saint-Flour}, 1--96, 1975.
+
+\bibitem{Braverman17}
+Vladimir~Braverman, Stephen~R.~Chestnut, Nikita~Ivkin, Jelani~Nelson, Zhengyu~Wang, David~P.~Woodruff.
+\newblock BPTree: An $l_2$ Heavy Hitters Algorithm Using Constant Memory.
+\newblock {\em Proceedings of the 36th ACM SIGMOD-SIGACT-SIGAI Symposium on Principles of Database Systems}, 361--376, 2017.
+\end{thebibliography}
+
+\end{document}

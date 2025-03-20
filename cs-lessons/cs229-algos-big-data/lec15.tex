@@ -1,0 +1,212 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tabto}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{example}[theorem]{Example}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{15 --- October 22, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Brabeeba Wang}
+
+\section{Overview}
+We are going to focus on large sclae linear algebra and today it is on approximation matrix multiplication
+\begin{enumerate}
+\item $A\in \mathbb{R}^{n\times d}$, $B\in \mathbb{R}^{d\times p}$
+\item Want to compute $A^TB$
+\end{enumerate}
+Straight forward algorithm have $O(ndp)$ for loop. Alternatively, we can break out $A^T, B$ into several $d\times d$ blocks and multiply it block by block. So we can use fast square matrix multiplication in $O(d^\omega)$.
+\begin{enumerate}
+\item $\omega<\log_27$ (Strassen)
+\item $\omega< 2.376$ (Coppersmith, Winograd)
+\item $\omega<2.374$ (Stothevs)
+\item $\omega<2.3728642$ (Vassilevke-Williams)
+\item $\omega<2.3728639$ (Le Gell)
+\end{enumerate} 
+We can also reduce to rectangular matrix multiplication like we can multiply $r\times r^\alpha$ by $r^\alpha\times r$ in $r^{\alpha+o(1)}$ where $\alpha>0.30298$ (Le Gall). But today we are going to settle for computing $C\in \mathbb{R}^{d\times p}$ such that $\Vert A^TB-C\Vert_X$ small. For example $\Vert\Vert_X=\Vert\Vert_F$.\\
+Two approaches:
+\begin{enumerate}
+\item Sampling (Drineas, Kannan, Mahoney SIJC'06)\cite{Drineas06}
+\item JL (Sarlos FOCS'06)\cite{Sarlos}
+\end{enumerate}
+\section{Sampling}
+\begin{enumerate}
+\item $A^TB=\sum_{k=1}^na_kb_k^T$
+\item $C = (\Pi A)^T(\Pi B), \Pi\in\mathbb{R}^{m\times n}$
+\item $\Pi$ is a sampling matrix with rows $\Pi_1,\dotsb,\Pi_m$ 
+\item $\Pi_t$ are independent across $t$
+\item $\Pi_t=e_i/\sqrt{mp_i}$ with probability $p_i$ proportional to $\Vert a_i\Vert_2\cdot\Vert b_i\Vert_2$
+\item $C=\sum_{t=1}^m1/ma_{k_t}b_{k_t}^T/p_{k_t}$
+\item Define $Z_t= 1/ma_{k_t}b_{k_t}^T/p_{k_t}$
+\end{enumerate}
+\begin{claim}
+$\mathbb{E}C = A^TB$
+\end{claim}
+\begin{proof}
+It is trivial by linear expectation since $\mathbb{E}Z_t=A^tB/m$
+\end{proof}
+\begin{claim}
+If $m>1/\epsilon^2\delta$, then 
+\begin{equation}
+\mathbb{P}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F)<\delta
+\end{equation}
+\end{claim}
+\begin{proof}
+By Markov,
+\begin{equation}
+\mathbb{P}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F)<\mathbb{E}(\Vert A^TB-C\Vert_F^2)/\epsilon^2\Vert A\Vert_F^2\Vert B\Vert_F^2
+\end{equation}
+\begin{enumerate}
+\item WLOG, $\Vert A\Vert_F=\Vert B\Vert_F=1$
+\item $A^TB-C=\sum_{t=1}^m(Z_t-\mathbb{E}(Z_t))$
+\item $\mathbb{E}(A^TB-C)= \sum_{i,j}\mathbb{E}(\sum_{t=1}^m(Z_t-\mathbb{E}Z_t)_{ij})^2 = \sum_{i,j} Var[\sum_{t=1}^m (Z_t)_{ij}] = \sum_{i,j}\sum Var[(Z_t)_{ij}] = m\sum_{i,j} Var[Z_{ij}]$
+\item $Z_ij = 1/m\sum_{k=1}^n \rho_k/p_k\cdot a_{k_i}b_{k_j}$ where $\rho_\alpha = 1$ if $t$th row of $\Pi$ sampled row $k$.
+\item $Var[Z_{ij}]\leq \mathbb{E}(Z_{ij})^2 = 1/m^2\cdot\sum_{k=1}^n \mathbb{E}(\rho_k)/p_k^2\cdot a_{k_i}^2b_{k_j}^2$
+\item $\mathbb{E}\Vert A^TB-C\Vert_F^2\leq 1/m\cdot\sum_{k=1}^n1/p_k(\sum_{i,j}a_{k_i}^2b_{k_j}^2) = 1/m\cdot\sum_{k=1}^n1/p_k\Vert a_k\Vert_2^2\Vert b_k\Vert_2^2 = 1/m(\sum_{k=1}^n\Vert a_k\Vert_2^2\Vert b_k\Vert_2^2)^2 \leq 1/m(\sum_{k=1}^n\Vert a_k\Vert_2^2)(\sum_{k=1}^n\Vert b_k\Vert_2^2)$. 
+\item This gives us $\mathbb{P}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F)<1/\epsilon^2m<\delta$
+\end{enumerate}
+\end{proof}
+We want to improve the runtime to $\log(1/\delta)$. Following is the trick (Clarkson, Woodruff STOC'09)\cite{Clarkson09}.
+\begin{enumerate}
+\item set $r=\Theta(\log (1/\delta))$
+\item Compute $C_1, \dotsb, C_r$ as before each with failure probability $1/10$
+\item Know by Chernoff $>2/3$ of the $C_i$ give low error ($\epsilon/4\Vert A\Vert_F\Vert B\Vert_F$)
+\item Check which one is good:\\ 
+
+for $i=1$ to $r$: \\
+$\hspace*{0.2in}$ if $\Vert A^TB-C_i\Vert_F\leq\epsilon/4\Vert A\Vert_F\Vert B\Vert_F:$\\ 
+$\hspace*{0.2in}\hspace*{0.2in}$ return $C_i$
+
+
+\item Trick: \\
+for $i=1$ to $r$: \\
+$\hspace*{0.2in}$$ctr\leftarrow 0$ \\
+$\hspace*{0.2in}$for $j=1$ to $r$: \\
+$\hspace*{0.2in}$$\hspace*{0.2in}$if $\Vert C_i-C_j\Vert_F<\epsilon/2\Vert A\Vert_F\Vert B\Vert_F:$\\
+$\hspace*{0.2in}$$\hspace*{0.2in}$$\hspace*{0.2in}$$ctr\leftarrow ctr+1$ \\
+$\hspace*{0.2in}$$\hspace*{0.2in}$if $ctr> r/2$ \\
+$\hspace*{0.2in}$$\hspace*{0.2in}$$\hspace*{0.2in}$return $C_i$
+\end{enumerate}
+Analysis:
+\begin{enumerate}
+\item $\#$ of good $i$ is $>2r/3$
+\item if $i$ is good, then for good $j$ we have $\Vert C_i-C_j\Vert_F\leq \Vert A^TB-C_i\Vert_F+\Vert A^TB-C_j\Vert_F\leq \epsilon/4 + \epsilon/4\leq \epsilon/2\Vert A\Vert_F\Vert B\Vert_F$ 
+\end{enumerate}
+
+\section{JL Approach}
+\begin{definition}
+$\Pi\in\mathbb{R}^{m\times n}$ and $D$ is a distribution over $\Pi$ satisfies the $(\epsilon,\delta, p)-$JL moment property if for any $x\in S^{n-1}$ we have $\mathbb{E}_{\Pi\sim D}|\Vert \Pi x\Vert_2^2-1|^p<\epsilon^p\delta$
+\end{definition}
+\begin{example}
+\begin{enumerate}
+\item $\Pi_{ij} = \pm 1/\sqrt{m}$. This induces $(\epsilon, \delta, 2)-$ JL moment property with $m\geq 1/\epsilon^2\delta$ and $(\epsilon, \delta, \log(1/\delta))-$ JL moment property with $m\geq \log(1/\delta)/\epsilon^2$
+\item Based on the pset 1 problem 4, we have $(\epsilon, \delta, 2)-$ JL moment property with $m\geq 1/\epsilon^2\delta$
+\end{enumerate}
+
+\end{example}
+\begin{claim}
+Suppose $\Pi$ comes from $(\epsilon, \delta, p)-$ JL moment property for some $p\geq 2$. Then for any $A,B$ with $n$ rows, we have 
+\begin{equation}
+\mathbb{P}_{\Pi\sim D}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F) < \delta
+\end{equation}
+\end{claim}
+\begin{proof}
+\begin{enumerate}
+\item By Markov,
+$\mathbb{P}_{\Pi\sim D}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F)<\mathbb{E}\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F^p/\epsilon^p\Vert A\Vert_F^p\Vert B\Vert_F^p$.
+\item  So we want to bound $\Vert\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F^2\Vert_{p/2}^{1/2}$
+\item $\Vert  A^TB-(\Pi A)^T(\Pi B)\Vert_F^2=\sum_{i,j}\Vert a_i\Vert_2^2\Vert b_j\Vert_2^2X_{i,j}^2$
+\item $X_{i,j} = \langle \Pi a_i/\Vert a_i\Vert_2, \Pi b_j\Vert b_j\Vert_2\rangle - \langle a_i/\Vert a_i\Vert_2,b_j\Vert b_j\Vert_2\rangle$
+\item $\Vert\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F^2\Vert_{p/2}\leq \sum_{i,j}\Vert a_i\Vert_2^2\Vert b_j\Vert_2^2\Vert X_{ij}^2\Vert_{p/2}\leq \max_{i,j}\Vert a_i\Vert_2^2\Vert b_j\Vert_2^2\Vert X_{ij}^2\Vert_{p/2}$
+\item Fix $i, j$ we have $X_{i,j} = \langle \Pi x, \Pi y\rangle - \langle x,y\rangle$ where $\Vert x\Vert_2=\Vert y\Vert_2 = 1$
+\item $\Vert X_{ij}^2\Vert_{p/2} = \Vert X_{ij}^2\Vert_p$
+\item $X_{ij} = 1/2[(\Vert\Pi(x-y)\Vert_2^2) + (\Vert\Pi x\Vert_2^2-1) + (\Vert\Pi y\Vert_2^2-1)]$
+\item $\Vert X_{ij}\Vert_p\leq 1/2[\Vert x-y\Vert_2^2\Vert\frac{\Vert\Pi(x-y)\Vert^2}{\Vert x-y\Vert^2}-1\Vert_p] + \Vert\Vert\Pi x\Vert_2^2-1\Vert_p + \Vert\Vert\Pi y\Vert_2^2-1\Vert_p\leq 1/2\epsilon\delta^{1/p}[\Vert x-y\Vert_2^2 + 1 + 1]\leq 3\epsilon\delta^{1/p}$
+\item And this gives us $\mathbb{P}_{\Pi\sim D}(\Vert A^TB-(\Pi A)^T(\Pi B)\Vert_F>\epsilon\Vert A\Vert_F\Vert B\Vert_F)\leq \Vert A\Vert_F^2\Vert B\Vert_F^2 9 \epsilon^2\delta^{2/p}/(3\epsilon\Vert A\Vert_F\Vert B\Vert_F)^p=\delta$
+\end{enumerate}
+
+\end{proof}
+\section{Next class}
+We are going to get some results on operator bound.
+$\Vert (\Pi A)^T(\Pi B) - A^TB\Vert < \epsilon\Vert A\Vert\Vert B\Vert$
+\begin{enumerate}
+\item WLOG $\Vert A\Vert = \Vert B\Vert = 1$
+\item WLOG $A=B$ because consider $m$ as the justaposition of $A^T$ and $B$. We can easily see that $\Vert m\Vert = 1$ And this gives us $\Vert m\frac{x}{y}\Vert_2^2 =\Vert Ax\Vert^2 + \Vert By\Vert^2\leq \Vert x\Vert^2 + \Vert y\Vert^2 $
+\end{enumerate} 
+And we will get something stronger.
+From now on $A=B$ and we want for any $x$, $\Vert \Pi Ax\Vert_2^2 = (1\pm\epsilon)\Vert Ax\Vert_2^2$. This is stronger because $\Vert (\Pi A)^T(\Pi A) - A^TA\Vert = \sup_{\Vert x\Vert = 1}|\Vert\Pi Ax\Vert_2^2 - \Vert Ax\Vert_2^2|<\epsilon\Vert Ax\Vert_2^2$
+
+
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+\bibitem{Drineas06}
+Petros~Drineas, Ravi~Kannan, Michael~Mahoney.
+\newblock Fast Monte Carlo Algorithms for Matrices I: Approximating Matrix Multiplication.
+\newblock {\em SIAM J. Comput} 36(1):132–157, 2006.
+
+\bibitem{Sarlos}
+Tamas~Sarlos.
+\newblock Improved Approximation Algorithms for Large Matrices via Random Projections.
+\newblock {\em FOCS} 2006.
+
+\bibitem{Clarkson09}
+Kenneth~Clarkson, David~Woodruff.
+\newblock Numerical Linear Algebra in the Streaming Model.
+\newblock {\em STOC}, 205--214, 2009.
+
+
+
+
+\end{thebibliography}
+
+\end{document}

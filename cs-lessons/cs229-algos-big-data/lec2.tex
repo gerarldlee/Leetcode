@@ -1,0 +1,271 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{2 --- Sept. 8, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Jeffrey Ling}
+
+\section{Probability Recap}
+
+Chebyshev: $P(|X - \mathbb E X| > \lambda) < \frac{Var[X]}{\lambda^2}$
+
+Chernoff: For $X_1, \ldots, X_n$ independent in $[0,1]$, $\forall 0 < \epsilon < 1$, and $\mu = \mathbb E \sum_i X_i$,
+$$P(|\sum_i X_i - \mu| > \epsilon \mu) < 2 e^{-\epsilon^2\mu/3}$$
+
+\section{Today}
+
+\begin{itemize}
+\item Distinct elements
+\item Norm estimation (if there's time)
+\end{itemize}
+
+\section{Distinct elements ($F_0$)}
+
+Problem: Given a stream of integers $i_1, \ldots, i_m \in [n]$ where $[n] := \{1, 2, \ldots, n\}$, we want to output the number of distinct elements seen.
+
+\subsection{Straightforward algorithms}
+
+\begin{enumerate}
+\item Keep a bit array of length $n$. Flip bit if a number is seen.
+\item Store the whole stream. Takes $m \lg n$ bits.
+\end{enumerate}
+
+We can solve with $O(\min (n, m\lg n))$ bits.
+
+\subsection{Randomized approximation}
+
+We can settle for outputting $\widetilde{t}$ s.t. $P(|t - \widetilde{t}| > \epsilon t) < \delta$. The original solution was by Flajolet and Martin \cite{FM}.
+
+\subsection{Idealized algorithm}
+
+\begin{enumerate}
+\item Pick random function $h: [n] \to [0,1]$ (idealized, since we can't actually nicely store this)
+\item Maintain counter $X = \min_{i \in stream} h(i)$
+\item Output $1/X - 1$
+\end{enumerate}
+
+\paragraph{Intuition.} $X$ is a random variable that's the minimum of $t$ i.i.d $Unif(0,1)$ r.v.s.
+
+\claim $\mathbb E X = \frac{1}{t+1}$.
+
+\proof 
+\begin{align*}
+\mathbb E X &= \int_0^\infty P(X > \lambda) d\lambda \\
+&= \int_0^\infty P(\forall i \in str, h(i) > \lambda)d\lambda \\
+&= \int_0^\infty \prod_{r=1}^t P(h(i_r) > \lambda)d\lambda \\
+&= \int_0^1 (1 - \lambda)^t d\lambda \\
+&= \frac{1}{t+1}
+\end{align*} \qed
+
+\claim $\mathbb E X^2 = \frac{2}{(t+1)(t+2)}$
+
+\proof
+\begin{align*}
+\mathbb E X^2 &= \int_0^1 P(X^2 > \lambda)d\lambda \\
+&= \int_0^1 P(X > \sqrt{\lambda}) d\lambda \\
+&= \int_0^1 (1 - \sqrt{\lambda})^t d\lambda & u = 1 - \sqrt{\lambda} \\
+&= 2 \int_0^1 u^t (1 - u) du \\
+&= \frac{2}{(t+1)(t+2)}
+\end{align*} \qed
+
+This gives $Var[X] = \mathbb E X^2 - (\mathbb E X)^2 = \frac{t}{(t+1)^2(t+2)}$, and furthermore $Var[X] < \frac{1}{(t+1)^2} = (\mathbb E X)^2$.
+
+\section{FM+}
+
+We average together multiple estimates from the idealized algorithm FM.
+
+\begin{enumerate}
+\item Instantiate $q = 1/\epsilon^2\eta$ FMs independently
+\item Let $X_i$ come from FM$_i$.
+\item Output $1/Z - 1$, where $Z = \frac1q \sum_i X_i$.
+\end{enumerate}
+
+We have that $\mathbb E(Z) = \frac{1}{t+1}$, and $Var(Z) = \frac 1q \frac{t}{(t+1)^2(t+2)} < \frac{1}{q(t+1)^2}$.
+
+\claim $P(|Z - \frac{1}{t+1}| > \frac{\epsilon}{t+1}) < \eta$
+
+\proof Chebyshev.
+$$P(|Z - \frac{1}{t+1}| > \frac{\epsilon}{t+1}) < \frac{(t+1)^2}{\epsilon^2} \frac{1}{q(t+1)^2} = \eta$$ \qed
+
+\claim $P(| (\frac{1}{Z} - 1) - t | > O(\epsilon)t) < \eta$
+
+\proof By the previous claim, with probability $1- \eta$ we have
+$$\frac{1}{(1 \pm \epsilon) \frac{1}{t+1}} - 1 = (1 \pm O(\epsilon))(t+1) - 1 = (1 \pm O(\epsilon))t \pm O(\epsilon)$$
+
+\qed
+
+\section{FM++}
+
+We take the median of multiple estimates from FM+.
+
+\begin{enumerate}
+\item Instantiate $s = \lceil 36 \ln (2 / \delta) \rceil$ independent copies of FM+ with $\eta = 1/3$.
+\item Output the median $\widehat{t}$ of $\{ 1/Z_j - 1 \}_{j=1}^s$ where $Z_j$ is from the $j$th copy of FM+.
+\end{enumerate}
+
+\claim $P(|\widehat{t} - t| > \epsilon t) < \delta$
+
+\proof Let
+$$Y_j = \begin{cases} 1 & \mbox{if } |(1/Z_j - 1) - t| > \epsilon t \\ 0 & \mbox{else} \end{cases}$$
+
+We have $\mathbb E Y_j = P(Y_j = 1) < 1/3$ from the choice of $\eta$. The probability we seek to bound is equivalent to the probability that the median fails, i.e. at least half of the FM+ estimates have $Y_j = 1$. In other words,
+$$\sum_{j=1}^s Y_j > s/2$$
+We then get that
+\begin{equation}
+P(\sum Y_j > s/2) = P(\sum Y_j - s/3 > s/6) \label{eqn:first}
+\end{equation}
+Make the simplifying assumption that $\mathbb E Y_j = 1/3$ (this turns out to be stronger than $\mathbb E Y_j < 1/3$. Then equation ~\ref{eqn:first} becomes
+$$P(\sum Y_j - \mathbb E \sum Y_j > \frac 12 \mathbb E \sum Y_j)$$
+using Chernoff,
+$$< e^{-\frac{(\frac12)^2  s/3}{3}} < \delta$$
+as desired. \qed
+
+The final space required, ignoring $h$, is $O(\frac{\lg(1/\delta)}{\epsilon^2})$ for $O(\lg (1/\delta))$ copies of FM+ that require $O(1/\epsilon^2)$ space each.
+
+\section{$k$-wise independent functions}
+
+\begin{definition} A family $\mathcal{H}$ of functions mapping $[a]$ to $[b]$ is $k$-wise independent if $\forall j_1, \ldots, j_k \in [b]$ and $\forall$ distinct $i_1, \ldots, i_k \in [a]$,
+$$P_{h \in \mathcal{H}}(h(i_1) = j_1 \wedge \ldots \wedge h(i_k) = j_k) = 1/b^k$$ \end{definition}
+
+\paragraph{Example.} The set $\mathcal{H}$ of all functions $[a] \to [b]$ is $k$-wise independent for every $k$. $|\mathcal{H}| = b^a$ so $h$ is representable in $a \lg b$ bits.
+
+\paragraph{Example.} Let $a = b = q$ for $q = p^r$ a prime power, then $\mathcal{H}_{poly}$, the set of degree $\leq k-1$ polynomials with coefficients in $\mathbb F_q$, the finite field of order $q$. $|\mathcal{H}_{poly}| = q^k$ so $h$ is representable in $k \lg p$ bits.
+
+\claim $\mathcal{H}_{poly}$ is $k$-wise independent.
+
+\proof Interpolation. \qed
+
+\section{Non-idealized FM}
+
+First, we get an $O(1)$-approximation in $O(\lg n)$ bits, i.e. our estimate $\widetilde{t}$ satisfies $t/C \leq \widetilde{t} \leq Ct$ for some constant $C$.
+
+\begin{enumerate}
+\item Pick $h$ from 2-wise family $[n] \to [n]$, for $n$ a power of 2 (round up if necessary)
+\item Maintain $X = \max_{i \in str} lsb(h(i))$ where $lsb$ is the least significant bit of a number
+\item Output $2^X$
+\end{enumerate}
+
+For fixed $j$, let $Z_j$ be the number of $i$ in stream with $lsb(h(i)) = j$. Let $Z_{>j}$ be the number of $i$ with $lsb(h(i)) > j$.
+
+Let
+$$Y_i = \begin{cases} 1 & lsb(h(i)) = j \\ 0 & \text{else} \end{cases}$$
+Then $Z_j = \sum_{i \in str} Y_i$. We can compute $\mathbb E Z_j = t/2^{j+1}$ and similarly
+$$\mathbb E Z_{>j} = t(\frac1{2^{j+2}} + \frac1{2^{j+3}} + \ldots) < t/2^{j+1}$$
+and also
+$$Var[Z_j] = Var[\sum Y_i] = \mathbb E(\sum Y_i)^2 - (\mathbb E \sum Y_i)^2 = \sum_{i_1,i_2} \mathbb E(Y_{i_1}Y_{i_2})$$
+Since $h$ is from a 2-wise family, $Y_i$ are pairwise independent, so $\mathbb E(Y_{i_1}Y_{i_2}) = \mathbb E(Y_{i_1}) \mathbb E(Y_{i_2})$. We can then show
+$$Var[Z_j] < t/2^{j+1}$$
+
+Now for $j^* = \lceil \lg t - 5 \rceil$, we have
+$$16 \leq \mathbb EZ_{j^*} \leq 32$$
+$$P(Z_{j^*} = 0) \leq P(|Z_{j^*} - \mathbb EZ_{j^*}| \geq 16) < 1/5$$
+by Chebyshev.
+
+For $j = \lceil \lg t + 5 \rceil$
+$$\mathbb E Z_{> j} \leq 1/16$$
+$$P(Z_{>j} \geq 1) < 1/16$$
+by Markov.
+
+This means with good probability the max lsb will be above $j^*$ but below $j$, in a constant range. This gives us a 32-approximation, i.e. constant approximation.
+
+\section{Refine to $1 + \epsilon$}
+
+\paragraph{Trivial solution.} Algorithm TS stores first $C/\epsilon^2$ distinct elements. This is correct if $t \leq C/\epsilon^2$.
+
+\paragraph{Algorithm.}
+
+\begin{enumerate}
+\item Instantiate TS$_0$, \ldots, TS$_{\lg n}$
+\item Pick $g : [n] \to [n]$ from 2-wise family
+\item Feed $i$ to TS$_{lsb(g(i))}$
+\item Output $2^{j+1}$ out where $t/2^{j+1} \approx 1/\epsilon^2$.
+\end{enumerate}
+
+Let $B_j$ be the number of distinct elements hashed by $g$ to TS$_j$. Then $\mathbb EB_j = t/2^{j+1} = Q_j$. By Chebyshev $B_j = Q_j \pm O(\sqrt{Q_j})$ with good probability. This equals $(1 \pm O(\epsilon)) Q_j$ if $Q_j \geq 1/\epsilon^2$.
+
+Final space: $\frac{C}{\epsilon^2} (\lg n)^2 = O(\frac 1{\epsilon^2} \lg^2 n)$ bits.
+
+It is known that space $O(1/\epsilon^2 + \log n)$ is achievable \cite{KNW10}, and furthermore this is optimal \cite{AMS,Woodruff} (also see \cite{JKS}).
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AMS}
+Noga~Alon, Yossi~Matias, Mario~Szegedy
+\newblock The Space Complexity of Approximating the Frequency Moments. 
+\newblock {\em J. Comput. Syst. Sci.} 58(1): 137--147, 1999.
+
+\bibitem{FM}
+Philippe~Flajolet, G.~Nigel~Martin
+\newblock Probabilistic counting algorithms for data base applications.
+\newblock {\em J. Comput. Syst. Sci.}, 31(2):182--209, 1985.
+
+\bibitem{JKS}
+T. S. Jayram, Ravi Kumar, D. Sivakumar:
+\newblock The One-Way Communication Complexity of Hamming Distance.
+\newblock {\em Theory of Computing} 4(1): 129--135, 2008.
+
+
+\bibitem{KNW10}
+Daniel~M.~Kane, Jelani~Nelson, David~P.~Woodruff
+\newblock An optimal algorithm for the distinct elements problem.
+\newblock In {\em Proceedings of the Twenty-Ninth ACM SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems (PODS)}, pages 41--52, 2010.
+
+\bibitem{Woodruff}
+David P. Woodruff.
+\newblock Optimal space lower bounds for all frequency moments.
+\newblock In {\em SODA}, pages 167--175, 2004.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,250 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{12 --- October 12, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Shyam Narayanan}
+
+\section{Overview}
+
+In the last lecture we discussed efficient algorithms for matrix multiplication and briefly talked about regression.  We needed to find an efficient method of generating an $\epsilon$-subspace embedding from last time, since last time our approach required finding the Singular Value Decomposition of $A$, which is quite slow.
+
+In this lecture we focus on the following:
+
+\begin{itemize}
+    \item Subspace Embeddings
+    \item Regression
+    \item Low-rank approximation
+\end{itemize}
+
+Our general approach is to minimize $||Ax-b||$ by looking at $||\Pi A x - \Pi b||$ for some $\Pi \in \mathbb{R}^{d \times n},$ where $d << n.$
+
+\section{Subspace Embeddings}
+
+Recall the following from last lecture:
+
+\begin{definition}
+    $\Pi$ is an $\epsilon-$ \textbf{subspace embedding} ($\epsilon$-s.e.) for $V = \{x: \exists z \text{ } s.t. \text{ } x = Uz\}$ (where $U \in \mathbb{R}^{n \times d}$ is some matrix with orthonormal columns, i.e. $U^T U = I$) if $$\forall x \in V, \text{ } (1-\epsilon) ||x||_2^2 \le ||\Pi x||_2^2 \le (1+\epsilon) ||x||_2^2.$$  We showed in the previous lecture that this last condition is equivalent to $$||(\Pi U)^T (\Pi U) - I|| \le \epsilon,$$ where $|| \cdot ||$ represents the operator norm.
+\end{definition}
+
+We talked about \textbf{Singular value decomposition (SVD)}, which tells us for any matrix $A \in \mathbb{R}^{n \times d}$ with rank $r$, we can write $A = U\Sigma V^T,$ where $U, \in \mathbb{R}^{n \times r}, V \in \mathbb{R}^{d \times r}, \Sigma \in \mathbb{R}^{r \times r},$ such that $U^T U = I, V^T V = I,$ and $\Sigma$ is a diagonal matrix.  If $E = Colspace(A),$ then letting $\Pi = U^T \in \mathbb{R}^{d \times n}$ gives us $\Pi U = I$ so $||(\Pi U)^T(\Pi U) - I|| = 0 < \epsilon.$  This seems great, but a problem is that solving for $U$ takes time $O(n \cdot d^2),$ which is really slow.  So we need to try something different.
+
+We have two ways of constructing subspace embeddings:
+
+\begin{enumerate}
+    \item Sampling
+    \item ``JL" approach
+\end{enumerate}
+
+\subsection{Sampling}
+    Given as input $A \in \mathbb{R}^{n \times d},$ we want a subspace embedding for $Colspace(A),$ i.e. $||\Pi A x||_2^2 \approx ||Ax||_2^2$ for all $x$.  This means we want to preserve $A^T A,$ since $||Ax||_2^2 = (Ax)^T (Ax) = x^T (A^T A) x.$
+    
+    Recall that if $$A = \begin{bmatrix} -a_1^T-\\ \vdots \\ -a_n^T- \end{bmatrix}$$ then $$A^T A = \sum\limits_{i = 1}^{n} a_i a_i^T.$$  This is a straightforward but valuable fact in linear algebra.
+    
+    Our goal for constructing $\Pi$ is to sample each row with some probability $p_i.$  Let $$\eta_i = \begin{cases}1 & \text{we keep } a_i \\ 0 & \text{we discard } a_i \end{cases}.$$  Then, we want our matrix $$\Pi = \begin{bmatrix} \frac{\eta_1}{\sqrt{p_1}} & \cdots & 0 \\ \vdots & \ddots & \vdots \\0 & \cdots & \frac{\eta_n}{\sqrt{p_n}} \end{bmatrix} \Rightarrow \Pi A = \begin{bmatrix} -\frac{\eta_1}{\sqrt{p_1}} a_1^T-\\ \vdots \\ -\frac{\eta_n}{\sqrt{p_n}} a_n^T- \end{bmatrix}.$$  So this means $$(\Pi A)^T (\Pi A) = \sum\limits_{i = 1}^{n} \frac{\eta_i}{p_i} a_i a_i^T.$$  Note this means $$\mathbb{E}[(\Pi A)^T (\Pi A)] = \sum\limits_{i = 1}^{n} \frac{\mathbb{E}[\eta_i]}{p_i} a_i a_i^T = \sum\limits_{i = 1}^{n} a_i a_i^T = A^T A.$$
+    
+    Note that $\mathbb{E}[\text{number of rows of $A$ kept}] = \sum p_i,$ so we want to know how small of a $p_i$ we can get away with.
+    
+\begin{definition}
+    Define $$R_i = \sup\limits_{x} \frac{\langle a_i, x\rangle}{||Ax||_2^2}.$$  $R_i$ is often thought of as like the ``sensitivity'' of the row $a_i$.
+\end{definition}
+
+Note that $||Ax||_2^2 = \sum x^T a_i a_i^T x = \sum \langle a_i, x \rangle^2.$
+
+We want to get some information about $p_i$ given $R_i.$  In fact, we can show the following:
+
+\begin{claim}
+    For all $i$, if $0 < p_i < \frac{R_i}{2}$, then the distribution of $\Pi$ where we replace $p_i = 0$ is strictly better than the current distribution.  In other words, if $p_i$ is not sufficiently large with respect to $R_i,$ it is better that we just set $p_i = 0.$
+\end{claim}
+
+\begin{proof}
+    Let's fix some $i$ and look at $$||\Pi A x||_2^2 = \frac{\eta_i}{p_i} \langle a_i, x\rangle^2 + \sum\limits_{j \neq i} \frac{\eta_j}{p_j} \langle a_i, x \rangle^2 \ge \frac{\eta_i}{p_i} \langle a_i, x\rangle^2.$$  Suppose that $p_i \neq 0.$  Then, if we were to sample row $i$ (which happens with positive probability), $$||\Pi A x||_2^2 \ge \frac{1}{p_i} \langle a_i, x \rangle^2$$ for all $x$.  This is true for $$x^* = \arg\max\limits_{x} \frac{\langle a_i, x \rangle}{||Ax||_2^2}.$$  But then $$||\Pi A x^*||_2^2 \ge \frac{R_i}{p_i} ||Ax^*||_2^2 > 2||Ax^*||_2^2,$$ given that $p_i < \frac{R_i}{2},$ which means $\Pi$ is not $\epsilon$-s.e.  Therefore, it is strictly better to let $p_i = 0$ if $p_i < \frac{R_i}{2}.$
+\end{proof}
+
+\begin{definition}
+    Given a matrix $M = U \Sigma V^T$ (with $U \Sigma V^T$ as $M$'s SVD), we define the \textbf{pseudoinverse} of $M$ as $M^+ = V \Sigma^{-1} U^T.$
+\end{definition}
+
+\begin{definition}
+    Define $\ell_i = a_i^T (A^T A)^+ a_i$.  $\ell_i$ is called the $i$th \textbf{leverage score} of $A$.
+\end{definition}
+
+A lot of papers use leverage score instead of our sensitivity $R_i,$ but it doesn't really matter which one is used.  This is because:
+
+\begin{claim}
+    $\ell_i = R_i$.
+\end{claim}
+
+Also, we note the following:
+
+\begin{claim}
+    $A(A^TA)^+A^T$ is the orthogonal projection onto $Colspace(A).$
+\end{claim}
+
+\begin{proof}
+    By looking at the SVD of $A$, we get $$A^T A = V \Sigma U^T U \Sigma V^T = V \Sigma^2 V^T.$$  Therefore, $(A^T A)^+ = V \Sigma^{-2} V^T.$  This means $$A(A^T A)^+ A^T = U \Sigma V^T (V \Sigma^{-2} V^T) V \Sigma U^T = U U^T.$$
+\end{proof}
+
+Note that this implies $$\ell_i = e_i A (A^T A)^+ A^T e_i = ||U^T e_i||_2^2 = ||u_i||^2,$$ where $$U = \begin{bmatrix} -u_1^T-\\ \vdots \\ -u_n^T- \end{bmatrix}$$ is in $\mathbb{R}^{n \times d}.$  Also, if we pick $p_i = \alpha \cdot \ell_i$ for some constant $\alpha,$ then $$\sum p_i = \alpha \cdot \sum\limits_{i = 1}^{n} ||u_i||^2 = \alpha \cdot ||U||_F^2 = \alpha d,$$ since each column of $U$ has unit norm and there are $d$ columns.
+
+It turns out that the following is true:
+
+\begin{theorem} \cite{SpielmanSrivastava}
+    If $p_i \ge \min(1, \alpha \ell_i)$ for all $i$, and if $\alpha \ge C \cdot \frac{\ln (d/\delta)}{\epsilon^2},$ then $$\mathbb{P}(\Pi \text{ is } \epsilon-\text{s.e. for } Colspace(A)) \ge 1 - \delta$$
+\end{theorem}
+
+Therefore, to compute $\Pi$, we just need to compute $p_i$, but this means we need $U$, which as we know takes too long to compute.  However, there is a fast algorithm that, given $A$, will compute $\tilde{\ell}_1, ..., \tilde{\ell}_n$ such that $\forall i,$ $\ell_i \le \tilde{\ell}_i \le 2 \ell_i$.  (Maybe we'll have this on our homework?)
+
+\subsection{JL Approach}
+
+We will use the technique of \textbf{``Oblivious Subspace Embedding'' (OSE)} \cite{Sarlos}.
+
+\begin{definition}
+    A distribution $D$ over $\mathbb{R}^{m \times n}$ is an $\epsilon, \delta-$OSE for dimension $d$ if $$\forall U \in \mathbb{R}^{n \times d} \text{ s.t. } U^T U = I, \text{ } \mathbb{P}\limits_{\Pi \sim D} (||(\Pi U)^T\Pi U - I|| > \epsilon) < \delta.$$
+\end{definition}
+
+How would we prove that some distribution $D$ is an OSE?  There are three main approaches we'll cover:
+
+\subsubsection{Nets}
+
+We can construct a $\beta$-net (in $\ell_2$) $E'$ for $E = \{x: x = Uz\}$ for $\beta = \frac{1}{10}$.  We can prove that if $\Pi$ $\epsilon$-preserves all $x \in E',$ then $\Pi$ $\epsilon$-preserves $E$.  Note that $|E'| = O(\frac{1}{\beta})^d = e^{O(d)}.$  Therefore, we need $$c \cdot \frac{\lg (|E'|/\delta)}{\epsilon^2} = O\left(\frac{d+ \lg \frac{1}{\delta}}{\epsilon^2}\right)$$ dimensions, by $JL$ lemma.
+
+\subsubsection{Moment Method}
+
+Let $M = (\Pi U)^T \Pi U - I.$  By Markov's inequality, we know that for any $p \ge 1,$ $$\mathbb{P}(||M|| > \epsilon) < \frac{1}{\epsilon^p} \mathbb{E}(||M||^p).$$  Let the eigenvalues of $M$ be $\lambda_1, ..., \lambda_d$ where $|\lambda_1| \ge |\lambda_2| \ge ... \ge |\lambda_d|.$  Then, $$\frac{1}{\epsilon^p} \mathbb{E}(||M||^p) = \frac{1}{\epsilon^p} \mathbb{E}(\lambda_1^p) \le \frac{1}{\epsilon^p} \mathbb{E}(\sum \lambda_i^p) = \frac{1}{\epsilon^p} \mathbb{E}(Tr(M^p)),$$ where we can choose $p$ to be even so $\lambda_i^p$ is positive.  Brute force matrix multiplication tells us that $$(M^p)_{i, j} = \sum\limits_{i = i_0, i_1, ..., i_p = j} \prod\limits_{t = 0}^{p-1} M_{i_ti_{t+1}}$$ which means that $$Tr(M^p) = \sum\limits_{\{i_0, ..., i_p\}: i_0 = i_p} \prod\limits_{t = 0}^{p-1} M_{i_ti_{t+1}}.$$  
+
+This looks pretty bad, however, it can be useful.  As an example, let $p = 2$ and let $\Pi \in \mathbb{R}^{m \times n}$ be the Count Sketch matrix $$\Pi = \begin{bmatrix} -0 -\\ \vdots \\ - \pm 1 - \\ \vdots \\ - 0 - \end{bmatrix}$$ where each column has exactly one nonzero entry.  Then, $\Pi$ is an OSE for $m = \Theta(\frac{d^2}{\epsilon^2 \delta})$ by the moment method for $p = 2$ \cite{ClarksonWoodruff}\cite{NelsonNguyen}\cite{MahoneyMeng}.
+
+Note that since $\Pi$ has only one nonzero element per column, $A \mapsto \Pi A$ can be cone in time $O(nnz(A)),$ where $nnz$ refers to the \textbf{n}umber of \textbf{n}on\textbf{z}ero entries.
+
+The Count Sketch matrix turns out to have the $(\epsilon, \delta, 2) - JL$ moment property for $m = O(\frac{1}{\epsilon^2 \delta})$, which means, as we showed in the previous lecture, $$\mathbb{P}\left(||(\Pi A)^T (\Pi B) - A^T B)||_F > \epsilon ||A||_F ||B||_F \right) < \delta.$$  Now, if $A = B = U,$ then $||A||_F = ||B||_F = \sqrt{d}$ so $||A||_F ||B||_F = d.$  Letting $\gamma = \frac{\epsilon}{d},$ we need $$m = \Theta\left(\frac{1}{\gamma^2 \delta}\right) = \Theta\left(\frac{d^2}{\epsilon^2 \delta}\right)$$ rows for the Count Sketch matrix, as mentioned above.
+
+\subsubsection{Chaining}
+
+We want $\mathbb{E} ||M|| < \epsilon,$ where again $M = (\Pi U)^T \Pi U - I.$  Recall that $\mathbb{E}||M|| = \mathbb{E} \sup\limits_{||x||_2 = 1} |x^T Mx|.$  Then, the following is true:
+
+\begin{theorem} \cite{Gordon}
+    Fix $T \subset S^{n-1}$.  Then, if $\Pi \in \mathbb{R}^{m \times n}$ with i.i.d. $\mathcal{N}(0, \frac{1}{m})$ entries, then $$\mathbb{E} \sup\limits_{x \in T} \left| ||\Pi x||_2^2 - 1\right| \lesssim \frac{g(T)}{\sqrt{m}} + \frac{g^2(T)}{m},$$ where $$g(T) = \mathbb{E}\limits_{g} \sup\limits_{x \in T} \langle g, x \rangle.$$
+\end{theorem}
+
+Now, we can just choose $m \gtrsim \frac{g^2(T)}{\epsilon^2}$ to get the right hand side is $O(\epsilon + \epsilon^2) = O(\epsilon).$
+
+\section{Regression}
+
+Recall that we are trying to minimize $||Ax-b||$ over $x$.  We try to make faster is to minimize $||\Pi Ax - \Pi b||$ where $\Pi$ has much fewer rows than columns, and where $\Pi$ is $\epsilon$-s.e. for $span(b, cols(A))$ so that $||\Pi Ax - \Pi b|| \approx ||Ax-b||$.
+
+Last time, we saw that $\Pi$ is $\epsilon$-s.e. for $span(b, cols(A))$ implies $m = \Theta(d/\epsilon^2)$ is sufficient.  We can use fast JL to get an OSE.
+
+We briefly present two other ways:
+
+\begin{itemize}
+\item The first approach is from \cite{Sarlos}.  If $\Pi$ is 
+\begin{enumerate}
+    \item a $\frac{1}{10}$-subspace embedding for $Colspace(A)$ and
+    \item provides a $\sqrt{\frac{\epsilon}{d}}-AMM_F$ error for some particular two matrices
+\end{enumerate}
+
+then we get some $\tilde{x}$ such that $||A\tilde{x} - b||_2^2 \le (1+\epsilon) \min ||Ax-b||_2^2$, and we only need $\frac{d}{\epsilon}$ rows instead of $\frac{d}{\epsilon^2}$ rows.
+
+\item The second approach is a gradient descent approach, from \cite{RokhlinTygert} \cite{AvronMaymounkovToledo} \cite{ClarksonWoodruff}.  Define $f(x) = ||Ax-b||_2^2.$  Given $x^{(k)},$ we move to $x^{(k+1)} = x^{(k)} - \gamma \nabla f(x_k).$  As long as the ratio of the largest to smallest singular value of $A$ (also called the ``condition number'' of $A$ or $\kappa(A)$) is not too large, they showed gradient descent converges quickly.
+
+But what if $\kappa(A)$ is not small?  Suppose that $\Pi A = U \Sigma V^T, R = V \Sigma^{-1}$.  Then, it turns out that $\kappa(AR) = \Theta(1),$ since for all $x$, $||\Pi A R x|| = ||U x|| = ||x||,$ but if $\Pi$ is $\epsilon$-s.e. for $Colspace(A),$ then $||ARx|| \approx ||\Pi A R x|| = ||x||,$ so $AR$ cannot have any eigenvalues that are too small or too large.  Therefore, we can do gradient descent with the matrix $AR$.
+
+\end{itemize}
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{SpielmanSrivastava}
+Daniel A. Spielman, Nikhil Srivastava.
+\newblock Graph sparsification by effective resistances.
+\newblock {\em STOC}, 563--568, 2008.
+
+\bibitem{Sarlos}
+Tamas Sarlos.
+\newblock Improved Approximation Algorithms for Large Matrices via Random Projections.
+\newblock {\em FOCS}, 143--152, 2006.
+
+\bibitem{ClarksonWoodruff}
+Kenneth L. Clarkson, David P. Woodruff.
+\newblock Low rank approximation and regression in input sparsity time.
+\newblock {\em STOC}, 81--90, 2013.
+
+\bibitem{NelsonNguyen}
+Jelani Nelson, Huy L. Nguyen.
+\newblock Lower bounds for oblivious subspace embeddings.
+\newblock {\em CoRR} abs/1308.3280, 2013.
+
+\bibitem{MahoneyMeng}
+Xiangrui Meng, Michael W. Mahoney.
+\newblock Low-distortion subspace embeddings in input-sparsity time and applications to robust linear regression.
+\newblock {\em STOC}, 91--100, 2013.
+
+\bibitem{Gordon}
+Yehoram Gordon. 
+\newblock On Milman’s inequality and random subspaces which escape through a mesh in $\mathbb{R}^n$.
+\newblock {\em Geom. Aspects of Funct. Anal.}, vol. 1317, pages 84--106, 1986-87.
+
+\bibitem{RokhlinTygert}
+Vladimir Rokhlin, Mark Tygert.
+\newblock A fast randomized algorithm for overdetermined linear least-squares regression.
+\newblock {\em PNAS} 105(36): 13212--13217, 2008.
+
+\bibitem{AvronMaymounkovToledo}
+Haim Avron, Petar Maymounkov, Sivan Toledo.
+\newblock Blendenpik: Supercharging LAPACK's Least-Squares Solver.
+\newblock {\em SIAM J. Scientific Computing} 32(3): 1217--1236, 2010.
+
+\end{thebibliography}
+
+\end{document}

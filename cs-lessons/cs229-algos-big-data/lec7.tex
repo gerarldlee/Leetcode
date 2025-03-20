@@ -1,0 +1,291 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumerate}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\Enc}{Enc}
+
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ep}{\varepsilon}
+\newcommand{\dl}{\delta}
+\newcommand{\norm}[1]{\left\|#1\right\|}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{fact}[thm]{Fact}
+\newtheorem{claim}[thm]{Claim}
+
+\theoremstyle{definition}
+\newtheorem{defn}[thm]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{rmk}[thm]{Remark}
+\newtheorem{obs}[thm]{Observation}
+\newtheorem{asm}[thm]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+
+
+\begin{document}
+
+\lecture{7 --- September 24, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{David Mende}
+
+\section{Recap}
+
+In the last lecture we looked at $\ell_1$ point query and heavy hitters. For point query we have:
+\[
+\text{query}(i)=x_i\pm\ep\norm{x}_1.
+\]
+What about other norms?
+
+\subsection{Count Sketch}
+See \cite{CCF02} for more information. We are given $\sigma_1,\ldots,\sigma_L$ where $\sigma_j:[n]\to\{-1,1\}$. We have
+\[
+C_{r,h_r(i)}=\sigma_r(i)x_i+\underbrace{\left(\sum_{\substack{h_r(j)=h_r(i) \\ j\neq i}}\sigma_r(j)x_j\right)}_\beta.
+\]
+For the error term $\beta$, we have that
+\[
+\E[\beta^2]\leq\frac{1}{t}\norm{x}_2^2\implies |\beta|\leq\frac{\sqrt{3}}{\sqrt{t}}\norm{x}_2
+\]
+with probability $\geq\dfrac{2}{3}$.
+
+We want to find $\tilde{x}$ such that
+\[
+\norm{x-\tilde{x}}_2^2\leq(1+\ep)\norm{x_{\text{tail}(k)}}_2^2.
+\]
+Gilbert et al. \cite{GLP12} showed that
+\[
+M\lesssim\frac{k}{\ep}\lg\left(\frac{n}{k}\right).
+\]
+We can recover $\tilde{x}$ in time $(k/\ep)\log^{O(1)}n$ and process updates in $\lg^{O(1)}n$.
+
+\subsection{New topics}
+\begin{itemize}
+\item $\ell_0$-sampling
+\item Graph algorithms
+\begin{itemize}
+\item Connectivity
+\item $k$-connectivity
+\end{itemize}
+\end{itemize}
+
+
+\section{$\ell_p$-sampling}
+See \cite{MW10} for more information. We have that:
+\begin{itemize}
+\item $x$ is an updated turnstile,
+\item Want to draw $i\in[n]$ with probability $i=j$ being $\dfrac{\abs{x_j}^p}{\norm{x_j}_p^p}$.
+\item The norm ``$\norm{x}_0^0$''$=\abs{\text{supp}(x)}=\abs{\{i:x_i\neq 0\}}$.
+\item The norm $\norm{x}_p^p=\sum_{i=1}^n\abs{x_i}^p$.
+\end{itemize}
+
+\subsection{$\ell_0$-sampling}
+See \cite{CF14} for more information.
+\[
+\Pr(i=j)=
+\begin{cases}
+0, & \text{if }j\notin\supp(x), \\
+\frac{1}{\supp(x)}\pm\dl, & \text{if }j\in\supp(x).
+\end{cases}
+\]
+
+\paragraph{Ingredients of Algorithm}
+\begin{enumerate}[(a)]
+\item Show if $y$ is 1-sparse, we can recover $y$ with probability 1 using $O(\lg\frac{1}{\dl})$ rows. (This algorithm is deterministic).
+\item Also, if $\abs{\supp(y)}\neq 1$, output ``Fail'' with probability $\geq 1-\dl$ using $O(\lg\frac{1}{\dl})$ rows.
+\item Geometric sampling.
+\end{enumerate}
+
+\paragraph{Analysis}
+\begin{enumerate}[(a)]
+\item$A=\sum\limits_{i=1}^n y_i$, $B=\sum\limits_{i=1}^n i\cdot y_i$,
+
+$\norm{y}_0=1\implies\supp(y)=\left\{\dfrac{B}{A}\right\}, y_i=A$.
+
+\item Detect $\abs{\supp(y)}=0$ (i.e., $y=0$) by AMS sketch ($y=0\iff\norm{y}_2=0$).
+
+\item Detect $\abs{\supp(y)}>1$.
+	\begin{enumerate}[(1)]
+	\item Let $y'$ be returned from (a). Test whether $\Pi(y'-y)=0$.
+	\item $h:[n]\to\text{?}$ \\ %Picture was drawn here
+		if $\abs{\supp(y)}>2$ (contains $i_1,i_2,\ldots$).
+	\end{enumerate}
+\end{enumerate}
+
+Combine (a) and (b) using geometric sampling to get $\ell_0$-sample. Create $\lg n$ virtual streams with vectors $y^{(0)},\ldots,y^{(\lg n)}$. For
+\[
+h:[n]\to\{0,\ldots,\lg n\},\qquad\Pr(h(i)=j)=\frac{1}{2^{j+1}}.
+\]
+Include index $i$ in $y^{(h(i))}$. $y^{(j)}=x_{\{i:h(i)=j\}}$. We have that $1\leq|\supp(x)|\leq n$ and
+\[
+\E\left[\abs{\supp(y^{(j)})}\right]=\frac{\abs{\supp(x)}}{2^{j+1}}, 0\leq j\leq \lg n.
+\]
+This implies that
+\[
+\exists\,j^* \text{ such that }1\leq\E\left[\abs{\supp(y^{(j)})}\right]\leq 2,
+\]
+Now we want to show that for this $j^*$,
+\[
+\Pr\left(\abs{\supp(y^{(j^*)})}=1\right)
+\]
+is large (i.e.\ $\Omega(1)$). Let $T=\abs{\supp(x)}$. So $T/2\le 2^{j^*+1}\le T$. Suppose $T$ items are each kept independently with probability $2^{-(j^*-1)} \approx \dfrac{1}{T}$. What is the probability that {\em exactly} one item is kept? We have that
+\begin{align*}
+\Pr(\text{exactly one survives})&=\sum_{i=1}^T\Pr\left(\text{item $i$ survives and no one else dies}\right) \\
+&=\left(\sum_{i=1}^T\frac{1}{T}\right)\cdot\left(1-\frac{1}{T}\right)^{T-1} \\
+&=\left(1-\frac{1}{T}\right)^{T-1} \\
+&\approx\frac{1}{e}\left(\frac{1}{1-\frac{1}{T}}\right) \\
+&\approx\frac{1}{e} \\[6pt]
+&=\Theta(1).
+\end{align*}
+\paragraph{Final Space}
+We have $\lg n\cdot\lg^2\dfrac{1}{\dl}$ counters. After Nisan, we need $\lg^2 n\cdot\lg^2\dfrac{1}{\dl}$ counters. It is known that we can achieve $O(\lg n\cdot\lg\frac{1}{\dl})$ words \cite{JST11}. Instead of using 1-sparse $y$, Jowhari et al. used $s$-sparse $y$ where $s=\Theta(\lg\frac{1}{\dl})$. You can recover $y$ with probability 1 using $2s$ rows (for example, using Prony's method).
+
+
+\section{Graphs}
+Let $G=(V,E)$, where we see edges $e\in E$ in stream. Let $|V|=n$ and $|E|=m$.
+\subsection{Connectivity}
+Define
+\[
+\text{query}(i,j)=
+\begin{cases}
+1, & \text{if $i,j$ in same connected component}, \\
+0, & \text{else}.
+\end{cases}
+\]
+\subsubsection*{Insertion Only}
+Straightforward: $O(m)$ space by storing all edges.
+
+Straightforward$--$: $O(n)$ space. Store a spanning forest.
+
+\begin{claim}
+Any deterministic algorithm needs $\Omega(n)$ space.
+\end{claim}
+
+\begin{proof}
+Suppose we have $x\in\{0,1\}^{n-1}$. As before, we will perform an encoding argument. We create a graph with $n$ vertices $0,1,\ldots,n-1$. The only edges that exist are as follows: for each $i$ such that $x_i=1$, we create an edge from vertex $0$ to vertex $i$. The encoding of $x$ is then the space contents of the connectivity streaming algorithm run on the edges of this graph. Then in decoding, by querying connectivity between $0$ and $i$ for each $i$, we can determine whether $x_i$ is $1$ or $0$. Thus the space of the algorithm must be at least $n-1$, the minimum encoding length for compressing $\{0,1\}^{n-1}$.
+\end{proof}
+
+As an exercise, try to extend the $\Omega(n)$ lower bound above to randomized algorithms with constant failure probability (try using an approach similar to that for problem set 1, problem 3(b)). 
+
+For many interesting graph problems, it turns out that $\Omega(n)$ space is required. This motivated the ``Semi-streaming'' model for graphs \cite{FKM05}, where the goal is to achieve want $O(n\lg^c n)$ space.
+
+\paragraph{Question:} Can we solve connectivity in turnstile model?
+
+\subsubsection{Graph Sketching}
+Now we will investigate the case of the turnstile model, where edges can be inserted {\em and} deleted in a stream. For example, users (vertices) on Facebook can friend each other (i.e.\ create an edge between them) then later one can defriend the other (delete the edge). We will show a sketching approach to handle turnstile streaming for graphs due to \cite{AGM12}.
+
+First, consider the following non-streaming algorithm.
+
+\paragraph{Algorithm:} ConnComp($G=(V,E)$).
+\begin{itemize}
+\item $S\leftarrow\{\{v_1\},\{v_2\},\ldots,\{v_n\}\}$
+\item For $i=1$ to $\lg n$:
+	\begin{itemize}
+	\item For each $s\in S$ (in parallel)
+		\begin{itemize}
+		\item Pick an edge $e=(s,w)$ for some $w\in S$.
+		\item contract($e$)
+		\end{itemize}
+	\end{itemize}
+\item Return $S$.
+\end{itemize}
+
+\paragraph{Turnstile streaming implementation:}
+\begin{itemize}
+\item Each $v\in V$ will store $f(v)\in\R^{\binom{n}{2}}$.
+\[
+(f(v))_{(a,b)}=
+\begin{cases}
+0, & \text{if }v\notin\{a,b\}\text{ or }(a,b)\notin E, \\
++1, & \text{if }v=\min(a,b), \\
+-1, & \text{if }v=\max(a,b).
+\end{cases}
+\]
+\item For $s\in S$, $f(s)=\sum\limits_{v\in S} f(v)$.
+\item $\supp(f(s))$ is the set of edges with one endpoint in $s$ and the other outside $s$.
+\item Use $\lg n$ different $\ell_0$-sampler sketches $A_1(f(v)),\ldots,A_{\lg n}(f(v))$.
+\end{itemize}
+
+For each iteration $i$ through the main loop in ConnComp, for each $s\in S$we use the $\ell_0$-sampler $A_i(f(\cdot))$ to sample an edge $e_s$ leaving $s$. Then, for each edge $e$ obtained, we contract $e$ between some supernodes $s, t$ in the ConnComp algorithm. We perform this contraction by adding the sketches $A_j(f(s))$ and $A_j(f(t))$ for all $j > i$.
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{CCF02}
+Moses~Charikar, Kevin C.~Chen, Martin~Farach-Colton.
+\newblock Finding Frequent Items in Data Streams.
+\newblock ICALP 2002: 693--703.
+
+\bibitem{GLP12}
+Anna C.~Gilbert, Yi~Li, Ely~Porat, Martin J.~Strauss.
+\newblock Approximate Sparse Recovery: Optimizing Time and Measurements.
+\newblock {\em SIAM J. Comput.}, 41(2): 436--453 (2012).
+
+\bibitem{MW10}
+Morteza~Monemizadeh, David P.~Woodruff.
+\newblock 1-Pass Relative-Error $L_p$-Sampling with Applications.
+\newblock SODA 2010: 1143--1160.
+
+\bibitem{CF14}
+Graham~Cormode, Donatella~Firmani.
+\newblock A unifying framework for $\ell_0$ sampling algorithms.
+\newblock {\em Distributed and Parallel Databases} 32(3): 315--335 (2014).
+
+\bibitem{JST11}
+Hossein~Jowhari, Mert~Saglam, G\'{a}bor~Tardos.
+\newblock Tight bounds for $L_p$ samplers, finding duplicates in streams, and related problems.
+\newblock PODS 2011: 49--58.
+
+\bibitem{FKM05}
+Joan~Feigenbaum, Sampath~Kannan, Andrew~McGregor, Siddharth~Suri, Jian~Zhang.
+\newblock On graph problems in a semi-streaming model.
+\newblock {\em Theor. Comput. Sci}, 348(2--3): 207--216 (2005).
+
+\bibitem{AGM12}
+Kook Jin~Ahn, Sudipto~Guha, Andrew~McGregor.
+\newblock Analyzing graph structure via linear measurements.
+\newblock SODA 2012: 459--467.
+
+\end{thebibliography}
+
+
+\end{document}

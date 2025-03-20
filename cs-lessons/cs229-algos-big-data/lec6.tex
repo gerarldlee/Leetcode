@@ -1,0 +1,213 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,tikz}
+\usetikzlibrary{trees}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+%\DeclareMathOperator{\lg}{lg}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{6 --- September 22, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Brabeeba Wang}
+
+\section{Overview}
+
+In the last lecture we 
+\begin{enumerate}
+\item $l_1$ point query: $query(i) = x_i\pm \varepsilon\Vert x\Vert_1$
+\item $l_1$ heavy hitters: $query()$ return $L\in [n]$ such that\\
+(1) $|x_i|>\varepsilon\Vert x\Vert_1\rightarrow i\in L$\\
+(2) $|x_i|<\varepsilon\Vert x\Vert_1/2\rightarrow i\notin L$
+\end{enumerate}
+
+In this lecture we are going to cover few algorithms on point query and heavy hitters
+
+\begin{definition}
+$\Pi\in\mathbb{R}^{m\times n}$ is $\varepsilon$-coherent if 
+\begin{enumerate}
+\item For any $i$, $\Vert\Pi_i\Vert_2=1$
+\item for any $i\neq j$, $|\langle\Pi_i, \Pi_j\rangle|<\varepsilon$
+\end{enumerate}
+\end{definition}
+\begin{claim}
+$\Pi\in\mathbb{R}^{m\times n}$ is $\varepsilon$-coherent $\rightarrow$ $m$ dimensional sketch for $l_1$ point query \cite{Jelani}
+\end{claim}
+\begin{proof}
+\begin{enumerate}
+\item sketch is $y=\Pi x$
+\item estimate $x_i$ as $(\Pi^Yy)_i = (\Pi^Y\Pi x)_i$
+\item $(\Pi^Y\Pi x)_i$ = $e_i^T\Pi^T\Pi x = <\Pi, \sum_j\Pi_jx_j> = x_i+\sum_{j\neq i}z_j\langle\Pi_i, \Pi_j\rangle \leq x_i + \sum\varepsilon |x_j|$
+\end{enumerate}
+\end{proof}
+
+Given $\Pi x$, recover $x'=\Pi^t\Pi x$ such that $\Vert x-x'\Vert_\infty\leq\varepsilon\Vert x\Vert_1$ is called $l_\infty/l_1$ guarantee
+
+
+
+\section{Incoherent $\Pi$ (Construction)}
+Using $(\varepsilon, t, q, n)$ code, we get $\Pi\in\mathbb{R}^{m\times n}$, m = qt $\varepsilon$-incoherent. We have $q=2/\varepsilon$, $t=\Theta(\log n/\varepsilon)$ random such code works why?
+\begin{proof}
+Two deterministic codes are following.
+\begin{enumerate}
+\item Look at two codewords $C, D$. We have $\mathbb{E}$($\#$ indices where $C, D$ agree) = $t/q$. By Chernoff, we have the probability of $\leq2t/q = \varepsilon t$ w.p $\geq 1- e^{-\Omega(t/q)}$
+\item {\bf Real-Soloman codes}\\
+$q=t=\Theta(\varepsilon^{-1}\lg n/\lg\lg n+\lg(1/\varepsilon))\rightarrow m = \Theta(\varepsilon^{-2}(\log n/\log\log n+\lg(1/\varepsilon))^2)$. Better than $1$ when $\varepsilon<< 2^{-c\lg n^{1/2}}$
+\end{enumerate}
+\end{proof}
+\begin{fact}
+$m\geq 1/\varepsilon^2\cdot \lg n/\lg(1/\varepsilon)$ for any $\varepsilon$-incoherent $\Pi$ 
+\end{fact}
+
+\section{Randomized Point Query}
+\begin{definition}
+CountMin (CM) sketch \cite{Graham}
+\begin{enumerate}
+\item Hashing $h_1,...h_L: [n]\rightarrow[t]$ (will come from $2$-wise family)
+\item counters $C_{a,b}$ for $a\in [L]$, $b\in [t]$
+\item $C_{a,b}=\sum_{i\in[n], h_a(i)=b}x_i$
+\item for $\varepsilon$-point query with failure probability $\delta$, set $t=2/\varepsilon, L = \lg(1/\delta)$.\\ And let $query(i)$ output $\min_{i\leq r\leq L} C_{r, h_r(i)}$ (assuming "strict turnstile", for any $i$, $x_i\geq 0$). 
+\end{enumerate}
+\end{definition}
+
+\begin{claim} 
+$query(i)=x_i\pm\varepsilon\Vert x\Vert_1$ w.p $\geq 1-\delta$. $m=O(\varepsilon^{-1}\lg(1/\delta))$
+\end{claim}
+\begin{proof} CM sketch
+\begin{enumerate} 
+\item Fix $i$, let $Z_j = 1$ if $h_r(j)=h_r(i)$, $Z_j=0$ otherwise. $C_{r, h_r(i)}=x_i + \sum_{j\neq i} x_jZ_j$ ~ error $E$. 
+\item We have $\mathbb{E}(E)=\sum_{j\neq i}|x_j|\mathbb{E}Z_j=\sum_{j\neq i}|x_j|/t\leq\varepsilon/2\cdot\Vert x\Vert_1$
+\item $\mathbb{P}(E>\varepsilon\Vert x\Vert_1)< 1/2$
+\item $\mathbb{P}(\min_r C_{r, h_r(i)}> x_i + \varepsilon\Vert x\Vert_1)<1/2^L=\delta$
+\end{enumerate}
+\end{proof}
+\begin{theorem}
+There is an $\alpha$-Heavy Hitter (strict turnstile) w.p $1-\eta$
+\end{theorem}
+\begin{proof}
+
+Naively, we can do point query repeatedly with $\varepsilon= \alpha/4, \delta=\eta/n\rightarrow m = O(1/\alpha \log(n/\eta))$ with query time $O(n\cdot \log(n/\eta))$.\\\\
+But we have a quicker way, consider a perfect binary tree using our $n$ vector elements as the leaves. 
+
+\begin{center}
+\begin{tikzpicture}[level distance=1.5cm,
+  level 1/.style={sibling distance=3cm},
+  level 2/.style={sibling distance=1.5cm}]
+  \node {$\{1,2,...n\}$}
+    child {node {$\{1,2,...n/2\}$}
+      child {node {$\vdots$}
+  child{node {$1$}}
+  child{node {$2 \dots$}}
+}
+      child {node {$\vdots$}}
+    }
+    child {node {$\{n/2+1,...n\}$}
+    child {node {$\vdots$}
+  }
+      child {node {$\vdots$}
+  child{node {$\dots n-1$}}
+  child{node {$n$}}}
+    };
+\end{tikzpicture}
+\end{center}
+
+There are $\lg n$ levels and the weight of each node is the sum of elements. Now for each levels consider a $CountMin$ algorithm. 
+
+Now our algorithm is:
+\begin{itemize}
+\item {\em} Run CountMin from the roots downward with error $\epsilon = \alpha/4$ and $\delta=\eta\alpha/4\log n$
+\item {\em} Move down the tree starting from the root. For each node, run CountMin for each of its two children. If a child is a heavy hitter, i.e. CountMin returns $\geq 3\alpha/4 \Vert x\Vert_1$, continue moving down that branch of the tree.
+\item {\em} Add to $L$ any leaf of the tree that you point query and that has $CM(i) \geq 3\alpha/4 \Vert x\Vert_1$.
+\end{itemize}
+
+{\bf Correctness:}
+\begin{itemize}
+\item Notice that $l_1$ norm will be the same at every level since the weight of the parents node is exactly the sum of children nodes.
+\item Also notice that node $u$ contains heavy hitter amongst leaves in its subtree $\rightarrow$ $u$ is hit at its level.
+\item Notice that there is at most $2/\alpha$ nodes at any given level which are $\alpha/2$-heavy hitter at that level. 
+\item This implies that if all point queries correct, we only touch at most $(2/\alpha) \lg n$ vertices during BFS
+\item For each $CM_j$, we have $\epsilon = \alpha/4, \delta=\eta\alpha/4\log n\rightarrow space(CM_j) = O(1/\alpha\cdot \log(\log n/\alpha\eta))\rightarrow totalSpace = O(1/\alpha\cdot \log n\cdot \log(\log n/\alpha\eta))$
+\end{itemize}
+\end{proof}
+
+We know heavy hitter is $l_\infty/l_1$ guarantee. We will see later something called compressed sensing that gets $l_1/l_1$. To be precise $\Vert x-x'\Vert_1\leq (1+\varepsilon)\Vert x_{tail(k)}\Vert_1$. The question is can you get to $l_1/l_1$ for HH. CM sketch can give this with $\Vert x'\Vert_0\leq k$
+\begin{definition}
+$x_{tail(k)}$ is $x$ but with the heaviest $k$ coordinates in magnitude zero'd out.
+\end{definition}
+\begin{claim}
+If CM has $t\geq \Theta(k/\varepsilon)$, $L=\Theta(\lg(1/\delta))$ then w.p. $1-\delta$, $x'_i=x_i\pm\varepsilon/k\Vert x_{tail(k)}\Vert_1$
+\end{claim}
+
+Given $x'$ from CM output ($x'_i=query(i)$). Let $T\subset[n]$ correspond to largest $k$ entries of $x'$ in magnitude. Now consider $y = x'_T$. 
+\begin{claim}
+$\Vert x-y\Vert_1\leq (1+3\varepsilon)\|x_{tail(k)}\|_1$
+\end{claim}
+\begin{proof}
+Let $S$ denote $head(x)\subset[n]$ and $T$ denote $head(x')\subset[n]$. We have 
+\begin{align*}
+\Vert x-y\Vert_1 & = \Vert x\Vert_1 - \Vert x_T\Vert_1 + \Vert x_T-y_T\Vert_1\\ &\leq\Vert x\Vert_1 + \Vert x_T-y_T+y_T\Vert_1+\Vert x_T-y_T\Vert_1\\ &\leq \Vert x\Vert_1-\Vert y_T\Vert_1+2\Vert x_T-y_T\Vert_1\\ &\leq \Vert x\Vert - \Vert y_S\Vert + 2\Vert x_T-y_T\Vert_1\\ &\leq \Vert x\Vert - \Vert x_S\Vert+ \Vert x_S-y_S\Vert_1 + 2\Vert x_T-y_T\Vert_1\\ &\leq \Vert x_{tail(k)}\Vert_1+ 3\varepsilon \Vert x_{tail(k)}\Vert_1
+\end{align*}
+\end{proof}
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Graham}
+Graham~Cormode, S.~Muthukrishnan.
+\newblock An improved data stream summary: the count-min sketch and its applications.
+\newblock {\em Journal of Algorithms}, 55(1):58--75 , 2005.
+
+\bibitem{Jelani}
+Jelani~Nelson, Huy~L. Nguyen, David~P. Woodruff. 
+\newblock On Deterministic Sketching and Streaming for Sparse Recovery and Norm Estimation.
+\newblock {\em Linear Algebra and its Applications, Special Issue on Sparse
+Approximate Solution of Linear Systems}, 441: 152--167, January 15,
+2014.
+\end{thebibliography}
+
+\end{document}

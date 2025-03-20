@@ -1,0 +1,358 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumerate}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ve}{\varepsilon}
+\newcommand{\me}{\mathrm{e}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{8 --- September 29, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Johnny Ho}
+
+\section{Overview}
+
+In this lecture we introduce the longest increasing subsequence (LIS) and
+distance to monotonicity (DTM) problems along with various recent bounds and
+algorithms. We discuss and prove one particular randomized approximate algorithm
+for DTM.
+
+\section{Distance to Monotonicity}
+
+We introduce the idea of dynamic programming (DP) on streams.
+In particular, the longest increasing subsequence (LIS) problem is:
+Given an input sequence $x_1, x_2, ... x_n \in [m]$, find the longest possible
+increasing subsequence $x_{i_1} \leq x_{i_2} \leq x_{i_3} \leq ... x_{i_k}$.
+
+The distance to monotonicity (DTM) problem is similar, except removing the
+minimal number of elements to obtain such an increasing subsequence.
+Then clearly $DTM = n - |LIS|$.
+
+\subsection{Distinction}
+
+These two problems are actually distinct in terms of approximation.
+If we have some estimate $\widetilde{LIS}$ of the LIS, then we can imagine
+estimating $\widetilde{DTM} = n - \widetilde{LIS} = n - (1 \pm \ve) LIS =
+DTM \pm \ve LIS$.
+This is, however, not a multiplicative error but rather an additive error in
+terms of $n$.
+
+\subsection{Recent results}
+
+In 2007, Gopalan, Jayram, Krauthgamer, Kumar \cite{GopalanTJ07} demonstrated a deterministic
+approximate algorithm for LIS in $O(\sqrt{n/\ve})$ space. In 2008, Ergun,
+Jowhari \cite{ErgunHJ08} and in 2007, Gal, Gopalon \cite{GopalanTJ07},
+both demonstrate that this is a lower bound in terms
+of space required. It is open whether a poly-log algorithm exists for
+approximating the LIS problem.
+
+The DTM problem has such an algorithm, published by Saks, Seshadhri in 2013 \cite{SaksCS13},
+using $O(1/\ve \log(n/\ve) \log (n))$ words of space. Subsequently, Naumovitz,
+Saks in 2015 \cite{NaumovitzMS15} published lower bounds of
+$\Omega(1/\ve \log^2 n / \log \log n)$ and
+$\Omega(1/\ve \log^2 n)$ for randomized and determinstic algorithms,
+respectively.
+They also showed a deterministic algorithm using space bounded by $O(1/\ve^2
+\log^5 n)$.
+
+\section{Algorithm}
+
+We will present and prove Saks, Sehadri in this lecture, targeting a success
+probability of $1 - \delta$ and the above space bound.
+
+\subsection{Presentation}
+
+Imagine $w(i)$ as the weights of the items i.e. the cost of removal,
+with $w(i) = 1$ normally.
+
+We construct a DP table $s(i) = DTM(x_0, ..., x_i)$ such that we are forced to
+include (not remove) item $i$. As in dynamic programming, this will be
+iteratively constructed for each $i$ based on previous $i$. Note that this index
+starts at zero because we will add sentinels at indices 0 and $n + 1$.
+
+Another auxillary DP table will be $W(t) = \sum_{i=1}^{t} w(i)$, i.e. the prefix
+sums of our weights.
+
+We will also keep a set $R$.
+
+Steps:
+\begin{enumerate}
+\item Give each item weight $w(i) = 1$
+\item Prepend/postpend sentinels $-\infty/+\infty$ with weight $\infty$
+\item Initialize $R=\{0\}$, $W(0) = 0$, $s(0)= 0$
+\item For t = 1 to n+1:
+\begin{enumerate}[a.]
+\item $W(t) = W(t - 1) + w(t)$
+\item $s(t) = \min_{i \in R,\,x_i \leq x_t} {s(i) + W(t - 1) - W(i)}$
+\item $R = R \cup \{t\}$
+\end{enumerate}
+\item Return $s(n+1)$
+\end{enumerate}
+
+This is deterministic so far, and uses linear space.
+For the probabilistic algorithm, replace the symbol $r$ instead of $s$,
+and also add another step: \\
+\-\; d. For each item $i \in R$, remove $i$ with probability $1 - p(i, t)$.
+
+Note that if indices are being removed from $R$, then step b. will be taking
+the minimum of a subset of the indices, generating an overestimate of the true answer.
+
+Denote $R^t$ as $R$ at after $t$-th iteration.
+Define a function $q$ for the probability of being kept at $t$:
+
+\[q(i,t) = \Pr(i \in R^t) = \min\left\{1, \frac{1+\ve}{\ve} \ln\left(\frac
+{4t^3}{\delta}\right) \frac{w(i)}{W(i, t)}\right\}\]
+
+The intuition here is that the probability of remembering is inversely
+proportional to distance, since the algorithm will only fail if we forget the
+most recent members of the DP table.
+
+Then if we define $p$ in step d. as:
+\[p(i, t) =
+\begin{cases}
+q(i, t) / q(i, t - 1) & \text{if } i < t \\
+1 & \text{if } i = t
+\end{cases},
+\]
+then $q(i,t) = \Pr(i \in R^t)$ will be as desired, since the probability of
+being kept at $t$ is the product of the probabilities of being kept so far.
+
+\subsection{Proof}
+
+We now wish to prove:
+\begin{enumerate}[(A)]
+\item With probability $1 - \delta / 2$, $r(n+1) \leq (1+e) s(n+1)$, since it can only be an overestimate.
+\item With probability $1 - \delta / 2$, $\forall t$, $|R^t|$ is small i.e.
+poly-log in size.
+\end{enumerate}
+
+If $R^t$ ever exceeds a certain size, the program can just terminate, throwing
+an error value.
+
+\subsubsection{Proving (A)}
+
+Fix $C \subseteq [n]$ to be a particular optimal LIS.
+
+Define $i \in [n]$ to be unsafe at time $t$ if $(C \cap [i, t]) \cap R^t =
+\emptyset$. This is to say that we have removed everything in between $
+[i, t]$ from $R$. Further, let $U^t = \{i,\, i \text{ unsafe at time } t\}$, and
+$U = \bigcup_{t=1}^{n+1} U^t$ be the union of all such unsafe sets. This is the
+set of all elements that have ever been unsafe.
+
+Safeness is not a monotonic property over $i$, i.e. $i$ may be safe, then get
+removed from $R$, making it unsafe, but then another element of the LIS might be
+inserted back into $R$, making it safe again.
+However, given a fixed $t$, it is true that safeness is monotonic as $i$ is
+decreasing, i.e. they can only be unsafe and then safe.
+
+\begin{lemma}
+$r(n+1) \leq W(\overline{C} \cup U)$
+\end{lemma}
+
+\begin{proof}
+Here $\overline{C}$ is the complement of $C$. Define $\overline{C}_{\leq t}
+= \overline {C} \cap [t]$
+
+By induction on $t \in C$, we will show that
+$r(t) \leq W(\overline{C}_{\leq t - 1} \cup \bigcup_{k=1}^{t-1} U^k)$.
+As the base case, clearly $r(0) = 0$.
+
+The inductive step has two cases:
+\begin{itemize}
+\item $C_{\leq t - 1} \setminus U^{t-1} = \emptyset$
+
+We forgot everything in $C_{\leq t - 1}$, so
+  $W(\overline{C}_{t-1} \cup U^{t-1}) = W(1, t- 1)$, and
+  $r(t) \leq W(1, t - 1)$ clearly.
+
+\item $C_{\leq t - 1} \setminus U^{t-1} \neq \emptyset$
+
+Let $W$ apply to intervals and sets as the sum of the interval/sets.
+Pick the largest safe $j \in C_{\leq t - 1} \setminus U^{t-1}$.
+Then we have that
+  $r(t) \leq r(j) + W(j + 1, t - 1)
+  \leq W(\overline{C}_{\leq j - 1} \cup \bigcup_{k=1}^{j-1} U^k) + W(j + 1,
+  t - 1)$
+  $= W(\overline{C}_{\leq t-1} \cup \bigcup_{k=1}^{t-1} U^k)$.
+
+Equality holds because everything in the second term of the sum must be either
+unsafe at time $t$ or not in the LIS $C$ at all.
+\end{itemize}
+\end{proof}
+
+Define interval $I \subseteq [n]$ dangerous if $|I \cap C| \leq \frac{\ve}{1+\ve} |I|$.
+Define any $i \in C$ dangerous if $i$ is the left endpoint of
+some dangerous interval.
+
+We greedily form a dangerous collection $I_1, I_2, ...$ as follows:
+First, let $D$ be the set of dangerous $i \in C$.
+Take the leftmost element of $D$ and extend to the right as far as possible,
+and then repeat, taking leftmost elements not already included.
+Note that the elements not in these intervals should be inside $C$.
+Let $B = \cup_j I_j$ be the union of these intervals.
+
+We claim:
+\begin{enumerate}[a.]
+\item $\overline{C} \subseteq D \subseteq B$
+\item $W(B) \leq (1 + \ve)W(\overline{C})$
+\item $\Pr(U \subseteq B) \geq 1 - \delta / 2$
+\end{enumerate}
+
+To prove (A) from these claims, note that
+$r(n+1) \leq W(\overline{C} \cup U)$, and that
+  $\leq W(\overline{C} \cup B)$ with probability $1 - \delta / 2$,
+  and this has weight equal to $W(B)$ since $\overline{C} \subseteq B$.
+  $W(B) \leq (1+\ve)W(\overline{C}) = (1+\ve)s(n+1)$ and thus $r(n+1) \leq
+  (1 + \ve) s (n+1)$, as desired.
+
+\begin{proof} Proof of claims:\\
+a.
+First, $\overline{C} \subseteq D$ since $i \in \overline{C} \implies [i, t]
+\text{ dangerous } \implies i \in D$. Then
+$D \subseteq B$ by construction.
+
+b.
+\[\forall j,\, W(I_j \cap C) \leq \frac{\ve}{1+\ve} W(I_j) \implies
+\forall j,\, W(I_j \cap \overline{C}) \geq \frac{1}{1+\ve} W(I_j)\]
+Then,
+$W(B \cap \overline{C}) \geq 1 / (1+e) W(B)$, and since $\overline{C} \subseteq
+B$,
+$(1+e) W(\overline{C}) \geq W(B)$ as desired.
+
+c.
+\begin{lemma}
+\[\forall t \in [n],\, \forall i \in \overline{B} \cap t,\, \Pr(i \in U^t) \leq
+\frac{\delta}{4t^3},\]
+\end{lemma}
+If this lemma were true, then by union bound,
+\begin{align*}
+\Pr(U \subseteq B) &= 1 - \Pr(\overline{B} \cap U \neq \emptyset) \\
+&= 1 - \Pr(\exists t,\, \exists i,\, i \in U^t) \\
+&\geq 1 - \sum_t \sum_{i\in \overline{B} \cap [t]} P(i \in U^t) \\
+&\geq 1 - \delta / 4 \sum_t 1/t^2 \geq 1 - \delta / 2,
+\end{align*}
+as desired for Lemma 1.
+\end{proof}
+
+\begin{proof}
+ Proving Lemma 2: We know that $i$ is not dangerous, and that $[i,t]$ is not
+ dangerous, so thus $W(C\cap [i,t])\geq\frac{\ve}{1+\ve}W(i,t)$. By definition
+ $i\in U^t$ iff everything in $C\cap[i,t]$ has been forgotten at time $t$. Thus,
+ substituting the first expression into $q$:
+  $$\Pr(i\in U^t) = \prod_{j\in C\cap [i,t]}(1 - q(j,t)) \leq \prod_{j\in C\cap
+  [i,t]}\left(1 - \ln\left(\frac{4t^3}{\delta}\right)\frac{w(j)}{W(C\cap
+  [j,t])}\right)$$
+  Substituting $1-x\leq \me^{-x}$, we obtain the bound
+  $$\Pr(i\in U^t)
+  \leq \prod_{j\in C\cap[i,t]}\me^{-\ln(\frac{4t^3}{\delta})\frac{w (j)}{W(C\cap[j,t])}}
+  =\me^{-\ln(\frac{4t^3}{\delta})\left(\sum\limits_{j\in C\cap
+  [i,t]}\frac{w(j)}{W(C\cap[j,t])}\right)} = \frac{\delta}{4t^3}$$
+\end{proof}
+
+\subsubsection{Proving (B)}
+
+This is not as complicated.
+The space used during the algorithm is proportional to $\text{max}_{t\in
+[n]}|R^t|$. Fixing $t$, we need to show that the probability that $|R^t|$ is large can be
+bounded by $\frac{\delta}{4t^2}$, so by union bound $\Pr(\exists t \text{
+s.t. } |R^t| \text{ large})<\frac{\delta}{2}$. Let $Z_i^t$ be the
+indicator random variable for the event that $i \in R^t$, which is $1$
+with probability $q(i,t)$. Thus
+$$
+|R^t| = \sum_{i\le t} Z_i^t ,
+$$
+which implies
+$$
+\E |R^t| = \mu_t = \Theta(\eps^{-1}\log(t/\delta)\log t)
+$$
+by our choice of $q(i, t)$. This is because the sum of $w(i)/W(i,t)$ for $1\le i\le t$ in our definition of $q(i,t)$ is a Harmonic series $\sum_{k=1}^t 1/k$, and is thus $\Theta(\log t)$ (recall $w(i) = 1$ except for the sentinels, and thus $W(i,t) = t-i+1$).
+
+Using Chernoff bounds, we have
+$$
+\Pr(|R^t| > 2\mu_t) < e^{-\Omega(\mu_t)} < \frac{\delta}{4t^2} .
+$$
+Thus
+$$
+\Pr(\exists t : |R^t| > 2\mu_t) < \frac {\delta}{4} \cdot \sum_{t=1}^n \frac 1{t^2} < \frac{\delta}2
+$$
+as desired.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{ErgunHJ08}
+Funda~Erg\"un, Hossein~Jowhari.
+\newblock On distance to monotonicity and longest increasing subsequence of a data stream.
+\newblock {\em SODA}, 730-736, 2008.
+
+\bibitem{GalPG10}
+Anna~G\'al, Parikshit~Gopalan.
+\newblock  Lower Bounds on Streaming Algorithms for Approximating the Length of the Longest Increasing Subsequence.
+\newblock {\em SIAM J. Comput.}, 39(8):3463-3479, 2010.
+
+\bibitem{GopalanTJ07}
+Parikshit~Gopalan, T.S.~Jayram, Robert~Krauthgamer, Ravi~Kumar.
+\newblock Estimating the sortedness of a data stream.
+\newblock {\em SODA}, 318-327, 2007.
+
+\bibitem{NaumovitzMS15}
+Timothy~Naumovitz, Michael~Saks.
+\newblock A polylogarithmic space deterministic streaming algorithm for approximating distance to monotonicity.
+\newblock {\em SODA}, 1252-1262, 2015.
+
+\bibitem{SaksCS13}
+Michael~Saks, C.~Seshadri.
+\newblock Space efficient streaming algorithms for the distance to monotonicity and asymmetric edit distance.
+\newblock {\em SODA}, 1698-1709, 2013.
+
+\end{thebibliography}
+
+\end{document}

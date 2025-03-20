@@ -1,0 +1,112 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 224 Advanced Algorithms} --- Spring 2017}
+
+\bigskip
+
+{\Large \textsc{Problem Set 3}}
+
+\smallskip
+
+Due: 11:59pm, Monday, February 27th
+
+\medskip
+
+Submit solutions to Canvas, one PDF per problem: \url{https://canvas.harvard.edu/courses/21996}
+
+\medskip
+
+Solution max page limits: One page each for problems 1, 2, and 4, and two pages for problem 3
+
+\bigskip
+
+{\footnotesize See homework policy at \url{http://people.seas.harvard.edu/~cs224/spring17/hmwk.html}}
+\end{center}
+
+\paragraph{Problem 1:}
+
+Consider splay trees. For any access sequence $\sigma = (x_1,x_2,\ldots,x_m)$ for each $i\in\{1,\ldots,n\}$ and fixed binary search tree $T$, let $C_T(\sigma)$ denote the cost of servicing $\sigma$ with $T$. Let $S(\sigma)$ be the cost of servicing $\sigma$ with a splay tree. We showed in class that $S(\sigma) = O(m + n^2 + C_T(\sigma))$.
+\begin{itemize}
+\item[(a)] (7 points) Modify the weight function we used in class to show that in fact $S(\sigma) = O(m + n\log n + C_T(\sigma))$. As in the analysis in class, your proof should not use the fact that the optimal tree achieves the entropy bound.
+\item[(a)] (3 points) Deduce that if each $i\in\{1,\ldots,n\}$ appears in $\sigma$ at least once, then $S(\sigma) = O(m + C_T(\sigma))$.
+\end{itemize}
+
+\paragraph{Problem 2:} (10 points) Define the Fibonacci numbers by $F_0 = 0, F_1 = 1$, and $F_k = F_{k-1} + F_{k-2}$ for $k > 1$.
+\begin{itemize}
+\item[(a)] (3 points) Prove that for any integer $k\ge 0$, $1 + \sum_{i=0}^k F_i = F_{k+2}$.
+\item[(b)] (7 points) Prove that for any node in a Fibonacci heap (not necessarily a root) with $k$ children, the size of its subtree including the node itself is at least $F_{k+2}$. Thus, in particular, any top-level tree in the heap of rank $k$ has size at least $F_{k+2}$. \textbf{Hint:} I recommend induction on something other than $k$.
+\end{itemize}
+
+\paragraph{Problem 3:} (10 points) In Fibonacci heaps, when a node $x$ loses $2$ children, the subtree rooted at $x$ is cut from $x$'s parent and becomes a new tree in our top level forest. Suppose that instead we cut $x$'s subtree away from its parent only after $x$ loses $k$ children.
+\begin{itemize}
+\item[(a)] (5 points) Show that the amortized cost of decrease key is reduced as $k$ increases. How does it decrease as a function of $k$? Note decrease key already has amortized cost $O(1)$ when $k=2$, so the point here is just that the constant inside the big-Oh improves. \textbf{Hint:} modify the potential function from class.
+\item[(b)] (5 points) Which operation(s) increase in amortized cost due to this change? Give a new bound as a function of $k$.
+\end{itemize}
+
+\paragraph{Problem 4:} (10 points) You may remember the ``disjoint forest'' data structure for solving the union-find problem from your undergraduate algorithms course. If not, in the union-find problem we maintain a partition $\mathcal{C}$ of $\{1,\ldots,n\}$. We should support two operations:
+\begin{itemize} 
+\item $\textsc{Union}(i, j)$: let $S\in\mathcal{C}$ be the partition containing $i$ and $T\in\mathcal{C}$ the one containing $j$, and remove both $S$ and $T$ from $\mathcal{C}$ and add $S\cup T$ to $\mathcal{C}$ in their place.
+\item $\textsc{Find}(i)$: return any element in the partition $S\in\mathcal{C}$ that contains $i$, {\it however}, our data structure must obey the property that if $i$ and $j$ are in the same partition $S$, then $\textsc{Find}(i)$ and $\textsc{Find}(j)$ must return the same value.
+\end{itemize}
+
+One way to solve the above union-problem is to use the {\em disjoint forest} data structure. This data structure maintains a forest of rooted trees (not necessarily binary!). The nodes correspond to the elements $\{1,\ldots,n\}$. Each tree is a set in the partition. For any given tree, the root is the element which is returned during a \textsc{Find} for any element in that tree. 
+
+\begin{center}
+\fbox{                                                                                                                            
+{\footnotesize                                                                                                                    
+\parbox{6.375in} {                                                                                                                
+\underline{Algorithm \textsc{Find}($x$)}:\\                                                                               
+\vspace{-.23in}\begin{enumerate}       
+\addtolength{\itemsep}{-2.5mm}         
+\item \textbf{if} parent[$x$] is \texttt{NULL}, then \textbf{return} $x$
+\item \textbf{else} \textbf{return} \textsc{Find}(parent[$x$])
+\end{enumerate}                                                                                                                   
+}}}
+\end{center}
+
+\begin{center}
+\fbox{                                                                                                                            
+{\footnotesize                                                                                                                    
+\parbox{6.375in} {                                                                                                                
+\underline{Algorithm \textsc{Union}($x, y$)}:\\                                                                               
+\vspace{-.23in}\begin{enumerate}       
+\addtolength{\itemsep}{-2.5mm}         
+\item $x\leftarrow \textsc{Find}(x)$
+\item $y\leftarrow \textsc{Find}(y)$
+\item \textbf{if} $x\neq y$, then parent[$x$]$\leftarrow y$
+\end{enumerate}                                                                                                                   
+}}}
+\end{center}
+
+We can see that the running time of \textsc{Find} is the depth of $x$ in its tree, which can be quite bad (it is not hard to do a sequence of \textsc{Union}s that cause some tree to be very imbalanced: even a path!). To remedy this issue, one simple heuristic is {\em path compression}. When we do a \textsc{Find} on some node $x$, note we touch all of $x$'s ancestors in its tree before reaching the root $r$: that is, we touch $x$, then $x$'s parent $p_1$, then $p_1$'s parent $p_2$, etc., until we touch some level-$t$ ancestor $p_t = r$. With the path compression heuristic, after executing \textsc{Find}($x$), we then change the parent pointers of $x$ as well as all the $p_1,\ldots,p_{t-1}$ to now point directly to $r$.
+
+\begin{center}
+\fbox{                                                                                                                            
+{\footnotesize                                                                                                                    
+\parbox{6.375in} {                                                                                                                
+\underline{Algorithm \textsc{Find}($x$)}:\\                                                                               
+\vspace{-.23in}\begin{enumerate}       
+\addtolength{\itemsep}{-2.5mm}         
+\item[\texttt{//}] \texttt{with path compression}
+\item \textbf{if} parent[$x$] is \texttt{NULL}, then \textbf{return} $x$
+\item \textbf{else} 
+\vspace{-.1in}\begin{enumerate}
+\item $r\leftarrow$\textsc{Find}(parent[$x$])
+\vspace{-.05in}\item parent[$x$]$\leftarrow r$
+\vspace{-.05in}\item \textbf{return} $r$
+\end{enumerate}
+\end{enumerate}                                                                                                                   
+}}}
+\end{center}
+
+Prove that the amortized costs of \textsc{Union} and \textsc{Find} with path compression are both $O(\log n)$. \textbf{Hint:} use the same potential function as for splay trees with $w(x) = 1$ for each $x$ (though the intended analysis is not at all related to that for splay trees, and is much more intuitive in this case!). \textbf{Note:} for those familiar with the ``union-by-rank'' heuristic, note that we are {\em not} using it here!
+
+\end{document}

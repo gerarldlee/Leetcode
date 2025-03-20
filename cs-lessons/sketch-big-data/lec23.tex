@@ -1,0 +1,423 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumerate}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\innp}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+% macros (preetum)
+\newcommand{\1}{\mathbbm{1}}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\newcommand{\x}{\times}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\N}{\mathbb{N}}
+\renewcommand{\bar}{\overline}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{remark}{Remark}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{filecontents}{mybib.bib}
+@inproceedings{alonFOCS,
+  author    = {Noga Alon and
+               Bo'az Klartag},
+  title     = {Optimal Compression of Approximate Inner Products and Dimension Reduction},
+  booktitle = {58th {IEEE} Annual Symposium on Foundations of Computer Science, {FOCS}
+               2017, Berkeley, CA, USA, October 15-17, 2017},
+  pages     = {639--650},
+  year      = {2017},
+  crossref  = {DBLP:conf/focs/2017},
+  url       = {https://doi.org/10.1109/FOCS.2017.65},
+  doi       = {10.1109/FOCS.2017.65},
+  timestamp = {Thu, 16 Nov 2017 15:09:35 +0100},
+  biburl    = {http://dblp.org/rec/bib/conf/focs/AlonK17},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
+}
+@inproceedings{Kushilevitz,
+  author    = {Eyal Kushilevitz and
+               Rafail Ostrovsky and
+               Yuval Rabani},
+  title     = {Efficient Search for Approximate Nearest Neighbor in High Dimensional
+               Spaces},
+  booktitle = {Proceedings of the Thirtieth Annual {ACM} Symposium on the Theory
+               of Computing, Dallas, Texas, USA, May 23-26, 1998},
+  pages     = {614--623},
+  year      = {1998},
+  crossref  = {DBLP:conf/stoc/1998},
+  url       = {http://doi.acm.org/10.1145/276698.276877},
+  doi       = {10.1145/276698.276877},
+  timestamp = {Thu, 16 Feb 2012 12:06:54 +0100},
+  biburl    = {http://dblp.org/rec/bib/conf/stoc/KushilevitzOR98},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
+}
+@inproceedings{indyk,
+  author    = {Piotr Indyk and
+               Tal Wagner},
+  title     = {Near-Optimal (Euclidean) Metric Compression},
+  booktitle = {Proceedings of the Twenty-Eighth Annual {ACM-SIAM} Symposium on Discrete
+               Algorithms, {SODA} 2017, Barcelona, Spain, Hotel Porta Fira, January
+               16-19},
+  pages     = {710--723},
+  year      = {2017},
+  crossref  = {DBLP:conf/soda/2017},
+  url       = {https://doi.org/10.1137/1.9781611974782.45},
+  doi       = {10.1137/1.9781611974782.45},
+  timestamp = {Wed, 24 May 2017 08:31:21 +0200},
+  biburl    = {http://dblp.org/rec/bib/conf/soda/IndykW17},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
+}
+@inproceedings{larsen,
+  author    = {Kasper Green Larsen and
+               Jelani Nelson},
+  title     = {Optimality of the Johnson-Lindenstrauss Lemma},
+  booktitle = {58th {IEEE} Annual Symposium on Foundations of Computer Science, {FOCS}
+               2017, Berkeley, CA, USA, October 15-17, 2017},
+  pages     = {633--638},
+  year      = {2017},
+  crossref  = {DBLP:conf/focs/2017},
+  url       = {https://doi.org/10.1109/FOCS.2017.64},
+  doi       = {10.1109/FOCS.2017.64},
+  timestamp = {Thu, 16 Nov 2017 15:09:35 +0100},
+  biburl    = {http://dblp.org/rec/bib/conf/focs/LarsenN17},
+  bibsource = {dblp computer science bibliography, http://dblp.org}
+}
+\end{filecontents}
+
+\newcommand{\atime}[1]{\texttt{[#1]}}
+\newcommand{\G}{\mathcal{G}}
+
+\begin{document}
+
+\lecture{23 --- November 21, 2017}{Fall 2017}{Prof.\ Noga Alon}{Preetum Nakkiran}
+
+\section{Overview}
+
+This lecture will be on
+``Optimal Compression of Approximate Inner Products and
+Dimension Reduction'',
+following the paper of Alon and Klartag~\cite{alonFOCS}.
+
+We will study the following object:
+\begin{definition}
+    An \emph{$\eps$-inner-product sketch}
+    for points $X \subseteq \R^k$, $|X| = n$, such that $\forall x: ||x||_2 \leq 1$,
+    is a data structure that enables one to compute
+    the inner-product
+    $$\innp{x, x'} ~\forall x, x' \in X$$
+    up to additive error $\eps$.
+\end{definition}
+
+Let $f(n, k, \eps)$ be the minimum size (in bits) of an
+$\eps$-inner-product sketch for $n$ points in dimension $k$.
+(We can assume $n \geq k$ WLOG, and further $\eps \geq 1/n^{0.5 - \delta}$,
+since this is the interesting case for dimensionality reduction).
+
+There are various applications for this data structure,
+for example in streaming, compressed sensing, and computational geometry (eg,
+Nearest-Neighbors).
+
+{\bf Main Questions:}
+What is $f(n, k, \eps)$? And, can we compute sketches efficiently?
+
+We will first do a warm-up, and then present the Main Theorem of~\cite{alonFOCS}
+which exactly characterizes $f(n, k, \eps)$.
+
+\section{Warm-Up}
+First, let us consider the basic case of when $k = n$.
+We claim an easy upper-bound here is
+$$f(n, n, \eps) \leq O(n \frac{\log n}{\eps^2} \log(1/\eps))$$
+
+To do this:
+\begin{enumerate}
+\item First use JL to project the $n$ points in $\R^n$ down to dimension
+$m := O(\frac{\log n}{\eps^2})$, with distortion $O(\eps)$.
+\item Then, round the projected points to an $\eps$-net of the unit ball in $\R^k$.
+\end{enumerate}
+The $\eps$-net in Step 2 requires at most $O(\frac{1}{\eps})^{(1+o(1))m}$ points,
+so we need $O(m \log(1/\eps))$ bits per point.
+This yields the claim.
+
+
+In fact, this bound on $f(n, n, \eps)$ is nearly-tight.
+The $\log(1/\eps)$ factor can be shaved, as first shown by
+Kushilevitz, Ostrovsky, and Rabani~\cite{Kushilevitz}.
+The construction is simple:
+
+{\bf Construction:} Let $v_1, \dots, v_t$ be random unit vectors in $\R^n$, for
+$t = O(\frac{\log n}{\eps^2})$.
+For every $x \in X$, maintain just the $t$ signs:
+$\{\text{sign}(\innp{x, v_i})\}_{i \in [t]}$.
+
+{\bf Proof sketch:}
+The idea is, for two vectors $x, x'$, a random unit vector $v_i$ will
+distinguish them (ie, $sign(\innp{x, v_i}) \neq sign(\innp{x', v_i})$)
+with probability proportional to the angle between $x, x'$.
+Thus, maintaining $t$ signs gives a good enough approximation of this angle,
+and taking the cosine recovers approximately $\innp{x, x'}$.
+\qed
+
+Note that this construction does not yield better bounds on $f(n, k, \eps)$
+for smaller $k < n$.
+
+\section{Main Theorem}
+
+\begin{theorem}[\cite{alonFOCS}]
+Let $f(n, k, \eps)$ be the minimum size (in bits) of an
+$\eps$-inner-product sketch for $n$ points in dimension $k$.
+
+Then, $\forall n \geq k, \eps \geq \frac{1}{n^{0.49}}$:
+    \begin{enumerate}[(A)]
+        \item For $\frac{\log n}{\eps^2} \leq k \leq n:$
+            $f(n, k, \eps) = \Theta(\frac{n\log n}{\eps^2})$
+        \item For $\log n \leq k \leq \frac{\log n^2}{\eps^2}:$
+            $f(n, k, \eps) = \Theta(nk \log(2+\frac{\log n}{\eps^2k}))$
+        \item For $1 \leq k \leq \log n:$
+            $f(n, k, \eps) = \Theta(nk \log(1/\eps))$.
+    \end{enumerate}
+
+\end{theorem}
+Note that these bounds all agree on their common boundaries.
+
+\begin{remark}
+    The Main Theorem considers \emph{additive} error.
+    Recently Indyk and Wagner ~\cite{indyk}
+    have shown how to achieve \emph{relative} error guarantees (which is harder).
+    Note, there is still a gap of $\log(1/\eps)$ between upper and lower bounds here.
+\end{remark}
+\begin{remark}
+The Main Theorem gives an alternative proof of a recent result by Larsen and
+Nelson~\cite{larsen}:
+There does not exists a dimensionality reduction of $n$ points in $\R^n$
+to dimension $< \frac{c\log n}{\eps^2}$ for some small constant $c$.
+
+This follows because in the regime $k < \frac{\log n}{\eps^2}$,
+$f(n, k, \eps)$ decays rapidly with $k$, in particular
+$f(n, n, 2\eps) > f(n, k, \eps)$.
+That is, there are simply too many configurations of points in $\R^n$
+to be faithfully compressed in $\R^k$.
+
+Note, this also implies that once $k < \frac{n}{\eps^2}$, even dimensionality
+reduction by a factor of (say) $10$ is impossible.
+\end{remark}
+
+\begin{remark}
+    It turns out that the Main Theorem can be combined with the
+    \emph{Khatri-Sidak Lemma} and \emph{Hargi\'e Inequality}
+    (which are special cases of ``Gaussian Correlation''),
+    to work for all $\eps \geq \frac{1}{\sqrt{n}}$.
+    See~\cite{alonFOCS} for details.
+
+    For the statement, replace $\log n$ by $\log(2+\eps^2 n)$ everywhere in the
+    Main Theorem.
+\end{remark}
+
+\section{Proof of Main Theorem}
+We will now see two proofs of the upper bound (non-constructive and
+constructive), and one proof of the lower bound.
+
+\subsection{Upper Bound}
+Consider first the regime (A),
+where $\frac{\log n}{\eps^2} \leq k \leq n$.
+We wish to show $f(n, k, \eps) = \Theta(\frac{n\log n}{\eps^2})$.
+
+\paragraph{Regime (A)}
+By monotonicity, it is sufficient to show (A) for $k = n$.
+By JL, we may first project points into dimension $m := \frac{\log n}{\eps^2}$,
+with distortion $O(\eps)$.
+
+For vectors $w_1, \dots, w_n \in \R^m$, define the \emph{Gram Matrix}
+$G(w_1, \dots, w_n)$ as $G_{i, j} := \innp{w_i, w_j}$.
+Say two Gram Matrices $G, G'$ are \emph{$\eps$-separated} if
+$\exists i \neq j:~ |G_{i, j} - G'_{i, j}| > \eps$.
+Let $\G$ be a maximal (w.r.t containment) set of $\eps$-separated Gram Matrices.
+Then, we clearly have $f(n, k, \eps) \leq \log |\G|$
+(simply by remembering, for a point set $X$,
+the index of a $g \in \G$ that $G(X)$ is not $\eps$-separated from)
+
+We now want to bound $|\G|$.
+We will use essentially a volume argument.
+Let $v_1, \dots, v_n \in \R^m$ be random vectors, each uniform in a ball of
+radius $2$ about the origin.
+For all $G(w_1, \dots w_n) \in \G$, define the event
+$$A_G := \{ \forall i, j: |\innp{v_i, v_j} - \innp{w_i, w_j}| \leq \eps/2\}.$$
+Notice the events $\{A_G\}_{G \in \G}$ are pairwise disjoint, by
+$\eps$-separatedness of $\G$.
+Thus, $\sum_{G \in \G} \Pr[A_G] \leq 1$.
+So if the individual probabilities $\Pr[A_G]$ are large, then there cannot be
+many such events $A_G$ (thus bounding $|\G|$).
+It is easy to see
+that $\Pr[A_G] \geq \Omega(\eps)^{mn}$
+(by noticing that the condition
+$\{\forall i: ||v_i - w_i||_2 \leq \eps/4\}$ is sufficient).
+We will show that in fact, a much better bound holds:
+$$\Pr[A_G] \geq \Omega(1)^{mn}.$$
+
+First, let us condition on the event
+$$E := \{\forall i: ||v_i - w_i||_2 \leq 1\}.$$
+We have $\Pr[E] = (\frac{1}{2})^{nm}$, by comparing volumes (since we pick $w_i$
+uniformly from a ball of radius $2$).
+Moreover, conditioned on this event $E$, the vector $(v_i - w_i)$ is uniform
+over a unit ball in $\R^m$. Thus, by concentration (eg Azuma-Hoeffding) we have
+$$\forall i \neq j: \Pr[|\innp{v_i - w_i, w_j}| \geq \eps/4 ~~| E] \leq 2 e^{-\Omega(\eps^2 m)} < \frac{1}{2n^2}$$
+And symmetrically,
+$$\forall i \neq j: \Pr[|\innp{v_i, v_j - w_j}| \geq \eps/4 ~~| E] \leq 2 e^{-\Omega(\eps^2 m)} < \frac{1}{2n^2}$$
+This allows us to union bound over all pairs $i \neq j$.
+In particular, we now know that with probability $\geq \frac{1}{2}
+(\frac{1}{2})^{nm}$, the following simultaneously holds:
+$$
+\begin{cases}
+\forall i: ||v_i - w_i||_2 \leq 1\\
+\forall i \neq j: |\innp{v_i - w_i, w_j}| < \eps/4\\
+\forall i \neq j: |\innp{v_i, v_j - w_j}| < \eps/4
+\end{cases}
+$$
+This is sufficient to imply $A_G$ holds, since by the last two conditions and
+triangle inequality:
+$$
+|\innp{v_i, v_j} - \innp{w_i, w_j}|
+=
+|\innp{v_i - w_i, v_j} + \innp{w_i, v_j- w_j}|
+\leq
+|\innp{v_i - w_i, v_j}| + |\innp{w_i, v_j- w_j}|
+\leq \eps/2
+$$
+
+Thus, $\Pr[A_G] \geq (\frac{1}{2})^{mn+1}$ and so $|\G| \leq 2^{mn +1}$.
+And we have
+$f(n, k, \eps) \leq \log |\G| = O(nm) = O(n \frac{\log n}{\eps^2})$ as desired.
+\qed
+
+\begin{remark}
+    What is going on is, once we condition on $E$, then
+    each $w_i$ is uniform in a unit ball centered around $v_i$,
+    and so and so by concentration
+    we have $\innp{w_i, w_j} \approx \innp{v_i, v_j}$.
+\end{remark}
+
+\paragraph{Regime (B)}
+This is essentially the same as Regime (A), except without the JL projection.
+
+In particular, for $k = \frac{\delta^2}{\eps^2}\log n$ and $2\eps \leq \delta < 1/2$:
+Let $\G$ be a maximal set of $\eps$-separated Gram Matrices (of vectors in
+$\R^k$ with norm $\leq 1$).
+Take $v_1, \dots, v_n \in \R^k$ random vectors as before, and condition on the
+event
+$$E := \{\forall i: ||v_i - w_i||_2 \leq \delta/40 \}$$
+Then,
+$$\Pr[E] = (\delta/80)^{kn}$$
+and the rest follows as before.
+
+That is, after conditioning on $E$,
+$$\forall i \neq j: \Pr[|\innp{v_i - w_i, w_j}| \geq \eps/4 ~~|E]
+\leq 2 e^{-\Omega(k\eps^2/\delta^2)} < \frac{1}{2n^2}$$
+And we conclude as in part (A).
+\qed
+
+\paragraph{Regime (C)}
+Here we can simply round to the closest point in an $\eps$-net for the unit
+ball. This gives $O(k \log(1/\eps))$ bits per point.
+\qed
+
+\subsection{Upper Bound: Algorithmic Proof}
+Here we sketch an alternative, constructive proof of the upper-bound.
+
+\paragraph{Regime (A)}
+Apply JL projection into dimension $m := \frac{\log n}{\eps^2}$,
+and then do \emph{randomized} rounding to a $(1/2)$-net.
+(For example, each coordinate is randomly rounded to an integral multiple of
+$\frac{1}{\sqrt{2m}}$, preserving its expectation).
+
+By concentration (eg, Chernoff-Hoeffding) the randomized rounding
+stage does not distort too much w.h.p.
+
+\paragraph{Regime (B)}
+Here we skip the JL projection, and just do randomized rounding
+of each coordinate to an integral multiple of $\delta/\sqrt{k}$
+for $k = \frac{\delta^2}{\eps^2}\log n$.
+
+\paragraph{Regime (C)}
+We simply (deterministically) round each coordinate to the nearest integer multiple of
+$\eps/\sqrt{k}$.
+
+\subsection{Lower Bound}
+We now describe the main ideas of the lower bound.
+
+The Main Lemma is the following:
+\begin{lemma}
+    If $k = \frac{\delta^2}{200 \eps^2} \log n$,
+    then
+    $$f(n, k, \eps) \geq \Omega(n k \log(1/\delta)).$$
+\end{lemma}
+
+\paragraph{Proof Sketch}
+Let $N$ be a maximal $\delta$-packing in $\R^k$ (such that the distance between any two
+points in $N$ is $\geq \delta$).
+Note $|N| = (\frac{1}{\delta})^k$.
+
+We can show that w.h.p., a random set $R$ of $(n/2)$ unit vectors in $\R^k$
+satisfies:
+$$\forall x \neq x' \in N: \exists y \in R: |\innp{x, y} - \innp{x', y}| >
+\eps$$
+That is, w.h.p. $R$ distinguishes every pair of points in $N$.
+
+Fix such an $R$. Then, each (ordered) configuration of
+$R$ together with $> (n/2)$ points of $N$ requires a \emph{distinct encoding}.
+Because, any two such configurations must share two points $x, x' \in N$ in common,
+and then $R$ suffices to distinguish these $x, x'$ -- so they cannot be
+represented by the same encoding.
+Thus,
+$$f(n, k, \eps) \geq \log |N|^{n/2} = \Omega(\frac{n}{2} \log |N|) = \Omega( nk
+\log(1/\delta))$$
+\qed
+
+
+\bibliography{mybib}
+\bibliographystyle{alpha}
+
+\end{document}

@@ -1,0 +1,77 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{bbm}
+\usepackage{amssymb,amsmath}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\inprod}[1]{\langle #1 \rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 224 Advanced Algorithms} --- Spring 2017}
+
+\bigskip
+
+{\Large \textsc{Problem Set 7}}
+
+\smallskip
+
+Due: 11:59pm, Monday, April 17th
+
+\medskip
+
+Submit solutions to Canvas, one PDF per problem: \url{https://canvas.harvard.edu/courses/21996}
+
+\medskip
+
+Solution max page limits: 3 pages for problem 1, and 2 pages for problem 2 (not including the bonus problem, which has no page restriction)
+
+\bigskip
+
+{\footnotesize See homework policy at \url{http://people.seas.harvard.edu/~cs224/spring17/hmwk.html}}
+\end{center}
+
+\paragraph{Problem 1:} In class we didn't discuss the bit complexity in detail for interior point methods. Here you will fill in some of the gaps.
+\begin{itemize}
+\item[(a)] (2 points) For $A, b, c$ having integer entries with $A\in\R^{m\times n}$, consider the linear program
+\begin{eqnarray}
+\nonumber \min c^T x  \\
+s.t. \quad Ax \ge b \label{eqn:lp1}
+\end{eqnarray}
+Define $L = C(1 + \log(1 + d_{max}) + \log(1 + \max\{\|b\|_\infty, \|c\|_\infty\}))$ for sufficiently large constant $C$.  Here $d_{max}$ is the largest absolute value of a determinant of a submatrix of $A$. Show that if \eqref{eqn:lp1} is bounded then there is an optimum solution $x^*$ to this LP s.t.\ for all $i$, $x_i^*$ requires $\le L$ bits of precision. That is, for all $i$ the value  $x^*_i$ is rational and can be expressed as $\alpha_i/\beta_i$ for integers $-m 2^L \le \alpha_i, \beta_i \le m2^L$.
+\item[(b)] (5 points) Consider the linear program \eqref{eqn:lp1} from (a). Consider the transformation to a new LP as follows:
+\begin{eqnarray}
+\nonumber &\min c^T x + n^{C'} \cdot 2^{C L} z  \\
+\nonumber &s.t. \quad Ax + \mathbbm{1} z \ge b \\
+\nonumber &\quad 0 \le z \le 2^L\\
+&\quad \quad \forall i,\ -2^{L+1} \le x_i \le 2^{L+1}\label{eqn:lp2}
+\end{eqnarray}
+where $\mathbbm{1}$ is the all-ones vector. We noted that $x = 0, z = \|b\|_\infty$ is an obvious feasible solution of \eqref{eqn:lp2}. Show that for some constants $C, C' > 0$ \eqref{eqn:lp1} is bounded and feasible with optimal solution $x^*$ iff $(x, z) = (x^*, 0)$ is an optimal solution to \eqref{eqn:lp2} for some $x^*$ with $\|x^*\|_\infty \le 2^L$.
+\item[(c)] (4 points) In class we assumed the matrix $\nabla^2 f_{\lambda_k}(x)$ considered in Newton steps was always invertible. Show that this can be ensured throughout the course of the path-following IPM algorithm presented in class to solve \eqref{eqn:lp1}, at the expense of increasing both the number of rows and columns of $A$ by an additive $O(m+n)$ in pre-processing.
+\item[(d)] (4 points) In the Lecture 22 notes, we show if $x$ is {\em perfectly} central for $\lambda = \Omega(m/\varepsilon)$, then $c^Tx \le \mathsf{OPT} + \varepsilon$. However, interior point does not find a perfectly central point for large $\lambda$, but rather it finds a {\em finely} central point. Show that $x$ being finely central for $\lambda = \Omega(m/\varepsilon)$ is sufficient to achieve $c^T x \le \mathsf{OPT} + \varepsilon$. \textbf{Hint:} It may help to first prove a generalized Cauchy-Schwarz inequality, namely that $\inprod{x,y} \le \|x\|_B \cdot \|y\|_{B^{-1}}$ for any real, symmetric positive definite matrix $B$.
+\end{itemize}
+
+\paragraph{Problem 2:} In the ``learning from experts'' setup, on each day it will either rain or not. $n$ experts each tell us their prediction as to whether it will rain, and we must take their predictions as input to form our own prediction. We then find out at the end of the day whether we were right or wrong (it either rained or didn't). If $T$ is the total number of days, $E_i$ is the number of mistakes of expert $i$, and $M$ is our number of mistakes, then forming our predictions using the Multiplicative Weights algorithm guarantees
+$$
+M \le \min_{1\le i\le n} E_i + \underbrace{\eta T + \frac{\ln n}{\eta}}_R
+$$
+for any $\eta \le 1/2$. In particular if we choose $\eta = \sqrt{(\ln n)/T}$ when $T \ge 2 \ln n$ (so that $\eta \le 1/2$), then our regret $R$ is at most $2\sqrt{T\ln n}$.
+\begin{itemize} 
+\item[(a)] (5 points) Suppose we flip a fair coin $T$ times. Let $X$ be the number of heads, so that $T-X$ is the number of tails. Show that $\E \min\{X, T-X\} \le T/2 - \Omega(\sqrt{T})$. \textbf{Hint:} Use Stirling's formula to derive that $\binom{2r}{r} = \Theta(4^r/\sqrt{r})$ as $r\rightarrow\infty$.
+\item[(b)] (2 points) Show that {\em no randomized algorithm} (not just Multiplicative Weights) can achieve expected regret $\E R = o(\sqrt{T})$ in general. \textbf{Hint:} Consider $n=2$ and use (a).
+\item[(c)] (8 points) Show that no algorithm can achieve $\E R = o(\sqrt{T\ln n})$ when $T$ is sufficiently large. You may use, without proof, that if $X$ is the number of heads after flipping $T$ independent fair coins, then for any $t\in[0,T/8]$,
+$$
+\Pr(X \le \frac T2 - t) \ge \frac 1{15} e^{-16t^2/T} .
+$$
+\end{itemize} 
+
+\end{document}

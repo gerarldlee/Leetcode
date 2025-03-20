@@ -1,0 +1,341 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{url}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribes: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{1 --- September 3, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Zhengyu Wang}
+
+\section{Course Information}
+
+\begin{itemize}
+    \item{Professor: Jelani Nelson}
+    \item{TF: Jaros\l{}aw B\l{}asiok}
+\end{itemize}
+
+\section{Topic Overview}
+
+\begin{enumerate}
+    \item{Sketching/Streaming}
+        \begin{itemize}
+            \item{``{\em Sketch}'' $C(X)$ with respect to some function $f$ is a {\em compression} of data $X$. It allows us computing $f(X)$ (with approximation) given access only to $C(X)$.}
+            \item{Sometimes $f$ has $2$ arguments. For data $X$ and $Y$, we want to compute $f(X,Y)$ given $C(X), C(Y)$.}
+            \item{Motivation: maybe you have some input data and I have some input data, and we want to compute some similarity measure of these two databases across the data items. One way is that I can just send you the database, and you can compute locally the similarity measure, and vise versa. But image these are really big data sets, and I don't want to send the entire data across the wire, rather what I will do is to compute the sketch of my data, and then send the sketch to you, which is something very small after compression. Now the sketch $C(X)$ is much smaller than $X$, and given the sketch you can compute the function. }
+            \item{Trivial example: image you have a batch of numbers, and I also have a batch of numbers. We want to compute their sum. The sketch I can do is just locally sum all my input data, and send you the sum. }
+            \item{{\em Streaming}: we want to maintain a sketch $C(X)$ on the fly as $x$ is updated. In previous example, if numbers come on the fly, I can keep a running sum, which is a streaming algorithm. The streaming setting appears in a lot of places, for example, your router can monitor online traffic. You can sketch the number of traffic to find the traffic pattern.}
+        \end{itemize}
+    \item{Dimensionality Reduction}
+        \begin{itemize}
+            \item{Input data is high-dimensional. Dimensionality reduction transforms high-dimensional data into lower-dimensional version, such that for the computational problem you are considering, once you solve the problem on the lower-dimensional transformed data, you can get approximate solution on original data. Since the data is in low dimension, your algorithm can run faster.}
+            \item{Application: {\em speed up} clustering, nearest neighbor, etc.}
+        \end{itemize}
+    \item{Large-scale Machine Learning}
+        \begin{itemize}
+            \item{For example, regression problems: we collect data points $\{(z_i,b_i)|i=1,\ldots,n\}$ such that $b_i=f(z_i)+\text{noise}$. We want to recover $\tilde{f}$ ``close'' to $f$.}
+            \item{Linear regression: $f(z) = \langle {x,z} \rangle$, where $x$ is the parameter that we want to recover. If the noise is Gaussian, the popular (and optimal to some sense) estimator we use is Least Squares 
+        \begin{align}    
+            x^{LS}=\arg\min \| Zx-b\|_2^2=(Z^TZ)^{-1}Zb, 
+         \end{align} 
+            where $b=(b_1,\ldots, b_n)^T$ and $Z=(z_1,\ldots, z_n)^T$. If $Z$ is big, matrix multiplication can be very expensive. In this course, we will study techniques that allow us to solve least squares much faster than just computing the closed form $(Z^TZ)^{-1}Zb$.}
+            \item{Other regression problems: PCA (Principal Component Analysis), matrix completion. For example, matrix completion for Netflix problem: you are given a big product-customer matrix of customer ratings of certain products. The matrix is very sparse because not every user is going to rate everything.  Based on limited information, you want to guess the rest of the matrix to do product suggestions.}
+        \end{itemize}
+    \item{Compressed Sensing}
+        \begin{itemize}
+            \item{Motivation: {\em compress} / cheaply {\em acquir}e high dimensional signal (using linear measurement)}
+            \item{For example, images are very high dimensional vectors. If the dimension of an image is thousands by thousands, it means that the image has millions of pixels. If we write the image in standard basis as pixels, it is likely that the pixels are not sparse (by sparse we mean almost zero), because just image that if we take a photo in a dark room, most of the pixels have some intensity. But there are some basis called {\em wavelet basis}, pictures are usually very sparse on that basis. Once something is sparse, you can compress it. }
+            \item{JPEG (image compression).}
+            \item{MRI (faster acquisition of the signal means less time in machine).}
+        \end{itemize}
+    \item{External Memory Model}
+        \begin{itemize}
+            \item{Motivation: measure disk I/O's instead of number of instructions (because random seeks are very expensive).}
+            \item{Model: we have infinite {\em disk} divided into {\em blocks} of size $b$ bits, and {\em memory} of size $M$ divided into {\em pages} of size $b$ bits. If the data we want to read or the location we want to write is in the memory, we can just simply do it for free; if the location we want to access is not in the memory, we cost $1$ unit time to load the block from the disk into the memory, and vise versa. We want to minimize the time we go to the disk.}
+            \item{B trees are designed for this model.}
+        \end{itemize}
+    \item{Other Models (if time permitting)}
+        \begin{itemize}
+            \item{For example, map reduce. }
+        \end{itemize}
+\end{enumerate}
+
+\section{Approximate Counting Problem}
+
+In the following, we discuss the problem appearing in the first streaming paper \cite{AlonMS99}.
+
+{\bf Problem.} There are a batch of events happen. We want to count the number of events while minimizing the {\em space} we use. 
+
+Note that we have a trivial solution - maintaining a counter - which takes $\log n$ bits where $n$ is the number of events. On the other hand, by Pigeonhole Principle, we cannot beat $\log n$ bits if we want to count exactly.
+
+For {\em approximate} counting problem, we want to output $\tilde{n}$ such that 
+
+\begin{align} 
+\Pr(|\tilde{n}-n|>\varepsilon n)<\delta,
+\end{align} 
+
+where let's say $\varepsilon = 1/3$ and $\delta = 1\%$. 
+
+First of all, we can say that if we want to design a deterministic algorithm for approximate counting problem, we cannot beat against $\log\log n$ bits, because similar to previous lower bound argument, there are $\log n$ different bands (of different powers of $2$), and it takes $\log\log n$ bits to distinguish them. Therefore, we maybe hope for $O(\log \log n)$ bits algorithm. Actually, the following Morris Algorithm can give us the desired bound:
+
+\begin{enumerate}
+\item{Initialize $X\leftarrow 0$.}
+\item{For each event, increment $X$ with probability $\frac{1}{2^X}$.}
+\item{Output $\tilde{n}=2^X-1$.}
+\end{enumerate}
+
+Intuitively, we have $X\approx \lg n$ where $\lg x =\log_2(2+x)$. Before giving rigorous analysis (in Section~\ref{analysis}) for the algorithm, we first give a probability review. 
+
+\section{Probability Review}
+
+We are mainly discussing discrete random variables. Let random variable $X$ takes values in $S$. Expectation of $X$ is defined to be $\E X = \sum_{j\in S} j\cdot \Pr(X=j)$.
+
+\begin{lemma} [Linearity of expectation]
+\begin{align} 
+\E(X+Y)=\E X+\E Y
+\end{align} 
+\end{lemma}
+
+\begin{lemma} [Markov]
+\begin{align} 
+X \text{is a non-negative random variable} \Rightarrow \forall \lambda>0,\Pr(X>\lambda)<\frac{\E X}{\lambda}
+\end{align} 
+\end{lemma}
+
+\begin{lemma}[Chebyshev]
+\begin{align}
+\forall \lambda>0, \Pr(|X-\E X| > \lambda)<\frac{\E(X-\E X)^2}{\lambda^2}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+$\Pr(|X-\E X|>\lambda)=\Pr((X-\E X)^2>\lambda^2)$. It follows by Markov.
+\end{proof}
+
+Moreover, Chebyshev can be generalized to be:
+
+\begin{align}
+\forall p>0, \forall \lambda>0, \Pr(|X-\E X| > \lambda)<\frac{\E(X-\E X)^p}{\lambda^p}.
+\end{align}
+
+
+\begin{lemma}[Chernoff]
+$X_1,\ldots, X_n$ are independent random variables, where $X_i\in [0,1]$. Let $X=\sum_{i}{X_i}$, $\lambda>0$,
+\begin{align}
+\Pr(|X-\E X|>\lambda\cdot \E X)\le 2\cdot e^{-\lambda^2\cdot \E X/3}.
+\end{align}
+\end{lemma}
+
+\begin{proof}
+Since it's quite standard, and the proof detail can be found in both previous scribe\footnote{\url{http://people.seas.harvard.edu/~minilek/cs229r/fall13/lec/lec1.pdf}} (Lecture~1 in Fall~2013) and wiki\footnote{\url{https://en.wikipedia.org/wiki/Chernoff_bound}}, we only include a proof sketch here. We can prove that both $\Pr(X-\E X>\lambda\cdot \E X)$ and $\Pr(X-\E X<-\lambda\cdot \E X)$ are smaller than $e^{-\lambda^2\cdot \E X/3}$, and then apply union bound to prove the lemma. 
+
+The proof for $\Pr(X-\E X<-\lambda\cdot \E X)<e^{-\lambda^2\cdot \E X/3}$ is symmetric to $\Pr(X-\E X>\lambda\cdot \E X)<e^{-\lambda^2\cdot \E X/3}$. So we can focus on how to prove $\Pr(X-\E X>\lambda\cdot \E X)<e^{-\lambda^2\cdot \E X/3}$. Since  $\Pr(X-\E X>\lambda \E X)=\Pr(e^{t(X-\E X)}>e^{t\E X})<\frac{\E e^{t(X-\E t)}}{e^{t\E X}}$ for any $t>0$, we can optimize $t$ to get the desired bound.
+\end{proof}
+
+\begin{lemma}[Bernstein] 
+$X_1,\ldots,X_n$ are independent random variables, where $|X_i|\le K$. Let $X=\sum_{i}{X_i}$ and $\sigma^2=\sum_i{\E (X_i-\E X_i)^2}$. For $\forall t>0$,
+\begin{align}
+\Pr (|X-\E X|>t)\lesssim e^{-ct^2/\sigma^2}+e^{-ct/K}, 
+\end{align}
+where $\lesssim$ means $\le$ up to a constant, and $c$ is a constant.
+\end{lemma}
+
+\begin{proof}
+First, we define $p$ ($p\ge 1$) norm for random variable $Z$ to be $\| Z\|_p=(\E |Z|^p)^{1/p}$. In the proof, we will also use Jensen Inequality: $f$ is convex $\Rightarrow$ $f(\E Z)\le \E f(Z)$.
+
+To prove Bernstein, it's equivalent to show (equivalence left to pset)
+\begin{align}
+\forall p \ge 1, \|\sum_i{X_i}-\E \sum_i{X_i}\|_p\lesssim \sqrt{p}\cdot \sigma+p\cdot K.
+\end{align}
+
+
+Let $Y_i$ be identically distributed as $X_i$, with $\{X_i|i=1,\ldots,n\}, \{Y_i|i=1,\ldots,n\}$ independent. 
+
+We have
+
+\begin{align}
+\| \sum_i{X_i} - \E \sum_i{X_i} \|_p &= \| \E_Y (\sum_i{X_i} - \sum_i{Y_i})\|_p \label{st} \\ 
+&\le \|\sum_i(X_i-Y_i)\|_p \text{ ~~~~~~~~~~~~~  (Jensen Inequality)} \\
+&= \|\sum_i\alpha_i(X_i-Y_i)\|_p  \text{  ~~~~~~~~~~~(Add uniform random signs $\alpha_i=\pm 1$)} \\
+& \le \|\sum_i\alpha_i X_i\|_p+\| \sum_i {\alpha_iY_i}\|_p \text{   ~(Triangle Inequality)} \\
+&= 2\|\sum_i {\alpha_iX_i} \|_p \\
+&= 2\cdot \sqrt{\frac{\pi}{2}} \cdot \| \E_g \sum_i {\alpha_i |g_i| X_i} \|_p \text{~~~(Let $g$ be vector of iid Gaussians)}\\ 
+&\lesssim \|\sum_i{\alpha_i |g_i| X_i}\|_p  \text{~~~~~~~~~~~~~~~~~(Jensen Inequality)} \\
+&= \|\sum_{i} {g_iX_i} \|_p \label{ed}
+\end{align}
+
+Note that $\sum_i{\alpha_i |g_i| X_i}$ is Gaussian with variance $\sum_i{X_i^2}$. The $p$th moment of Gaussian $Z \sim N(0, 1)$: 
+
+\begin{equation}
+  \E Z^p=\begin{cases}
+    0, & p \text{ is odd}.\\
+    \frac{p!}{(p/2)!2^{p/2}} \le \sqrt{p}^p, & p \text{ is even}.
+  \end{cases}
+\end{equation}
+
+Therefore,
+
+\begin{align}
+\|\sum_{i} {g_iX_i} \|_p &\le \sqrt{p}\cdot \| (\sum_i{X_i^2})^{1/2}\|_p \\
+&= \sqrt{p}\cdot \|\sum_i{X_i^2}\|_{p/2}^{1/2} \\
+&\le \sqrt{p} \cdot \|\sum_i{X_i^2}\|_p^{1/2} \text{~~~~~~~~~~~~~~~~~~($\|Z\|_p\le \|Z\|_q$ for $p<q$)} \\
+&=\sqrt{p} [\| \sum_i{X_i}^2  - \E \sum_i X_i^2 + \E \sum_i X_i^2\|_p^{\frac{1}{2}}] \\
+&\le \sqrt{p} [\| \E \sum_i{X_i^2}\|_p^{1/2} + \| \sum_iX_i^2 - \E \sum_i X_i^2 \|_p^{1/2} ] \\
+&= \sigma \sqrt{p} + \sqrt{p} \cdot \| \sum_i X_i^2-\E \sum_i X_i^2 \|_p^{1/2} \\
+&\lesssim \sigma \sqrt{p} + \sqrt{p} \cdot \|\sum_i g_iX_i^2\|_p^{1/2} \text{ ~~~~~(Apply the same trick (\ref{st})-(\ref{ed}))} 
+\end{align}
+
+Note that $\sum_i g_iX_i^2$ is Gaussian with variance $\sum_iX_i^4\le K^2\cdot \sum X_i^2$, and $\sum_i{g_iX_i}$ is Gaussian with variance $\sum_i{X_i^2}$,  
+
+\begin{align}
+\|\sum_i{g_iX_i^2}\|_p \le K\cdot  \|\sum_i g_iX_i\|_p.
+\end{align}
+
+Let $Q=\| \sum_ig_iX_i\|_p^{1/2} $, we have 
+
+\begin{align}
+Q^2-C\sigma\sqrt{p}-C\sqrt{p}\sqrt{K}Q\le 0,
+\end{align}
+
+where $C$ is a constant.
+
+Because it's a quadratic form, $Q$ is upper bounded by the larger root of 
+
+\begin{align}
+Q^2-C\sigma\sqrt{p}-C\sqrt{p}\sqrt{K}Q=0.
+\end{align}
+
+By calculation, $Q^2 \le C\sqrt{p}\sqrt{K}Q+C\sigma\sqrt{p} \lesssim  \sqrt{p}\cdot \sigma+p\cdot K$.
+
+\end{proof}
+
+\section{Analysis}\label{analysis}
+
+Let $X_n$ denote $X$ after $n$ events in Morris Algorithm. 
+
+\begin{claim}
+\begin{align}
+\E 2^{X_n}=n+1.
+\end{align}
+\end{claim}
+
+\begin{proof}
+We prove by induction on $n$. 
+
+\begin{enumerate}
+\item{Base case. It's obviously true for $n=0$.}
+
+\item{
+Induction step. 
+\begin{equation}
+\begin{split}
+\E 2^{X_{n+1}} &= \sum_{j=0}^{\infty}{\Pr(X_n=j)\cdot \E(2^{X_{n+1}}|X_n=j)} \\
+&=\sum_{j=0}^{\infty}{\Pr (X_n=j) \cdot (2^j(1-\frac{1}{2^j})+\frac{1}{2^j}\cdot 2^{j+1})} \\
+&= \sum_{j=0}^{\infty}{\Pr (X_n=j)2^j} + \sum_{j}{\Pr (X_n = j)} \\
+&=\E 2^{X_n} +1 \\
+&= (n+1) + 1 \\
+\end{split}
+\end{equation}
+}
+\end{enumerate}
+
+\end{proof}
+
+By Chebyshev,
+
+\begin{align}
+\Pr(|\tilde{n}-n|>\varepsilon n) < \frac{1}{\varepsilon^2n^2}\cdot \E(\tilde{n}-n)^2=\frac{1}{\varepsilon^2n^2} \E(2^X-1-n)^2.
+\end{align}
+
+Furthermore, we can prove the following claim by induction.
+
+\begin{claim}
+\begin{align}
+\E (2^{2X_n}) = \frac{3}{2}n^2+\frac{3}{2}n+1.
+\end{align}
+\end{claim}
+
+Therefore, 
+
+\begin{align}
+\Pr (|\tilde{n}-n|>\varepsilon n)<\frac{1}{\varepsilon^2n^2}\cdot \frac{n^2}{2}=\frac{1}{2\varepsilon^2}. \label{guarantee}
+\end{align}
+
+\subsection{Morris+}
+We instantiate $s$ independent copies of Morris and average their outputs. 
+Then the right hand side of (\ref{guarantee}) becomes $\frac{1}{2s\varepsilon^2}<\frac{1}{3}$ for $s>\frac{3}{2\varepsilon^2}=\Theta(\frac{1}{\varepsilon^2})$. (or $<\delta$ for $s>\frac{1}{2\varepsilon^2\delta}$)
+
+\subsection{Morris++}
+
+Run $t$ instantiations of Morris+ with failure probability $\frac{1}{3}$. So $s=\Theta(\frac{1}{\varepsilon^2})$. Output median estimate from the $s$ Morris+'s. It works for $t=\Theta(\lg \frac{1}{\delta})$, because if the median fails, then more than $1/2$ of Morris+ fails.
+
+Let 
+
+\begin{equation}
+  Y_i=\begin{cases}
+    1, & \text{if $i$th Morris+ fails.}\\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{equation}
+
+By Chernoff bound, 
+
+\begin{align}
+\Pr(\sum_i{Y_i}>\frac{t}{2})\le \Pr(|\sum_i Y_i-\E \sum_i Y_i|>\frac{t}{6})\le e^{-ct}<\delta.
+\end{align}
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AlonMS99}
+Robert Morris.
+\newblock Counting Large Numbers of Events in Small Registers.
+\newblock {\em Commun.  ACM}, 21(10): 840-842, 1978.
+
+\end{thebibliography}
+
+\end{document}

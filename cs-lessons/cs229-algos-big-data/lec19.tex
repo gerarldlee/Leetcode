@@ -1,0 +1,526 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+%%%%
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture 
+#1}}
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+%%%%
+
+%%%%
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+%%%%
+
+%%%%
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{recall}[theorem]{Recall}
+\newtheorem{assumption}[theorem]{Assumption}
+%%%%
+
+%%%%
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+\parindent 0in
+\parskip 1.5ex
+%%%%
+
+%%%%
+\begin{document}
+
+%%%%
+\lecture{19 --- Nov 5 }{Fall 2015}{Prof.\ Jelani Nelson}{Abdul Wasay}
+%%%%
+
+%%%% OVERVIEW %%%%
+
+
+\section{Overview}
+
+In the last lecture, we started discussing the problem of 
+compressed sensing where we are given a sparse signal and we 
+want to reconstruct is using as little measurements as possible. 
+We looked into how sparsity manifests itself in images which are 
+approximately sparse in Haar wavelet basis. 
+
+In this lecture we will look at 
+
+\begin{itemize}
+	\item Recap a bit about compressive sensing.
+	\item RIP and connection to incoherence
+	\item Basis pursuit
+	\item Krahmer-Ward theorem
+\end{itemize}
+
+%%%% %%%% %%%%
+
+%%%% COMPRESSIVE SENSING %%%%
+
+\section{Review from Last time}
+
+\subsection{Compressed Sensing}
+In compressed sensing, we are given a ``compressible'' signal $x \in 
+\R^n$, and our goal is use few linear measurements of $x$ to 
+approximately recover $x$. Here, a linear measurement of $x$ is its 
+dot product with another vector in $\R^n$. We can arrange $m$ such 
+linear measurements to form the rows of a matrix $\Pi \in \R^{m 
+\times n}$, so the goal now becomes to approximately recover $x$ from 
+$\Pi x$ using $m \ll n$.
+
+Note that if $m < n$, then any $\Pi$ has a non-trivial kernel, so we 
+have no hope of exactly recovering every $x \in \R^n$. This motivates 
+our relaxed objective of only recovering \emph{compressible} signals.
+
+So what exactly do we mean by compressible? A compressible signal is 
+one which is (approximately) sparse in some basis -- but not 
+necessarily the standard basis. Here an approximately sparse signal 
+is a sum of a sparse vector with a low-weight vector.
+
+\subsection{Algorithmic Goals}
+
+The compressed sensing algorithms we discuss will achieve the 
+following. If $x$ is actually sparse, we will recover $x$ exactly in 
+polynomial time. And if $x$ is only approximately sparse, then we 
+will recover $x$ approximately, again in poly-time.
+
+More formally, we seek to meet ``$\ell_p/\ell_q$ guarantees'': Given 
+$\Pi x$, we will recover $\tilde{x}$ such that
+\[\|x - \tilde{x}\|_p \le C_{k, p, q} \min_{\|y\|_0 \le k} \|y - x\|
+q,\]
+where the $\ell_0$-norm of a vector is the count of its non-zero 
+coordinates. Observe that the minimizer $y$ in the statement above 
+picks out the largest (in absolute value) $k$ coordinates of $x$ and 
+zeroes out the rest of them. Also, note that the right-hand side is 
+zero when $x$ is actually $k$-sparse.
+
+%%%% %%%% %%%%
+
+%%%% Main Result this time %%%%
+
+\section{Main Result}
+
+\begin{theorem}
+There is a polynomial-time algorithm which, given $\Pi x$ for $\Pi \in 
+\R^{m \times n}$ and $x \in \R^n$, can recover $\tilde{x}$ such that
+\[\|x - \tilde{x}\|_2 \le O\left(\frac{1}{\sqrt{k}}\right) \|x_{tail(k)}\|_1\]
+where $x_{tail(k)}$ is $x$ with its top $k$ coordinates zeroed out.
+\end{theorem}
+
+\subsection{Exact recovery in the sparse case}
+
+As a first step toward proving the theorem, let's examine what we need to 
+recover $x$ exactly when we actually have $\|x\|_0 \le k$. Information-
+theoretically, it's necessary and sufficient to have $\Pi x \neq \Pi x'$ 
+whenever $x \neq x'$ are both $k$-sparse. This is equivalent to requiring any 
+$2k$-sparse vector to lie outside $\ker \Pi$, i.e., requiring each restriction 
+$\Pi_S$ of $\Pi$ to the columns in a set $S$ to have full column rank for every 
+$S \subseteq [n]$ with $|S| \le 2k$.
+
+How can we use this characterization to recover $x$ given $y = \Pi x$ when $\Pi
+$ has this property? One way is to find the minimizer $z$ in
+\begin{align*}
+	\min_{z \in \R^n} &\quad\|z\|_0 \\
+	\text{s.t.} &\quad\Pi z = y.
+\end{align*}
+
+Unfortunately, this optimization problem is NP-hard to solve in general 
+\cite[Problem MP5]{GJ79}. In what follows, we will show that with an additional 
+constraint on $\Pi$, we can approximately solve this optimization problem using 
+linear programming.
+
+%%%% %%%% %%%%
+
+
+%%%% RIP Matrices %%%%
+
+\section{RIP Matrices}
+\begin{definition}
+	A matrix $\Pi \in \R^{m\times n}$ satisfies the $(\eps,k)$-
+	restricted isometry property (RIP) if for all k-sparse vectors 
+	x:
+	
+	\[(1 - \eps) \|x\|_2^2 \le \|\Pi x\|_2^2 \le (1 + \eps) \|x\|
+	_2^2.\]
+
+	Equivalently, whenever $|S| \le k$, we have
+	\[\|\Pi_S^T\Pi_S - I_k\|_2 \le \eps.\]
+\end{definition}
+
+%%%% %%%% %%%%
+
+%%%% CALC. RIP MATRICES %%%%
+
+\section{Calculating RIP matrices}
+
+RIP matrices are obtainable from the following methods:
+
+\begin{itemize}
+	\item Use \textbf{JL} to preserve each of the 
+	k-dimensional subspace. This 
+	can be done by applying JL to the requisite ${n \choose k}
+	 e^{O(k)}$ vectors yields, by Stirling's approximation,
+	 
+	\[m \lesssim \frac{1}{\eps^2}k \log \left(\frac{n}{k}\right).\]
+	
+	\item Use \textbf{incoherent matrices}. The good thing 
+	about incoherent 
+	matrices is that they are explicit from codes as we have looked 
+	in problem set 1.
+	
+	\item From \textbf{first principles}. 
+	A matrix $\Pi$ might not satisfy JL, but might 
+	still preserve the norms of $k$-sparse vectors. For example, we can take $
+	\Pi$ to sample $m$ rows from a Fourier matrix. Recall that for the FJLT, we 
+	needed to subsequently multiply by a diagonal sign matrix, but there is no 
+	need to do so in the particular case of sparse vectors.
+\end{itemize}
+
+We will focus on the second method. 
+
+\begin{recall}
+	A matrix $\Pi$ is $\alpha-$coherent if:
+	\begin{itemize}
+		\item $\|\Pi^i\|_2 = 1$ for all $i$, and
+		\item $|\langle \Pi^i, \Pi^j \rangle| \le \alpha$ for all $i \ne j$.
+	\end{itemize}
+\end{recall}
+
+\begin{claim}
+	Incoherent matrices can be used to explicitly construct RIP. 
+\end{claim}
+
+We will use the \textbf{Gershgorin Circle Theorem} to prove the 
+above claim.
+
+\begin{lemma}
+	Given a matrix A, all its eigenvalues, lie within a complex disk 
+	of radius $\sum_{j \neq i} |a_{ij}|$. 
+\end{lemma}
+
+\begin{proof}
+	Let $x$ be an eigenvector of $A$ with corresponding eigenvalue $
+	\lambda$. Let $i$ be an index such that $|x_i| = \|x\|_\infty$. 
+	Then $(Ax)_i = \lambda x_i$ so
+	\begin{align*}
+		\lambda x_i = \sum_{j=1}^n a_{ij}x_j &\Rightarrow |(\lambda - 
+		a_{ii})x_i| = \left| \sum_{j \ne i} a_{ij}x_j\right| \\
+		&\Rightarrow |\lambda - a_{ii}| \le  \sum_{j \ne i} \left|
+		\frac{a_{ij}x_j}{x_i}\right| \le \sum_{j \ne i} |a_{ij}|
+	\end{align*}
+	by our choice of $i$.
+\end{proof}
+
+\begin{theorem}
+	If $\Pi$ is ($\frac{\eps}{k}$) incoherent, it implies that it is 
+	($\eps,k$)-RIP.
+\end{theorem}
+
+\begin{proof}
+	Suppose we have an $\alpha-$incoherent matrix where $\alpha = 
+	\frac{\eps}{k}$. Let us analyze A=$(\Pi I_s)^T(\Pi I_s)$ for some 
+	$|s| \leq k$. Notice that A is a symmetric matrix and it has 
+	real eigenvalues. Also, $a_{ii} = 1$ and $a_{ij} = \alpha = 
+	\frac{\eps}{k}$. Therefore, the eigenvalues of A lie in the 
+	interval of radius:
+	
+	$$
+	\sum_{j \ne i} |\langle \Pi_S^i, \Pi_S^j \rangle| \le \alpha(k-1)
+	$$
+	
+	We set $\alpha = \frac{\eps}{k}$ and get an ($\eps,k$)-RIP 
+	matrix.
+\end{proof}
+
+%%%% %%%% %%%%
+
+%%%% BASIS PURSUIT OR RIP TO RECOVERY %%%%
+
+\section{Basis Pursuit OR RIP to Recovery}
+
+\begin{theorem}
+If $\Pi$ is $(\eps_{2k}, 2k)$-RIP with $\eps_{2k} \le \sqrt{2} - 1$, 
+and $\tilde{x} = x+ h$ is the solution to the ``basis pursuit'' 
+linear program
+	\begin{align*}
+		\min_{z \in \R^n} &\quad\|z\|_1 \\
+		\textnormal{s.t.} &\quad\Pi z = \Pi x,
+	\end{align*}
+	then
+	$$
+	\|h\|_2 \le O\left(\frac{1}{\sqrt{k}}\right) \|x_{tail(k)}\|_1.
+	$$
+\end{theorem}
+
+\paragraph{Remark:} A \emph{linear program} (LP) is an optimization 
+problem in 
+which one seeks to optimize a linear objective function subject to 
+linear 
+constraints. The above problem is indeed a linear program with 
+polynomially 
+many variables and constraints, since it is equivalent to
+\begin{align*}
+	\min_{y \in \R^n} &\quad\sum_{i} y_i \\
+	\textnormal{s.t.} &\quad\Pi z = \Pi x, \\
+	&\quad z_i \le y_i \quad\forall i, \\
+	&\quad {-z_i} \le y_i \quad\forall i.
+\end{align*}
+
+It is known (e.g.\ via Khachiyan's analysis of the ellipsoid method) 
+that LPs 
+can be solved in polynomial time.
+
+We will now present a proof along the lines of \cite{Candes08}.
+
+
+\begin{proof}
+First, we define some notation. 
+
+For a vector $x \in \R^n$ and a set $S \subseteq [n]$, let $x_S$ be 
+the vector with all of its coordinates outside of $S$ zeroed out. 
+We will use $T_i^c$ to indicate the complement of $T_i$
+
+\begin{itemize}
+	\item Let $T_0 \subseteq [n]$ be the indices of the largest (i
+	absolute value) $k$ coordinates of $x$.
+	\item Let $T_1$ be the indices of the largest $k$ coordinates of 
+	$h_{T_0^c} = h_{tail(k)}$.
+	\item Let $T_2$ be the indices of the \emph{second} largest $k$ 
+	coordinates of $h_{T_0^c}$.
+	\item ...and so forth, for $T_3, \dots$
+\end{itemize}
+
+By the triangle inequality, we can write
+
+\begin{align*}
+	\|h\|_2 &= \|h_{T_0 \cup T_1} + h_{(T_0 \cup T_1)^c}\|_2 \\
+	& \le \|h_{T_0 \cup T_1}\|_2 + \|h_{(T_0 \cup T_1)^c}\|_2.
+\end{align*}
+
+Our strategy for bounding $h$ will be to show:
+
+\begin{enumerate}
+	\item \[\|h_{(T_0 \cup T_1)^c}\|_2 \le \|h_{T_0 \cup T_1}\|_2 + O
+	\left(\frac{1}{\sqrt{k}}\right)\|x_{tail(k)}\|_1.\]
+	\item \[\|h_{T_0 \cup T_1}\|_2 \le O\left(\frac{1}{\sqrt{k}}
+	\right)\|x_{tail(k)}\|_1)\]
+\end{enumerate}
+
+Both parts rely on the following lemma.
+
+\begin{lemma}\label{claim:maincalc}
+
+	\[\sum_{j \ge 2} \|h_{T_j}\|_2 \le \frac{2}{\sqrt{k}} \|x_{T_0^c}
+	\|_1 + \|h_{T_0\cup T_1}\|_2.\]
+
+\end{lemma}
+
+\begin{proof}
+We first get an upper bound on the left-hand side by applying a 
+technique known as the ``shelling trick.''
+\begin{align*}
+	\sum_{j \ge 2} \|h_{T_j}\|_2  &\le \sqrt{k} \sum_{j \ge 2} \|
+	h_{T_j}\|_\infty  \\
+	& \le \frac{1}{\sqrt{k}} \sum_{j \ge 2} \|h_{T_{j-1}}\|_1 \\
+	&\le \frac{1}{\sqrt{k}} \|h_{T_0^c}\|_1. \numberthis
+	\label{eq:maincalclhs}
+\end{align*}
+The first inequality holds because each $h_{T_j}$ is $k$-sparse, and 
+the second holds because the size of every term in $h_{T_j}$ is 
+bounded from above by the size of every term in $h_{T_{j-1}}$.
+
+Now since $\tilde{x} = x + h$ is the minimizer of the LP, we must 
+have
+\begin{align*}
+	\|x\|_1 &\ge \|x + h\|_1 \\
+	&= \|(x + h)_{T_0}\|_1 + \|(x + h)_{T_0^c}\|_1 \\
+	&\ge \|x_{T_0}\|_1 - \|h_{T_0}\|_1 + \|h_{T_0^c}\|_1 - \|
+	x_{T_0^c}\|_1
+\end{align*}
+by two applications of the reverse triangle inequality. Rearranging, 
+we obtain
+
+\begin{align*}
+	\|h_{T_0^c}\|_1 &\le \|x\|_1 - \|x_{T_0}\|_1 + \|h_{T_0}\|_1 + \|
+	x_{T_0^c}\|_1 \\
+	&= 2\|x_{T_0^c}\|_1 + \|h_{T_0}\|_1 \\
+	&\le 2\|x_{T_0^c}\|_1 + \sqrt{k}\|h_{T_0}\|_2 & \text{by Cauchy-
+	Schwarz}\\
+	&\le 2\|x_{T_0^c}\|_1 + \sqrt{k}\|h_{T_0 \cup T_1}\|_2\\
+\end{align*}
+
+Combining this upper bound with Inequality (\ref{eq:maincalclhs}) 
+yields the claim.
+
+\end{proof}
+
+Returning to the main proof, let us first upper bound the size 
+of $h_{(T_0 \cup T_1)^c}$. We get:
+
+\begin{align*}
+	\|h_{(T_0 \cup T_1)^c}\|_2 &= \left\|\sum_{j \ge 2} h_{T_j}\right
+	\|_2 \\
+	& \le \sum_{j\ge 2} \| h_{T_j}\|_2 \\
+	& \le \|h_{T_0 \cup T_1}\|_2 + \frac{2}{\sqrt{k}} \|x_{T_0^c}\|_1 
+	& \text{by the claim} \\
+	&= \|h_{T_0 \cup T_1}\|_2 + \frac{2}{\sqrt{k}} \|x_{tail(k)}\|_1. 
+	\\
+\end{align*}
+
+Now to bound the size of $h_{T_0 \cup T_1}$, we need another lemma.
+
+\begin{lemma} \label{lem:ipbound}
+	If $x, x'$ are supported on disjoint sets $T, T'$ respectively, 
+	where 
+	$|T| = k$ and $|T'| = k'$, then
+	\[|\langle \Pi x, \Pi x' \rangle | \le \eps_{k+k'} \|x\|_2 \|x'\|
+	_2,\]
+	where $\Pi$ is $(\eps_{k + k'}, k+k')$-RIP.
+\end{lemma}
+
+\begin{proof}
+	We can assume WLOG that $x, x'$ are unit vectors. Write
+	\[\|\Pi x + \Pi x'\|_2^2 = \|\Pi x\|_2^2 + \|\Pi x'\|_2^2 + 
+	2\langle \Pi x, \Pi x' \rangle,\quad \text{and}\]
+	\[\|\Pi x - \Pi x'\|_2^2 = \|\Pi x\|_2^2 + \|\Pi x'\|_2^2 - 
+	2\langle \Pi x, \Pi x' \rangle.\]
+
+Taking the difference gives
+
+\begin{align*}
+	|\langle \Pi x, \Pi x' \rangle | &= \frac{1}{4} \left|\|\Pi(x + 
+	x')\|_2^2 - \|\Pi(x - x')\|_2^2\right|\\
+	{}& \le \frac{1}{4}((1 + \eps_{k+k'})\|x+x'\|_2^2 - (1-\eps_{k
+	+k'})\|x-x'\|_2^2)\\
+	{}& = \frac{1}{4}((1 + \eps_{k+k'})2 - (1-\eps_{k+k'})2)\\
+	{} &= \eps_{k+k'}
+\end{align*}
+since $x \pm x'$ are $(k+k')$-sparse, and $x,x'$ are disjointly 
+supported. This proves the lemma.
+\end{proof}
+
+To bound the size of $h_{T_0 \cup T_1}$, first observe that
+\[\Pi h_{T_0 \cup T_1} = \Pi h - \sum_{j \ge 2} \Pi h_{T_j} = - 
+\sum_{j \ge 2} \Pi h_{T_j}\]
+since $h \in \ker \Pi$. Therefore,
+\[\|\Pi h_{T_0 \cup T_1} \|_2^2 = -\sum_{j \ge 2} \langle \Pi h_{T_0 
+\cup T_1}, \Pi h_{T_j}\rangle \le \sum_{j \ge 2} (|\langle \Pi 
+h_{T_0}, \Pi h_{T_j}\rangle| + |\langle \Pi h_{T_1}, \Pi h_{T_j}
+\rangle|).\]
+By Lemma \ref{lem:ipbound}, each summand is at most
+\[\eps_{2k}(\|h_{T_0}\|_2 + \|h_{T_1}\|_2) \|h_{T_j}\|_2 \le 
+\eps_{2k} \sqrt{2}\|h_{T_0\cup T_1}\|_2\|h_{T_j}\|_2.\]
+Thus
+\begin{align*}
+(1 - \eps_{2k})\|h_{T_0 \cup T_1}\|_2^2 &\le \|\Pi h_{T_0 \cup T_1} 
+\|_2^2 \\
+&\le \eps_{2k}\sqrt{2} \|h_{T_0 \cup T_1}\|_2 \sum_{j\ge 2} \|h_{T_j}
+\|_2 \\
+&\le \eps_{2k}\sqrt{2} \|h_{T_0 \cup T_1}\|_2 \left(\frac{2}
+{\sqrt{k}} \|x_{T_0^c}\|_1 + \|h_{T_0\cup T_1}\|_2\right)\\
+\end{align*}
+
+by Claim \ref{claim:maincalc}. Cancelling a factor of $\|h_{T_0 \cup 
+T_1}\|_2$ from both sides and rearranging gives
+\[\|h_{T_0 \cup T_1}\|_2 \le \frac{\eps_{2k}2\sqrt{2}}{(1 - \eps_{2k} 
+- \eps_{2k}\sqrt{2})\sqrt{k}}\|x_{T_0^c}\|_1 = O\left(\frac{1}
+{\sqrt{k}}\right) \|x_{tail(k)}\|_1.\]
+
+Putting everything together:
+\begin{align*}
+\|h\|_2 &\le \|h_{(T_0 \cup T_1)^c}\|_2 + \|h_{T_0 \cup T_1}\|_2 \\
+&\le 2 \|h_{T_0 \cup T_1}\|_2 + \frac{2}{\sqrt{k}} \|x_{tail(k)}\|_1 \\
+&\le O\left(\frac{1}{\sqrt{k}}\right) \|x_{tail(k)}\|_1.
+\end{align*}
+\end{proof}
+
+%%%% %%%% %%%%
+
+%%%% NEXT TIME %%%%
+
+\section{Krahmer and Ward}
+
+\begin{theorem}
+	Let $\Pi \in \R^{m \times n}$ be a matrix satisfying the $(\eps, 2k)$-RIP.
+	Let $\sigma \in \{+1,-1\}^n$ be uniformly random and $D_\sigma$ the 
+	diagonal matrix with $\sigma$ on the diagonal.
+	Then $\Pi D_\sigma$ satisfies the $(O(\eps), 2^{-\Omega(k)})$-
+	distributional JL property.
+\end{theorem}
+
+This theorem states that given a matrix satisfying the RIP property, we can 
+construct a distribution on matrices satisfying the JL property.
+
+%%%% %%%% %%%%
+
+
+
+%%%%%%%%%%%%%%%%%%%%
+%% References 
+%%%%%%%%%%%%%%%%%%%%
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem[BDFKK11]{BourgainDFKK11}
+Jean Bourgain, Stephen Dilworth, Kevin Ford, Sergei Konyagin, and Denka Kutzarova.
+\newblock Breaking the $k^2$ Barrier for Explicit RIP Matrices.
+\newblock In \emph{STOC}, pages 637--644, 2011.
+
+\bibitem[Candes08]{Candes08}
+Emmanuel Cand\`{e}s.
+\newblock The restricted isometry property and its implications for compressed sensing.
+\newblock {\emph C. R. Acad. Sci. Paris, Ser. I} 346:589--592, 2008.
+
+\bibitem[CRT04]{CandesRT04}
+Emmanuel Cand\`{e}s, Justin Romberg, and Terence Tao.
+\newblock Robust uncertainty principles: exact signal reconstruction from highly incomplete frequency information.
+\newblock \emph{IEEE Trans. Inf. Theory}, 52(2):489--509, 2006.
+
+\bibitem[Don04]{Donoho04}
+David Donoho.
+\newblock Compressed Sensing.
+\newblock \emph{IEEE Trans. Inf. Theory}, 52(4):1289--1306, 2006.
+
+\bibitem[GJ79]{GJ79}
+Michael R. Garey, David S. Johnson.
+\newblock {\em Computers and Intractability: A Guide to the Theory of NP-Completeness}.
+\newblock San Francisco, CA: Freeman, 1979.
+
+\end{thebibliography}
+
+\end{document}

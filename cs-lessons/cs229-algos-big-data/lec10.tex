@@ -1,0 +1,265 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{filecontents}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe:  Morris Yau#4}{Lecture 10#1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{ --- October 6, 2015}{Fall 2015}{Prof.\ Jelani Nelson}
+
+\section{Overview}
+
+In the last lecture we talked about communication complexity.  We found that deterministic exact $F_0$ required $\Omega(n)$ space.  We also proved the inequality $D(f) \geq R^{pri}_\delta(f) \geq R^{pub}_\delta(f) \geq D_{\mu, s}(f)$ that we use to provide lower bounds on randomized and approximate algorithms.  Our main tool was reductions from INDEX which has a communication complexity of roughly $\Omega(n)$.  
+
+In this lecture we use INDEX to give a lower bound on the space usage of randomized exact $F_0$.  We then present a lower bound for randomized approximate $F_0$, something that we have thus far been unable to do.  We then provide a lower bound on $F_p$ via the disjointness problem.  Then we move on to dimensionality reduction, distortion, and distributional Johnson-Lindenstrauss and the fact that it implies Johnson-Lindenstrauss. 
+
+\section{Randomized Exact Bound $F_0$}
+We prove that randomized exact $F_0$ requires $\Omega(n)$ space with failure probability $\frac{1}{3}$.  
+
+\begin{proof}
+	We perform the following reduction from INDEX.  Let Alice receive $x \in \{0,1\}^n$ and Bob receive $j \in [n]$.  It is then Bob's job to find the $j$'th index of $x$.  They proceed in the following manner.  Alice runs our $F_0$ algorithm on $x$ and sends both the memory contents of the algorithm and the support of $x$ to Bob.  Bob then appends $j$ to the stream and queries $F_0$ from the the memory contents of the algorithm.  If $F_0$ increases, Bob outputs $0$, else he outputs $1$.  We conclude that for $S$ equal to the space usage of the algorithm
+$$S + \log n \geq c*n \implies S = \Omega(n)$$
+Where $\log n$ factor comes from sending the support of $x$.  
+\end{proof}
+
+\section{Randomized Approximate Bound $F_0$}
+To prove randomized approximate $F_0$ has space lower bound $\Omega(\log n)$ we first state this theorem that can be found in Kushilevitz and Nisan.  Roughly speaking, it lower bounds the private communication bound by the log of the deterministic communication bound.  
+
+\begin{theorem}
+$\forall f: \{0,1\}^n x \{0,1\}^n \rightarrow \{0,1\}$, where $f$ is a communication problem, than 
+$$R_{\frac{1}{3}}^{pri} \geq \Omega(\log(D(f)))$$  
+\end{theorem}  
+\begin{proof}
+If we view $f$ as a two player game between Alice and Bob on a binary tree of height $s$ and total leaves $2^s$, than Alice and Bob could deterministically simulate the private randomized procedure on this tree.  For instance, for any path from root to leaf, Alice can compute the probability she would stay on the path given that Bob does as well.  She can then send these probabilities to Bob for every single leaf.  Bob can then compute the probabilities he stays on the same paths and can output the final result accordingly.  
+\end{proof}
+
+Now we prove that randomized approximate $F_0$ has space lower bound $\Omega(\log n)$
+\begin{proof}
+Let $C$ be a subset of $\{0,1\}^n$ such that $\forall c \in C$ the support of $c$ is $\frac{n}{100}$.  Also $\forall c \neq c' \in C$, we have $|c \cap c'| \leq \frac{n}{2000}$.  Finally $|C| \geq 2^{\Omega(n)}$.  We have constructed this set in previous lectures.  In essence, it is a collection of subsets that are largely disjoint but very numerous.  We know deterministic equality, EQ, on $C$ requires $\Omega(n)$ communication.  Then using Kushilevitz Nisan we have
+$$ \implies R_{\frac{1}{3}}^{pri}(EQ_C) \geq \Omega(\log n)$$ 
+Now we notice there is a natural reduction from $EQ_C$ to randomized approximate $F_0$.  Namely, Alice runs $F_0$ on her set $c$ and sends the memory contents to Bob.  Bob then runs $c'$ on the memory contents and determines whether the output for $F_0$ has roughly doubled.  If it has, then $c \neq c'$, if not, than $c = c'$.  
+\end{proof}
+
+\section{Disjointness Problem}
+We now move on to the t-player disjointness problem, useful for proving lower bounds for the $F_p$.  We have t-players $p_1, p_2, .., p_t$.  We assign an $n$ bit string $x_i \in \{0,1\}^n$ to player $p_i$.  We are then promised that either of the following conditions hold.  
+\begin{enumerate}
+\item $\forall i \neq j$ we have $x_i \cap x_j \neq \emptyset$  
+\item $\exists k \in [n]$ such that $\forall i \neq j$ we have $x_i \cap x_j = \{k\}$
+\end{enumerate}
+The problem is then to find $k$ with the least communication possible where communication occurs from player $1$ passing on to player $2$ and so on and so forth until player player t gives the final result.  \\
+
+Jelani mentions this theorem but does not prove it because it takes too much time.  The proof also uses an information theoretic approach, known as {\em information complexity} \cite{CSWY01}. The idea is the following chain of inequalities, where $\Pi$ is the optimal $\delta$-error communication protocol for some function $f$: $R^{pub}_\delta(f) = |\Pi| \ge H(\Pi(\mathbf{X})) \ge I(\mathbf{X};\Pi(X))$, where $\mathbf{X}$ is the set of inputs given to the $t$ players, and $\Pi(\mathbf{X})$ is the transcript of the communication protocol (or the ``communication log'') when the input is $\mathbf{X}$ (note that it is a random variable since $\Pi$ uses randomness). Then we define the {\em information complexity} $IC_{\mu,\delta}(f)$ as the minimum value $I(\mathbf{X},\Pi(X))$ achievable by any $\delta$-error protocol $\Pi$ when $\mathbf{X}$ is drawn from distribution $\mu$. Then we have that $R^{pub}_{\delta}(f) \ge IC_{\mu,\delta}(f)$ for all $\mu$. A variant of this approach was used by \cite{BJKS04} to obtain lower bounds for $t$-player disjointness, with improvements in \cite{CKS03}. The sharp bound was shown in \cite{G09}, with a later work showing how the arguments in \cite{BJKS04} could be strengthened to also get the sharp bound \cite{J09}. 
+
+\begin{theorem}
+$R_{\frac{1}{3}}^{pub}(DISJ_t) = \Omega(\frac{n}{t})$
+\end{theorem}
+Remark: Although we do not prove the theorem we know that it implies some player sends $\Omega(\frac{n}{t^2})$ bits which is what we'll need to prove the following claim.  
+
+\begin{claim}
+For $p > 2$ the randomized $1.1$ approximation to $F_p$ requires $\Omega(n^{1-\frac{2}{p}})$ bits of space.  
+\end{claim}
+
+\begin{proof}
+Set $t = \ceil{(2n)^{\frac{1}{p}}}$ for the disjoint players problem.  Each player creates a virtual stream containing $j$ if and only if $j \in x_i$.  We then compute $F_p$ on these virtual streams.  If all $x_i$ are disjoint then $F_p \leq n$.  Otherwise, $F_p \geq t^p \geq 2n$ because some element $k$ must appear at least $t$ times.  Then since our $F_p$ algorithm is a $1.1$ approximation, we can discern between the two cases.  This implies the space usage of our algorithm, $S$ satisfies
+$$S \geq \frac{n}{t^2} = \Omega(n^{1 - \frac{2}{p}})$$
+as desired.     
+\end{proof}
+\section{Dimensionality Reduction}
+Dimensionality reduction is useful for solving problems involving high dimensional vectors as input.  Typically we are asked to preserve certain structures such as norms and angles.  Some of the problems include
+\begin{enumerate}
+\item nearest neighbor search
+\item large scale regression problems
+\item minimum enclosing ball
+\item numerical linear algebra on large matrices
+\item various clustering applications
+\end{enumerate}
+Our goals run in the same vein as streaming.  That is to say fast runtime, low storage, and low communication.  Certain geometric properties that we would like to preserve upon lowering the dimension of the input data include 
+\begin{enumerate}
+\item distances
+\item angles
+\item volumes of subsets of inputs
+\item optimal solution to geometric optimization problem 
+\end{enumerate}
+
+First and foremost, we would like to preserve distances, and to do so we must first define distortion.
+
+\subsection{Distortion}
+
+\begin{definition}
+Suppose we have two metric spaces, $(X,d_{X})$,
+and $(Y,d_{Y})$, and a function $f:X\rightarrow Y$. Then $f$ has
+distortion $D_{f}$ if $\forall x,x'\in X$, $C_{1}\cdot d_{X}(x,x')\leq d_{Y}(f(x),f(x'))\leq C_{2}\cdot d_{X}(x,x')$,
+where $\frac{C_{2}}{C_{1}}=D_{f}$.
+\end{definition}
+
+We will focus on spaces in which $d_{X}(x,x')=\|x-x'\|_{X}$ (ie.
+normed spaces).  
+
+\subsection{Limitations of Dimensionality Reduction}
+
+If $\|\cdot\|_{X}$ is the $l_{1}$ norm, then $D_{f}\leq C\implies$
+in worst case, target dimension is $n^{\Omega(\frac{1}{C^{2}})}$.
+That is, there exists a set of $n$ points $X$, such that for all
+functions $f:(X,l_{1})\rightarrow(X',l_{1}^{m})$, with distortion
+$\leq C$, then $m$ must be at least $n^{\Omega(\frac{1}{C^{2}})}$\cite{BrinkmanC2005}.
+
+More recently in 2010, we have the following theorem by Johnson and Naor \cite{JohnsonN10}
+\begin{theorem}
+Suppose $(X, ||\cdot||_x)$ is a complete normed vector space or "Banach Space" such that for any N point subset of X, we can map to $O(\log n)$ dimension subspace of $X$ with $O(1)$ distortion, then every n-dimensional linear subspace of $X$ embeds into $l_2$ with distortion $\leq 2^{2^{O(\log^* n)}}$
+\end{theorem}
+
+\subsection{Johnson Lindenstrauss}
+\begin{theorem}
+The Johnson-Lindenstrauss (JL) lemma \cite{JohnsonL84} states that
+for all $\epsilon\in(0,\frac{1}{2})$, $\forall x_{1},...,x_{n}\in l_{2}$,
+there exists $\Pi\in R^{m\times n}$, $m=O(\frac{1}{\epsilon^{2}}\log(n))$
+such that for all $i,j$ , $(1-\epsilon)\|x_{i}-x_{j}\|_{2}\leq\|\Pi x_{i}-\Pi x_{j}\|_{2}\leq(1+\epsilon)\|x_{i}-x_{j}\|_{2}$
+
+$f:(x,l_{2})\rightarrow(x,l_{2}^{m})$, $f(x)=\Pi x$
+\end{theorem}
+
+\subsection{Distributional Johnson Lindenstrauss}
+\begin{theorem}
+for all $0<\epsilon,\delta<\frac{1}{2}$,
+there exists a distribution $D_{\epsilon,\delta}$ on matrices $\Pi\in\R^{m\times n}$,
+$m=O(\frac{1}{\epsilon^{2}}\log(\frac{1}{\delta}))$ such that
+for all $x\in\R^{n}$, and $\Pi$ drawn from the distribution
+$D_{\epsilon,\delta}$,
+\[
+\Pr(\|\Pi x\|_{2}\notin[(1-\epsilon)\|x\|_{2},(1+\epsilon)\|x\|_{2}]<\delta
+\]
+\end{theorem}
+Now we prove that the distributional Johnson Lindenstrauss proves Johnson Lindenstrauss.  
+
+\begin{claim}
+$DJL \implies JL$
+\end{claim}
+
+\begin{proof}
+Set $\delta < \frac{1}{{N \choose 2}}$ and look at $T = \frac{x_{i}-x_{j}}{\|x_{i}-x_{j}\|_{2}}$ for $i < j$.  Also note that $|T| = {N \choose 2}$.  Then 
+$$P(\Pi \text{ doesn't have distortion } (1+\epsilon) \text{ on X }) = P(\exists z \in T \text{ such that } \big||\Pi z||_2^2 - 1\big| \geq \epsilon)$$
+and so by union bound this probability is $\leq |T|*\delta < 1$  
+\end{proof}
+
+\paragraph{Bibliography.}
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AlonMS99}
+Noga~Alon, Yossi~Matias, Mario~Szegedy.
+\newblock The Space Complexity of Approximating the Frequency Moments.
+\newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+\bibitem{BJKS04}
+Ziv Bar-Yossef, T. S. Jayram, Ravi Kumar, D. Sivakumar.
+\newblock An information statistics approach to data stream and communication complexity.
+\newblock {\em J. Comput. Syst. Sci.}, 68(4): 702--732, 2004.
+
+\bibitem{CKS03}
+Amit Chakrabarti, Subhash Khot, Xiaodong Sun.
+\newblock Near-Optimal Lower Bounds on the Multi-Party Communication Complexity of Set Disjointness.
+\newblock {\em IEEE Conference on Computational Complexity}, pgs.\ 107--17, 2003.
+
+\bibitem{CSWY01}
+Amit Chakrabarti, Yaoyun Shi, Anthony Wirth, Andrew Chi-Chih Yao.
+\newblock Informational Complexity and the Direct Sum Problem for Simultaneous Message Complexity.
+\newblock {\em FOCS}, pgs.\ 270--278, 2001.
+
+\bibitem{G09}
+Andre Gronemeier.
+\newblock Asymptotically Optimal Lower Bounds on the NIH-Multi-Party Information Complexity of the AND-Function and Disjointness. 
+\newblock {\em STACS}, pgs.\ 505--516, 2009.
+
+\bibitem{J09}
+T. S. Jayram.
+\newblock Hellinger Strikes Back: A Note on the Multi-party Information Complexity of AND.
+\newblock {\em APPROX-RANDOM}, pgs.\ 562--573, 2009.
+
+\bibitem{JKS08}
+T. S. Jayram, Ravi Kumar, D. Sivakumar.
+\newblock The One-Way Communication Complexity of Hamming Distance.
+\newblock {\em Theory of Computing}, 4(1): 129--135, 2008.
+
+\bibitem{KNisan}
+Eyal~Kushilevitz, Noam~Nisan
+\newblock Communication Complexity
+\newblock {\em Cambridge University Press}, 1997
+
+\bibitem{W04}
+David P. Woodruff.
+\newblock Optimal space lower bounds for all frequency moments. 
+\newblock {\em SODA}, pgs.\ 167--175, 2004.
+
+\bibitem{BrinkmanC2005}B. Brinkman and M. Charikar, On the impossibility
+of dimension reduction in $l_{1}$, J. ACM, vol. 52, no. 5, pp. 766\textendash{}788,
+2005.
+
+\bibitem{JohnsonL84}William B. Johnson and Joram Lindenstrauss. Extensions
+of Lipschitz mappings into a Hilbert space. {\em Contemporary Mathematics}, 26:189--206, 1984.
+
+\bibitem{JohnsonN10}William B. Johnson and Assaf Naor, The Johnson-Lindenstrauss
+Lemma Almost Characterizes Hilbert Space, But Not Quite. {\em Discrete
+and Computational Geometry}, vol. 43, no. 3, pp. 542\textendash{}553, 2010.
+
+\bibitem{HansonW71}David Lee Hanson and Farroll Tim Wright. A bound
+on tail probabilities for quadratic forms in independent random variables.
+{\em Ann. Math. Statist.}, 42(3):1079\textendash{}1083, 1971.
+
+\bibitem{Pisier86}Gilles Pisier. Probabilistic methods in the geometry of Banach spaces. {\em Probability and Analysis}. {\em Lecture Notes in Mathematics.} Vol. 1206, 167--241, 1986.
+
+\end{thebibliography}
+
+\end{document}

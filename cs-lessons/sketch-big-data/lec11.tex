@@ -1,0 +1,389 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{example}[theorem]{Example}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{11 --- October 5, 2017}{Fall 2017}{Prof. Jelani Nelson}{Hong Hu}
+
+\section{Overview}
+
+In the last lecture, we discussed fast algorithms for computing JL transform using the idea of sampling. In this and the next few lectures, we are going to see how to use sampling and embedding technique to obtain faster algorithm for the following problems:
+\begin{itemize}
+\item
+Matrix multiplication
+\item
+Regression
+\item
+PCA/low-rank approximation
+\end{itemize}
+In this lecture, we mainly focus on fast matrix multiplication.
+\section{Matrix Multiplication}
+Suppose we have two matrices $A\in \mathbb{R}^{n\times d}$, $B\in \mathbb{R}^{n\times p}$, written as:
+\begin{align*}
+A^T = \begin{bmatrix} |& \cdots &|\\ a_1& \cdots & a_n\\ |& \cdots &|\end{bmatrix},~~~
+B = \begin{bmatrix} -b_1^T-\\ \vdots \\ -b_n^T- \end{bmatrix}
+\end{align*}
+where $a_i\in \mathbb{R}^d, b_i\in \mathbb{R}^p$. We want to compute $A^TB$.
+
+The naive approach for doing this requires $\mathcal{O}(ndp)$ for loops. There are some faster algorithms. For square matrix multiplication, the following algorithms are of less complexity $\mathcal{O}(\omega)$:
+\begin{enumerate}
+\item $\omega<\log_27$ (Strassen)
+\item $\omega< 2.376$ (Coppersmith, Winograd)
+\item $\omega<2.374$ (Stothevs)
+\item $\omega<2.3728642$ (Vassilevke-Williams)
+\item $\omega<2.3728639$ (Le Gell)
+\end{enumerate}
+ and for multiplying arbitrary matrix, it suffices to break them into multiple square matrix multiplications. All these algorithms are exact computation. What we are going to show today are some randomized algorithms, which give us answers closed to the exact multiplication with high probability, to be more exact, we want to compute $C\in \mathbb{R}^{d\times p}$, s.t.
+\begin{align*}
+\|A^TB-C\|_X<\varepsilon, \text{with probability}>1-\delta
+\end{align*}
+where $X$ is some matrix norm like Frobenius norm ($\|M\|_F = (\sum_{i,j}M_{i,j}^2)^{\frac{1}{2}}$), $l_2$ operator norm ($\|M\|=\sup_{\|x\|=1}|x^TMx|$), etc.
+
+The randomized algorithm for matrix multiplication was first studied in \cite{Drineas06}. The methods developed ever since then fall into two main categories:
+\begin{itemize}
+\item
+Sampling approach
+\item
+JL-based approach
+\end{itemize}
+We are going to analyze two algorithms, one in each category.
+\subsection{Sampling Approach}
+Here we analyzed the algorithm proposed in \cite{Drineas06}. The starting point is to rewrite $A^TB$ as a sum of $n$ rank-1 matrices:
+\begin{align*}
+A^TB = \sum_{i=1}^na_i b_i^T
+\end{align*}
+Then to reduce computational complexity, we can sample $m$ rows from $A$ and $B$ using sampling matrix $\Pi$:
+%\begin{align*}
+%\Pi = \left.\underbrace{\begin{bmatrix}0&0&\frac{1}{\sqrt{p_{i_1}}}&\cdots&0&0\\ \cdots & \cdots & \cdots  & \cdots \\ 0&0&0&\cdots&\frac{1}{\sqrt{p_{i_m}}}&0\end{bmatrix}}_{n}\right\}m
+%\end{align*}
+\def\matriximg{%
+  \begin{matrix}
+    0 & 0 & \cdots & \frac{1}{\sqrt{p_{i_1}}} & \cdots & 0 & 0  \\
+    %0 & 0 & 1 & \cdots & 1 & 0 \\
+    \cdots & \cdots & \cdots &\cdots & \cdots & \cdots & \cdots \\
+    0 & 0 & \cdots & 0 & \cdots & \frac{1}{\sqrt{p_{i_m}}} & 0
+   \end{matrix}
+}%
+\begin{align*}
+\Pi = \frac{1}{\sqrt{m}}\left(\vphantom{\matriximg}\right.\kern-2\nulldelimiterspace
+  \overbrace{\matriximg}^{\text{\scriptsize $n$}}\kern-\nulldelimiterspace\left.\vphantom{\matriximg}\right)
+  \left.\vphantom{\matriximg}\right\}\kern-2\nulldelimiterspace\text{\scriptsize $m$}
+\end{align*}
+There is only one non-zero element in each row of $\Pi$, and in the $i$th row, the $j$th element $\Pi_{i,j}=\frac{1}{\sqrt{p_j}}$ with probability $p_j$. Then matrices $\Pi A\in \mathbb{R}^{m\times d}$ and $\Pi B\in \mathbb{R}^{m\times p}$ are the sampled versions of $A$ and $B$. We use
+\begin{align*}
+C = (\Pi A)^T\Pi B = \frac{1}{{m}}\sum_{k=1}^m \frac{a_{i_k}b_{i_k}^T}{p_{i_k}}
+\end{align*}
+to approximate $A^T B$, where $i_k$ denotes the index of non-zero element in $k$th row of $\Pi$. Note here $i_k$ is random.
+
+To prove the correctness of this algorithm, we first show that $\E C = A^T B$. For each $\frac{a_{i_k}b_{i_k}^T}{p_{i_k}}$, we have:
+\begin{align*}
+\E \frac{a_{i_k}b_{i_k}^T}{p_{i_k}} &= \sum_{j=1}^m p_j \frac{a_jb_j^T}{p_j} = A^TB
+\end{align*}
+Therefore, we can easily get:
+\begin{align*}
+\E C = \frac{1}{m} \sum_{k=1}^m \E \frac{a_{i_k}b_{i_k}^T}{p_{i_k}} = A^T B
+\end{align*}
+Next, the goal is to show $\Pr(\|C-A^TB\|_F>\varepsilon \|A\|_F\|B\|_F)<\eta$, which can be reached by using second moment method:
+\begin{align*}
+\Pr(\|C-A^TB\|_F^2>\varepsilon^2 \|A\|_F^2\|B\|_F^2)< \frac{\E \|C-A^TB\|_F^2}{\varepsilon^2 \|A\|_F^2\|B\|_F^2}
+\end{align*}
+The idea in \cite{Drineas06} is to optimize over sampling probability $p_i$ s.t. $\E \|C-A^TB\|_F^2$ is minimized. The optimal $p_i\propto \|a_i\|_2\|b_i\|_2$. After minimization, it can be shown that $\frac{\E \|C-A^TB\|_F^2}{\varepsilon^2 \|A\|_F^2\|B\|_F^2} < \frac{C}{\varepsilon^2 m}$, so it suffices to have $m\geq \frac{C}{\varepsilon^2 \eta}$.
+Note that after doing this, $m\propto \frac{1}{\eta}$ and in order to get $m\propto \log \frac{1}{\eta}$ as desired, we need to use the ``median approach'':
+\begin{enumerate}
+\item
+Run the above algorithm many times independently with $\eta=\frac{1}{3}$
+\item
+Obtain $C_1,\ldots,C_t$, $t=\Theta(\lg\frac{1}{\delta})$
+\item
+Pick $C_i$ that is accurate enough.
+\end{enumerate}
+For the 3rd step, it is impossible to check if $\|C-A^TB\|_F^2>\varepsilon^2 \|A\|_F^2\|B\|_F^2$, since we don't know the exact $A^TB$. In \cite{Clarkson09}, the authors proposed a way to do this via checking the pairwise difference $\|C_i-C_j\|_F,~i,j=1,\ldots,t$. Let
+\begin{align*}
+S_i = |\{j:\|C_i-C_j\|_F\leq 2 \varepsilon \|A\|_F\|B\|_F\}|
+\end{align*}
+the algorithm returns any $C_i$ s.t. $S_i\geq \frac{t}{2}$.
+
+This algorithm can be understood as follows: if $\|C_i-A^TB\|_F\leq \varepsilon \|A\|_F\|B\|_F$, $\|C_j-A^TB\|\leq \varepsilon \|A\|_F\|B\|_F$, then by triangle inequality, we have $\|C_i-C_j\|_F\leq \|C_i-A^TB\|_F+\|C_j-A^TB\|_F \leq 2\varepsilon \|A\|_F\|B\|_F$. On the contrary, if $\|C_i-A^TB\|_F$ is large, then by triangle inequality again for any $\|C_j-A^TB\|_F$ small, $\|C_i-C_j\|_F\geq \|C_i-A^TB\|_F-\|C_j-A^TB\|_F$ , which can still be large. Therefore, with $\eta=\frac{1}{3}<\frac{1}{2}$, for a good $C_i$, more than half $\|C_i-C_j\|_F$ will be less than $2\varepsilon\|A\|_F\|B\|_F$, while for a bad $C_i$, more than half $\|C_i-C_j\|_F$ can be large.
+
+Since computing $\|A\|_F,\|B\|_F$ requires only $\mathcal{O}(nd+nr)$, the most time-consuming step is doing pair-wise comparison. The worst time complexity is of $\mathcal{O}(\lg^2\frac{1}{\delta}rd)$, one open question is that if it is possible to reduce it to $\mathcal{O}(\lg\frac{1}{\delta}rd)$.
+\subsection{JL-based Approach}
+The JL-based approach was first proposed in \cite{Sarlos}. First, we introduce $(\varepsilon, \delta, p)$ JL moment property (JLMP) to characterize $l_p$ norm of the difference $\|\pi x\|^2 - \|x\|^2$ in JL mapping:
+\begin{definition}
+$\Pi\in\mathbb{R}^{m\times n}$ and $D$ is a distribution over $\Pi$. $D$ satisfies the $(\varepsilon,\delta, p)-$JL moment property if for any $x$ of unit norm, we have $\mathbb{E}_{\Pi\sim D}|\Vert \Pi x\Vert_2^2-1|^p<\varepsilon^p\delta$.
+\end{definition}
+In fact, there are several well-known matrices satisfying JLMP:
+\begin{enumerate}
+\item
+Dense sub-Gaussian matrix: $(\varepsilon,\delta,\lg\frac{1}{\delta})-$ JLMP, with $m\simeq \frac{1}{\varepsilon^2}\log\frac{1}{\delta}$
+\item
+AMS sketch matrix: $(\epsilon, \delta, 2)-$ JLMP with $m\simeq 1/\epsilon^2\delta$.
+\item
+Fast JL matrix: $(\epsilon, \delta, \lg(\frac{n}{\delta}))-$ JLMP with $m\simeq \frac{1}{\varepsilon}\lg \frac{1}{\delta}$
+\end{enumerate}
+All these examples can be proved by using the fact:
+\begin{align}
+\label{eq:expectationasprob}
+\E |Z|^p = \int_0^\infty p x^{p-1}P(|Z|>x)dx
+\end{align}
+and combining the probability tail bound on $\|\Pi x\|-1$. A more detailed exploration on this can be found in \cite{BellareR94}. Here, we assume that such a $D$ exists and utilize some properties of JLMP for our construction.
+
+One property of JLMP we are going to use below is that a random matrix $\Pi$ satisfying $(\eps,\delta,p)-$JLMP can preserve inner product w.r.t. $l_p$ norm:
+\begin{claim}
+\label{clm:inprodJL}
+If $\Pi$ comes from $(\eps,\delta,p)-$JLMP, $p\geq 1$, then $\forall x,y$ of unit norm,
+\begin{align*}
+\|\inprod{\Pi x,\Pi y}-\inprod{x,y}\|_p \leq (3\eps)\delta^{\frac{1}{p}}
+\end{align*}
+\end{claim}
+\begin{proof}
+The inner product of ${x,y}$ can be expressed by their $l_2$ norm:
+\begin{align}
+\label{eq:inprod1}
+\inprod{x,y} &= \frac{1}{2}(\|x\|_2^2+\|y\|_2^2-\|x-y\|_2^2)\\
+\label{eq:inprod2}
+\inprod{\Pi x,\Pi y} &= \frac{1}{2}(\|\Pi x\|_2^2+\|\Pi y\|_2^2-\|\Pi(x-y)\|_2^2)
+\end{align}
+thus
+\begin{align*}
+\inprod{\Pi x,\Pi y} - \inprod{x,y} = \frac{1}{2}(\|\Pi x\|_2^2-1+\|\Pi y\|_2^2-1+\|\Pi(x-y)\|_2^2-\|x-y\|_2^2)
+\end{align*}
+By triangle inequality $\|x-y\|_2\leq 2$ and also:
+\begin{align*}
+\|\inprod{\Pi x,\Pi y} - \inprod{x,y}\|_p &\leq \frac{1}{2}\big\| \|\Pi x\|_2^2-1 \big\|_p + \frac{1}{2}\big\| \|\Pi y\|_2^2-1 \big\|_p + \frac{1}{2}\big\| \|\Pi(x-y)\|_2^2-\|x-y\|_2^2 \big\|_p \\
+&\leq \frac{\eps\delta^{\frac{1}{p}}}{2}+\frac{\eps\delta^{\frac{1}{p}}}{2}+\frac{4\eps\delta^{\frac{1}{p}}}{2}\\
+&= (3\eps)\delta^{\frac{1}{p}}
+\end{align*}
+\end{proof}
+Now we are ready to state a theorem in \cite{KaneN14}, which shows how JLMP can help us bound the Frobenius distance between $C$ and $A^TB$:
+%For example, if we consider sub-Gaussian $\Pi$, we have shown before in distributional JL lemma, that $\forall x, \|x\|=1$, $P_{\Pi}(|\|\Pi x\|-1|>\varepsilon)<\delta$, if $m\simeq \frac{1}{\varepsilon^2}\lg \frac{1}{\delta}$. Then using (\ref{eq:expectationasprob}), we have:
+%\begin{align*}
+%\E |\|\Pi x\|^2-1|^p &= \int_0^\infty p \varepsilon^{p-1}P(|\|\Pi x\|^2-1|^2>\varepsilon)d\varepsilon\\
+%&\leq C \int_0^\infty p \varepsilon^{p-1}P(|\|\Pi x\|^2-1|>\varepsilon)d\varepsilon\\
+%&\leq C\int_0^\infty p \varepsilon^{p-1}\delta d\varepsilon\\
+%&= \mathcal{O}(\varepsilon^p \delta)
+%\end{align*}
+\begin{theorem}
+Suppose $D$ has $(\varepsilon, \delta, p)-$JLMP for $p\geq 2$, then for $A, B$ as before,
+\begin{align*}
+P_{\Pi\sim D}(\|A^TB-(\Pi A)^T\Pi B\|_F>3\varepsilon\|A\|_F\|B\|_F) <\delta
+\end{align*}
+\end{theorem}
+\begin{proof}
+The idea is to first bound $\Pr_{\Pi\sim D}(\|A^TB-(\Pi A)^T\Pi B\|_F>3\varepsilon\|A\|_F\|B\|_F)$ by Markov inequality:
+\begin{align}
+\label{eq:markov1}
+\Pr_{\Pi\sim D}(\|A^TB-(\Pi A)^T\Pi B\|_F>3\varepsilon\|A\|_F\|B\|_F)<\frac{\E \|A^TB-(\Pi A)^T\Pi B\|_F^p}{(3\varepsilon\|A\|_F\|B\|_F)^p}
+\end{align}
+and then bound $\E \|A^TB-(\Pi A)^T\Pi B\|_F^p$. Let $M\triangleq A^TB-(\Pi A)^T\Pi B$, we have
+\begin{align*}
+M_{ij}^2 &= (\inprod{\Pi a_i,\Pi b_j}-\inprod{a_i,b_j})^2\\
+&= \left(\inprod{\Pi \frac{a_i}{\|a_i\|},\Pi \frac{b_j}{\|b_j\|}}-\inprod{\frac{a_i}{\|a_i\|},\frac{b_j}{\|b_j\|}}\right)^2\|a_i\|_2^2\|b_j\|_2^2
+\end{align*}
+and we define $X_{ij}\triangleq \inprod{\Pi \frac{a_i}{\|a_i\|},\Pi \frac{b_j}{\|b_j\|}}-\inprod{\frac{a_i}{\|a_i\|},\frac{b_j}{\|b_j\|}}$. The $l_p$ norm of $\|M\|_F$ can be rewritten as:
+\begin{align}
+\label{eq:Mlpnorm}
+\E \|M\|_F^p = \Big\| \|M\|_F^2 \Big\|_{\frac{p}{2}}^{\frac{p}{2}} = \Big\| \sum_{i,j}M_{ij}^2 \Big\|_{\frac{p}{2}}^{\frac{p}{2}}
+\end{align}
+Since $p\geq 2\Rightarrow\frac{p}{2}\geq 1$, we can use triangle inequality over $\Big\| \sum_{i,j}M_{ij}^2 \Big\|_{\frac{p}{2}}$:
+\begin{align*}
+\Big\| \sum_{i,j}M_{ij}^2 \Big\|_{\frac{p}{2}} &= \Big\| \sum_{i,j}X_{ij}^2 \|a_i\|_2^2\|b_j\|_2^2 \Big\|_{\frac{p}{2}}\\
+&\leq \sum_{i,j} \Big\|  X_{ij}^2 \|a_i\|_2^2\|b_j\|_2^2  \Big\|_{\frac{p}{2}}\\
+&= \sum_{i,j} \|a_i\|_2^2\|b_j\|_2^2\|X_{ij}\|_p^2\\
+&\leq (3\eps\delta^{\frac{1}{p}})^2\sum_{i,j} \|a_i\|_2^2\|b_j\|_2^2 \hspace{2em} \text{using Claim \ref{clm:inprodJL} on }\frac{a_i}{\|a_i\|}, \frac{b_i}{\|b_i\|} \\
+&=(3\eps\delta^{\frac{1}{p}})^2\|A\|_F^2\|B\|_F^2
+\end{align*}
+Combined with (\ref{eq:Mlpnorm}),
+\begin{align*}
+\E \|M\|_F^p &= \Big\| \sum_{i,j}M_{ij}^2 \Big\|_{\frac{p}{2}}^{\frac{p}{2}}\\
+&\leq (3\eps\delta^{\frac{1}{p}})^p\|A\|_F^p\|B\|_F^p
+\end{align*}
+Back to (\ref{eq:markov1}), we get:
+\begin{align*}
+\Pr_{\Pi\sim D}(\|A^TB-(\Pi A)^T\Pi B\|_F>3\varepsilon\|A\|_F\|B\|_F) <\delta
+\end{align*}
+\end{proof}
+
+\paragraph{Comment 1:}
+To achieve low storage and computation complexity, we need to ensure JL mapping matrix $\Pi$ is sparse. Sub-Gaussian and AMS sketching matrix we used before are all dense matrices, which are not suitable here. In \cite{ThorupZ04}, it is shown that Countsketch matrix $\Pi$ satisfies $(\eps,\delta,2)-$JLMP for $m\simeq \frac{1}{\eps^2\delta}$ and we know that each column of Countsketch matrix has exact one non-zero element ($\pm 1$), so it is sparse and can be applied here.
+\paragraph{Comment 2:}
+It can be seen that JLMP-based approach doesn't require any knowledge about matrix $A$ and $B$, but for sampling-based approach discussed before, we need to know the norm of each row $a_i$, $b_i$ to determine the sampling probability.
+\subsection{Subspace Embedding}
+Up to now, we use Frobenius norm to characterize the distance between $C$ and $A^TB$. In some applications, however, other norms are more relevant. Next, we are going to analyze the cases where $l_2$ operator norm $\|\cdot\|$ is used.
+
+As before, we expect to obtain results like:
+\begin{align}
+\label{eq:l2normgene}
+\Pr(\|A^TB-(\Pi A)^T\Pi B\|>\eps\|A\|\|B\|)<\delta
+\end{align}
+We consider the case $A=B$. In this case, (\ref{eq:l2normgene}) becomes:
+\begin{align}
+\label{eq:l2normAA}
+\Pr(\|A^TA-(\Pi A)^T\Pi A\|>\eps\|A\|^2)<\delta
+\end{align}
+Recall that for symmetric matrix $M\in \mathbb{R}^{d\times d}$,
+\begin{align*}
+\|M\| = \sup_{\|x\|=1}|x^TMx|
+\end{align*}
+so (\ref{eq:l2normAA}) is equivalent to say that we want $\forall x, \|x\|=1$,
+\begin{align*}
+\big| \|\Pi A x\|_2^2 - \|Ax\|_2^2 \big| < \eps \sup_{\|z\|=1}\|Az\|_2^2
+\end{align*}
+with probability greater than $1-\delta$. In the following, we will base on something stronger:
+\begin{align*}
+\big| \|\Pi A x\|_2^2 - \|Ax\|_2^2 \big| < \eps \|Ax\|_2^2
+\end{align*}
+and such $\Pi$ is called \emph{$\eps-$subspace embedding} of $\text{Col}(A)$. A formal definition is as follows:
+\begin{definition}
+For a linear subspace $E\subseteq \mathbb{R}^n$, we say $\Pi$ is $\eps-$subspace embedding (s.e.) for $E$ if
+\begin{align}
+\label{eq:embeddef1}
+\big|\|\Pi x\|_2^2-1\big|\leq \eps,~~\forall x \in E,~ \|x\|_2=1
+\end{align}
+\end{definition}
+In fact, we have another equivalent definition by using the orthogonal basis $U$ of $E$. Then $E$ can be expressed as: $E=\{x: x=Uz,z\in \mathbb{R}^d\}$ with $U^TU=I,U\in\mathbb{R}^{n\times d}$. Therefore, (\ref{eq:embeddef1}) holds iff $\forall x=Uz\in E$,
+\begin{align}
+&~~~~~(1-\varepsilon)\|x\|_2^2 \leq \|\Pi x\|_2^2 \leq (1+\varepsilon)\|x\|_2^2\notag\\
+&\Leftrightarrow (1-\varepsilon)\|Uz\|_2^2 \leq \|\Pi Uz\|_2^2 \leq (1+\varepsilon)\|Uz\|_2^2,~~~\forall z\in \mathbb{R}^d\notag\\
+&\Leftrightarrow (1-\varepsilon)\|z\|_2^2 \leq \|\Pi U z\|_2^2 \leq (1+\varepsilon)\|z\|_2^2,~~~\forall z\in \mathbb{R}^d\notag\\
+\label{eq:embeddef2}
+&\Leftrightarrow \|(\Pi U)^T\Pi U-I\|\leq \eps
+\end{align}
+We can see that (\ref{eq:embeddef2}) gives us an equivalent definition of $\eps-$subspace embedding, in terms of $l_2$ operator norm.
+
+Next, we are going to see an example of using operator norm in approximating matrix multiplication:
+\paragraph{Example (ordinary least square regression):}
+Given $X\in\mathbb{R}^{n\times d}, y\in \mathbb{R}^n$, least square (LS) regression computes the best linear approximation to data point $y$ using $X$:
+\begin{align*}
+\beta^{LS} &= \underset{\beta\in\mathbb{R}^d}{\text{argmin}}\|X\beta - y\|_2^2\\
+&= (X^TX)^{-1}X^Ty
+\end{align*}
+Thus the best linear approximation is $X\beta^{LS}=X(X^TX)^{-1}X^Ty$ and $X(X^TX)^{-1}X^T$ is called \emph{projection matrix}, which projects any $y\in \mathbb{R}^n$ onto the subspace $\text{Col}(X)$ and the projection is $X(X^TX)^{-1}X^Ty$.
+
+To calculate projection matrix, the term $(X^TX)^{-1}$ incurs highes complexity. The naive approach needs $\mathcal{O}(nd^2)$ for loops and we want to compute it faster. The main idea is to embed $X$ and $y$ into lower-dimensional space: $X\mapsto \Pi X,y\mapsto \Pi y$ and do regression on $\Pi X$ and $\Pi y$. First, we need to ensure such embedding will not introduce large errors, which can be guaranteed by using $\eps-$subspace embedding:
+\begin{claim}
+Define $E=\text{span}(\{\text{Col}(X),y\})$ and we assume $rank(X)=d$, so $\dim(E)\leq d+1$. If $\Pi$ is an $\eps-$ subspace embedding for $E$, then
+\begin{align*}
+\|X\tilde{\beta}^{LS}-y\|_2^2 \leq \frac{1+\eps}{1-\eps}\|X{\beta}^{LS}-y\|_2^2
+\end{align*}
+where $\tilde{\beta}^{LS} = \underset{\beta\in\mathbb{R}^d}{\text{argmin}}\|\Pi X\beta - \Pi y\|_2^2$.
+\end{claim}
+\begin{proof}
+First, we have
+\begin{align*}
+\|\Pi X\tilde{\beta}^{LS}-\Pi y\|_2^2 &\leq \|\Pi X{\beta}^{LS}-\Pi y\|_2^2 \hspace{5.3em} \text{by definition of }\tilde{\beta}^{LS}\\
+&\leq (1+\eps)\|X{\beta}^{LS}-y\|_2^2 \hspace{4em} \Pi\text{ is an }\eps-\text{subspace embedding matrix}
+\end{align*}
+On the other hand,
+\begin{align*}
+\|\Pi X\tilde{\beta}^{LS}-\Pi y\|_2^2 \geq (1-\eps)\|X\tilde{\beta}^{LS}-y\|_2^2
+\end{align*}
+Combining the above two inequalities, we obtain the results.
+\end{proof}
+The remaining task is to find an $\eps-$ subspace embedding matrix $\Pi$ for $\text{Col}(\widetilde{X})$, where $\widetilde{X} = [X~y]$. If $\widetilde{X}\in \mathbb{R}^{n\times (d+1)}$ is a tall matrix, i.e., $n\geq d+1$, a quick way to find $\Pi$ is via \emph{singular value decomposition} (SVD). The definition of SVD is given by the following theorem:
+\begin{theorem}
+\label{thm:svd}
+Every real matrix $A\in \mathbb{R}^{n\times d}$ with $rank(A)=r$ can be written as:
+\begin{align}
+\label{eq:SVD}
+A = U\Sigma V^T
+\end{align}
+where $U\in \mathbb{R}^{n\times r}, V\in \mathbb{R}^{d\times r}$, $U^T U=I$, $V^T V=I$ and $\Sigma = \text{diag}(\sigma_1,\sigma_2,\ldots,\sigma_r)$, $\sigma_i>0$. Here, $\sigma_i$ are called singular values.
+
+If we write $U = [u_1 \cdots u_r]$ and $U = [v_1 \cdots v_r]$, where $u_i$, $v_i$ are called left/right singular vectors, respectively, (\ref{eq:SVD}) can also be written as:
+\begin{align}
+\label{eq:SVD1}
+A = \sum_{i=1}^r \sigma_i u_iv_i^T
+\end{align}
+\end{theorem}
+We can see from Theorem \ref{thm:svd} that $\{u_1,\ldots,u_r\}$ is an orthogonal basis of $\text{Col}(A)$, so for tall matrix $\widetilde{X}=\widetilde{U}\widetilde{\Sigma} \widetilde{V}^T$, we can choose $\Pi = \widetilde{U}^T$ and $\Pi \widetilde{U}=I$, which apparently satisfies (\ref{eq:embeddef2}).
+
+In practice, however, doing SVD requires the same complexity as doing original matrix multiplication, so we need other approaches to realize fast subspace embedding. This will be discussed in the next lecture.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Drineas06}
+Petros~Drineas, Ravi~Kannan, Michael~Mahoney.
+\newblock Fast Monte Carlo Algorithms for Matrices I: Approximating Matrix Multiplication.
+\newblock {\em SIAM J. Comput} 36(1):132--157, 2006.
+
+\bibitem{Sarlos}
+Tamas~Sarlos.
+\newblock Improved Approximation Algorithms for Large Matrices via Random Projections.
+\newblock {\em FOCS} 2006.
+
+\bibitem{Clarkson09}
+Kenneth~Clarkson, David~Woodruff.
+\newblock Numerical Linear Algebra in the Streaming Model.
+\newblock {\em STOC}, 205--214, 2009.
+
+\bibitem{BellareR94}
+Mihir~Bellare, John~Rompel.
+\newblock Randomness-Efficient Oblivious Sampling.
+\newblock {\em FOCS}, 1994.
+
+\bibitem{KaneN14}
+Daniel~M.~Kane, Jelani~Nelson.
+\newblock Sparser Johnson-Lindenstrauss Transforms.
+\newblock {\em J. {ACM}}, 61(1), 2014.
+
+\bibitem{ThorupZ04}
+Mikkel~Thorup, Yin~Zhang
+\newblock Tabulation based 4-universal hashing with applications to second moment estimation.
+\newblock {\em SODA}, 2004.
+
+\end{thebibliography}
+
+\end{document} 

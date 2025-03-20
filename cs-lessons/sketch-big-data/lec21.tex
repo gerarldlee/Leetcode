@@ -1,0 +1,286 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage[noend]{algpseudocode}
+
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\DeclareMathOperator{\Var}{\text{Var}}
+\DeclareMathOperator{\argmin}{\text{argmin}}
+\DeclareMathOperator{\polylog}{\text{polylog}}
+
+\renewcommand{\O}{\mathcal{O}}
+\DeclareMathOperator{\polylogO}{\widetilde{\bigO}}
+\renewcommand{\epsilon}{\varepsilon}
+
+\newcommand{\eqdef}{\mathbin{\stackrel{\rm def}{=}}}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+
+
+\newcommand{\elempow}[2]{{#1}^{\oplus #2}}
+\newcommand{\set}[1]{\left\{ {#1} \right\}}
+\newcommand{\norm}[1]{\left\lVert {#1} \right\rVert}
+\newcommand{\abs}[1]{\left\lvert {#1} \right\rvert}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{21 --- November 14, 2017}{Fall 2017}{Prof.\ Piotr Indyk}{Lucas Liebenwein}
+
+\section{Overview}
+
+In lecture 19, we saw streaming algorithms for geometric problems, such as minimum enclosing ball (MEB) and k-medians. We considered \textbf{insertion-only} streams and approached these types of problems using some kind of coreset, i.e., a weighted subset of the original data points that preserve the desired properties.
+
+In this lecture, we will consider streaming algorithms for geometric problems for streams that allow both \textbf{insertions and deletions}. We will approach the problems using sketching algorithms, as opposed to coresets. The intuition behind this approach is that we can reduce the geometric problem to a linear sketching problem, i.e., we can represent the relevant quantities as vectors. Specifically, we will consider the following problems:
+\begin{itemize}
+	\item 
+	Diameter of a set of points,
+	\item 
+	Cost of minimum weight spanning tree (MST),
+	\item 
+	Cost of minimum weight matching (MWM),
+	\item 
+	Cost of minimum weight bi-chromatic matching (MWBM).
+	
+\end{itemize} 
+We will consider a set of points $P \in [\Delta]^2$, i.e., a \textbf{set of two-dimensional points with coordinates in the discrete set} $[\Delta]$. Note that we can easily extend the algorithms to work in any dimension $d$, however, we cannot lift the assumption about the coordinates coming from a discrete set. Moreover, the weight of an edge will denote the distance between points (e.g., $\ell_1$-distance).
+
+\section{Diameter}
+Here we want to approximate the diameter $D$ of a point set $P$, i.e., the maximum distance between any two points. More formally, we want to obtain a $(1 + \O(\eps))$-approximation to $D$, where
+\begin{equation*}
+	D = \max_{p, p' \in P} D(p,p')
+\end{equation*}
+and $D(p,p')$ is the distance between two points $p,p' \in P$.
+
+\subsection{2-Approximation in Insertion-only Streams}
+We begin with presenting a trivial algorithm that takes $\O(1)$ space to compute a 2-approximation to $D$ in an insertion-only stream. We initialize $\hat D \gets 0$ and we maintain \mbox{$\hat D \gets \max \{\hat D, D(p_1,p_i) \}$} at any time $i$, where $p_i$ is the current element in the stream and $p_1$ is the first element in the stream. Then, we have that 
+\begin{equation} \label{eq:diameter1}
+	\hat D \le D \le 2 \hat D.
+	\end{equation}
+The lower bound in \eqref{eq:diameter1} follows from the definition of $D$, and the upper bound can be shown to hold using triangle inequality. Assume $q,q'$ are the true points defining the diameter, then
+\begin{align*}
+	D(q,q') \le D(q,p_1) + D(p_1,q') \le 2 \hat D.
+\end{align*}
+
+\subsection{$(1 + \O(\eps))$-approximation for insertion and deletion}
+
+
+\paragraph{Algorithm}
+Consider the following algorithm for estimating the diameter: 
+
+\begin{algorithm}
+	\setstretch{1.2}
+	\caption{Diameter approximation
+		\label{alg:aliasing-fft}}
+	\begin{algorithmic}[1]
+			\State{$n_p^i(c) := \abs{\{p \,\lvert\, p \in c \land p \in P \}}, \forall c \in G_i, \forall i \in [m]$}
+		\Function{ApproximateD}{$P$}
+			\State{$G_0,\ldots,G_m \gets $ square grids with diameter $(1+\eps)^{-log(1/\eps)},(1 + \eps)^1, (1+\eps)^2,\ldots,2\Delta$}
+			\For{$p \in P$}
+				\State{Maintain linear sketch of $n_P^i, \,\, \forall i \in [m]$}
+			\EndFor
+			\State{$i^* \gets \min_{i \in [m]}\{i\}$ such that $\norm{n_P^i}_0 \le k = \O(\frac{1}{\eps^2})$ \Comment{$\norm{n_P^i}_0$ from linear sketch}}
+			\State{Recover the set $S$ of non-zero cells in $n_p^{i^*}$ \Comment{using k-sparse recovery of a vector}}
+			\State{\Return{$(1+\eps)^{i^*} D(S)$} \Comment{$D(S)$ is the diameter of the set $S$ (grid coordinates)}}
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Analysis}
+We have already seen in previous lectures that we can maintain a linear sketch of $n_P^i$ to obtain an estimate of the non-zero entries as well as how to recover $n_P^i$ in case of $k$-sparsity. The remaining question is whether there exists a grid $G_{i^*}$ such that there are at most $k$ non-empty cells and how we choose it, otherwise the recovery of $n_P^{i^*}$ fails. We first show the existence: 
+\begin{fact} \label{fact:sandwich}
+	Let $D$ be the diameter of a set of points $P$. Then there is always a grid level $i$ such that
+	\begin{equation*}
+		(1+\epsilon)^i \le \eps D \le (1+\eps)^{i+1}.
+	\end{equation*}
+\end{fact}
+From Fact~\ref{fact:sandwich}, it follows that $D$ spans at most $k = \O(\frac{1}{\eps^2})$ grid cells of the grid at level $i$. To obtain such $i$, we cannot use Fact~\ref{fact:sandwich} though, since it requires the knowledge of $D$. However, we can use our sketch for $\norm{n_P^i}_0$ to estimate the sparseness of the grid at any level $i$. Since we want the best possible approximation we pick $i^*$ to be the lowest grid level that has at most $k$ non-empty cells. We further note that in any grid we make an error of at most $\O(\eps)$ justifying the fact that we can approximate the diameter up to a factor of $(1+\O(\eps))$, see Fig.~\ref{fig:diameter}.
+
+\paragraph{Space requirement}
+Let $n$ be the number of updates. The space requirement for this algorithm is $\O((1/\eps^{\O(1)})\polylog(n + \Delta) )$ since each sketch requires $\O((1/\eps^{\O(1)})\polylog(n))$ space (as shown in Problem Set 1), and we require $\O(\polylog(\Delta))$ such estimators. 
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.22\textwidth]{diameter1}
+	\includegraphics[width=0.22\textwidth]{diameter2}
+	\caption{The diameter of a point set under its embedding.}
+	\label{fig:diameter}
+\end{figure}
+
+\section{Minimum Spanning Tree and Other Problems}
+We now turn our attention to a class of problems related to tree properties of a set of points, specifically we want to approximate the cost of the minimum spanning tree (MST), the cost of the minimum weight matching (MWM), and the cost of the minimum bi-chromatic weight matching (MBWM). These methods were first presented in~\cite{indyk04}. 
+
+\subsection{Probabilistic Embedding}
+Before we discuss estimators for the aforementioned problems, we will introduce the quad-tree embedding. The intuition behind this data structure is that we maintain a tree-like data structure that approximately preserves distances between points. The idea of this embedding is due to~\cite{bartal96}.
+Specifically, consider partitioning the space $[\Delta]^2$ into grid cells of diameter $2^0, 2^1, \ldots, 2\Delta$. We build the quad tree as follows: 
+\begin{enumerate}
+	\item 
+	Partition the initial cell of diameter $2\Delta$ into 4 smaller cells,
+	\item 
+	Partition the resulting cells, which are non-empty, again into 4 smaller cells,
+	\item 
+	Recurse on steps 1. and 2. until all cells hold at most 1 item.
+\end{enumerate}
+Note that since we assumed that all coordinates are from the discrete set $[\Delta]$, the tree height is bounded above by $\O(\log(\Delta))$. In Fig.~\ref{fig:quadtree}, the procedure is shown for a set of points. Using random shifts of the underlying grids, we obtain the following useful properties of quad-trees:
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.77\textwidth]{quadtree}
+	\caption{The quad-tree embedding for a set of points.}
+	\label{fig:quadtree}
+\end{figure}
+
+\begin{theorem} \label{thm:quadtree}
+	Consider the quad-tree $T$ of a set of points $P$ constructed using grids that are shifted by a random vector $v \in [\Delta]^2$, then
+	\begin{enumerate}
+		\item \label{thm:quadtree1}
+		$\norm{p - q}_1 \le D_T(p,q)$, and
+		\item 
+		$\E[D_T(p,q)]  \le \norm{p -q}_1 \O(\log(\Delta))$,
+	\end{enumerate}
+where $D_T(p,q)$ denotes the distance on the tree $T$ between two points $p,q \in P$.
+\end{theorem}
+\begin{proof}
+We will consider the two properties separately. 
+
+\paragraph{Property 1}
+This follows directly from the construction of the tree and does not even require random shifts. Let $c \in G_i$ be the smallest cell containing both $p$ and $q$. Thus, $\norm{p - q}_1 \le 2^{i+1}$. Further, let $D_T(p,q)$ be the distance between the points $p$ and $q$ on the tree. Specifically, $D_T(p,q)$ is the sum of the weights of the edges that connect $p$ and $q$. The weight of an edge is the grid diameter of its corresponding grid cell. Therefore, 
+\begin{equation*}
+	D_T(p,q) = 2 \cdot 2^i = 2^{i+1} \ge \norm{p - q}_1.
+\end{equation*}
+
+\paragraph{Property 2}
+Consider some grid level $i$ with cell side length $2^i$ and cells $c = (c_x,c_y)^T \in G_i$. Let $p = (p_x, p_y)^T \in P$ and $q = (q_x,q_y)^T \in P$. Then the probability that $p$ and $q$ belong to different cells $c,c' \in G_i$ along the direction of the $x$-axis is
+\begin{equation*}
+	\Pr (p_x \in c_x \land p'_x \in c_x' \neq c) = \min \left\{ \frac{\abs{p_x - q_x}}{2^i}, 1 \right\} \le \frac{\abs{p_x - q_x}}{2^i}.
+\end{equation*}
+A similar results holds for the cells along the $y$-axis. Thus, 
+\begin{equation*}
+	\Pr(p \in c \land q \in c' \neq c) \le \frac{\abs{p_x - q_x}}{2^i} + \frac{\abs{p_y - q_y}}{2^i} = \frac{\norm{p -q}_1}{2^i}.
+\end{equation*}
+Summing over all levels of the trees yields
+\begin{align*}
+	\E[D_T(p,q)]
+	& \le \sum_{i=0}^{\O(\log(\Delta))} \underbrace{\frac{\norm{p -q}_1}{2^i}}_{\Pr(p \in c \land q \in c' \neq c \, \lvert \, c, c' \in G_i)} \underbrace{\O(2^i)}_{\text{contribution to $D_T(p,q)$ of layer $i$}} \\
+	& = \norm{p - q}_1 \O(\log(\Delta)).
+\end{align*}
+
+\end{proof}
+
+\subsection{Estimator for Minimum Spanning Tree}
+Let $n_P^i(c)$ be the count of points in cell $c$ at grid level $i$. We maintain a linear sketch of $\norm{n_P^i}_0$ for all levels $i$. Let $L$ be be the lowest level with exactly one non-zero entry. Then 
+\begin{equation*}
+	2 \sum_{i=0}^{L-1} 2^i \sum_{c \in G_i} \left[ n_p^i(c) > 0 \right] = 2 \sum_{i=0}^{L-1} 2^i \norm{n_P^i}_0
+\end{equation*}
+is a $(1 + \O(\log(\Delta)))$-approximation to the cost $cost(T')$ of the MST $T'$ of a set of points $P$.
+
+\begin{proof} (Sketch)
+Let $T$ denote the quad-tree of the point set $P$ and $T'$ the MST. Further, let $T''$ be the image of $T'$ in $T$ after removing duplicates, see Fig~\ref{fig:mst}. Then, by the properties of the quad-tree embedding, 
+\begin{equation} \label{eq:cost1}
+	\E[cost(T'')] = \O(\log(\Delta)) cost(T').
+\end{equation}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.77\textwidth]{mst}
+	\caption{The minimum spanning tree and cost of its image under the quad-tree embedding.}
+	\label{fig:mst}
+\end{figure}
+
+Also, note that 
+\begin{equation} \label{eq:cost2}
+	cost(T') \le 2 cost(T''),
+\end{equation}
+i.e., the cost of the MST is at most twice the cost of its image under the embedding. To derive this result, we can take a similar approach to the proof of Property~\ref{thm:quadtree1} in Theorem~\ref{thm:quadtree}. Let $c_p$ and $c_q$ be the largest cells containing $p$ but not $q$, and $q$ but not $p$, respectively, where $p$ and $q$ are two points connected in the MST.  Then, $\norm{p - q}_1 \le 2 D_T(c_p,c_q)$. $D_T(c_p,c_q)$ hereby denotes the distance between the two cells. Summing over all edges in the MST, we obtain~\eqref{eq:cost2}. Combining \eqref{eq:cost1} and \eqref{eq:cost2} we have 
+\begin{equation*}
+	cost(T') \le 2 \E[cost(T'')] \le \O(\log(\Delta)) cost(T').
+\end{equation*}
+Thus, $2 cost(T'')$ is our desired estimator. But $T''$ is a subset of $T$ and therefore
+\begin{equation*}
+	cost(T'') = cost(\text{$T$ up to level $L$}) = \sum_{i=0}^{L-1} 2^i \sum_{c \in G_i} \left[ n_p^i(c) > 0 \right].
+\end{equation*}
+\end{proof}
+
+\subsection{Estimator for Minimum Weight Matching}
+A  $(1 + \O(\log(\Delta)))$-approximation for the cost of the minimum weight matching is given by
+\begin{equation*}
+	\sum_{i} 2^i \sum_{c \in G_i} [n_P^i(c) \text{ is odd}].
+\end{equation*}
+This follows from the fact that the cost at some level is always twice as much as the cost one level below. Thus, we can take a greedy approach, where we match as many pairs as possible at each level. Odd leftovers are passed on to the next level and we then try to match as many pairs as possible at the next level. We repeat the procedure until we reach the highest level. 
+
+\subsection{Estimator for Minimum Bi-chromatic Weight Matching}
+We shortly mention the  $(1 + \O(\log(\Delta)))$-estimator for the miminum bi-chromatic weight matching, which is given by
+\begin{equation*}
+	\sum_{i} 2^i \sum_{c \in G_i} \abs{n_G^i(c) - n_B^i(c)} = \sum_{i} 2^i \sum_{c \in G_i} \norm{n_G^i - n_B^i}_1,
+\end{equation*}
+where $n_G^i(c)$ and $n_B^i(c)$ denote the count in cell $c \in G_i$ of green and blue points, respectively. 
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{indyk04}
+Piotr~Indyk.
+\newblock Algorithms for Dynamic Problems over Data Streams.
+\newblock \emph{STOC}, 2004.
+
+\bibitem{bartal96}
+Yair~Bartal.
+\newblock Probabilistic approximation of metric spaces and its algorithmic applications.
+\newblock \emph{FOCS}, 1996.
+
+\end{thebibliography}
+
+\end{document}

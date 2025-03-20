@@ -1,0 +1,314 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{cite}
+
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{defn}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% You can define new commands to make your life easier.
+\newcommand{\BR}{\mathbb R}
+\newcommand{\BC}{\mathbb C}
+\newcommand{\BF}{\mathbb F}
+\newcommand{\BQ}{\mathbb Q}
+\newcommand{\BZ}{\mathbb Z}
+\newcommand{\BN}{\mathbb N}
+\newcommand{\ep}{\epsilon}
+\newcommand{\BH}{\mathbb H}
+\newcommand{\sgn}{{\rm sgn}}
+\newcommand{\aut}{{\rm Aut}}
+\newcommand{\Hom}{{\rm Hom}}
+
+\newcommand{\z}{\mathbb Z}
+\newcommand{\img}{\rm Im}
+\newcommand{\id}{{\rm id}}
+\newcommand{\p}{\mathbb{P}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\ra}{\rightarrow}
+\newcommand{\hookuparrow}{\mathrel{\rotatebox[origin=c]{90}{$\hookrightarrow$}}}
+\newcommand{\hookdownarrow}{\mathrel{\rotatebox[origin=c]{-90}{$\hookrightarrow$}}}
+%\newcommand{\span}{{\rm span}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{22 --- April 7, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Noah Golowich}
+
+Today we will finish analysis of interior point methods using Newton's method, and start on ``learning from experts.''
+
+\section{Review of last time}
+Remember what we did on Tuesday: starting at some $x_0 \in \BR^n$, by applying a number of updates like $x_{k+1} \gets x_k - (\nabla^2 f(x_k))^{-1} \nabla f(x_k)$, we hoped to get $f(x_k) \ra f(x^*)$ as long as $f$ satisfies certain conditions (which in fact imply $f$ is strongly convex). More precisely, we proved:
+\begin{theorem}[Newton's method]
+Given $\alpha \in [0,1]$, and some $x_k, x_{k+1}$ in the update step above, write $x_\alpha = \alpha x_{k+1} + (1-\alpha) x_{k}$. If, for all $\alpha$, and for all $x_k, x_{k+1}$, 
+\begin{equation}
+\label{eq:lorder}
+(1-\ep) \nabla^2 f(x_k) \preceq \nabla^2 f(x_\alpha) \preceq (1+\ep) \nabla^2 f(x_k),
+\end{equation}
+then $\delta(x_{k+1}) \leq (\ep/(1-\ep))^k \delta(x_1)$, where $\delta(x) = \| \nabla f(x)\|_{(\nabla^2 f(x))^{-1}}$.
+\end{theorem}
+
+By strong convexity, we are at the minimum of $f$ if and only if the gradient is 0, which is true iff its norm is 0. Thus this theorem generalizes the fact that $x_k \ra x^*$, where $x^*$ is a minimizer of $f$.
+
+Now we define the idea of being ``awesome'' and ``good'' solutions that were discussed last class:
+\begin{defn}
+We have {\bf fine centrality} if $\delta_{\lambda_k}(x) \leq 1/100$, and {\bf coarse centrality} if $\delta_{\lambda_k}(x) \leq 1/3$. And $x$ is a {\bf perfectly central} solution if $\delta_\lambda(x) = 0$. 
+\end{defn}
+
+\section{IPM Analysis}
+
+Recall that the overall algorithm is as follows:
+\begin{enumerate}
+\item Start with $\tilde x(\lambda_0)$.
+\item $k \gets 0$.
+\item While $\lambda_k$ isn't big enough, we let $\lambda_{k+1} \gets (1+\alpha)\lambda_k$, do $O(1)$ Newton steps on $\tilde x(\lambda_k)$ to get $\tilde x(\lambda_{k+1})$, and then $k \gets k+1$.
+\end{enumerate}
+
+$\newline$
+To analyze this algorithm, we must address several questions:
+\begin{enumerate}
+\item Remember that we start at $\lambda \approx 0$ and want to stop at large $\lambda$. How large?
+\item Verify that (\ref{eq:lorder}) holds when we apply Newton's method.
+\item We need to understand the rate at which we can increase the $\lambda$s.
+\item At the end of the day, we will end up with some finely central point for a large $\lambda$; when why does $\delta_\lambda(x) \leq 1/100$ for large $\lambda$ imply that we're done? This is a problem set problem. In today's lecture, we show that if $x$ is perfectly central, then it gives a solution to the LP; on the pset, we relax this to finely central solutions.
+\item We need a finely central point $\tilde x(\lambda_0)$ to get started, for small $\lambda_0$.
+\end{enumerate}
+
+{\bf Notation.} $x(\lambda)$ is a minimizer for $f_\lambda$. $\tilde x(\lambda)$ is a finely central point for $f_\lambda$. For $n \in \BN$, we let $J \in \BR^n$ be the vector of all 1s, that is $J = [1, 1, \ldots, 1]^T$ (this was denoted using a slightly different symbol in lecture).
+
+\subsection{How large does $\lambda$ need to be?}
+For $m, n \in \BN, A \in \BR^{m \times n}, x \in \BR^n, b \in \BR^m, c \in \BR^n$, remember the LP is $\min c^Tx$, subject to $Ax \geq b$, and let an optimal point be $x^*$. Recall that $f_\lambda(x) = \lambda c^Tx + p(s(x))$. %, so that $\nabla f_\lambda(x) = \lambda c - A^TS_x^{-1} J$.  
+Moreover, $p(s(x)) = \sum_{i=1}^m \ln(s(x_i))$, so that $\nabla f_\lambda(x) = \lambda c - A^TS_x^{-1} \cdot J$. Here $J$ is the vector of 1s, and $S_x = diag(s_(x), \ldots, s_m(x))$, with $s(x) = Ax - b \geq 0 \in \BR^m$. Then $\nabla^2 f_\lambda(x) = A^TS_x^{-2} A$. 
+
+We have that since $f_\lambda$ is strictly convex, its gradient is zero at its unique minimizer (the ``perfectly central'' point at $\lambda$) $x(\lambda)$. Hence
+$$
+0 = \langle 0, x(\lambda) - x^* \rangle = \langle \nabla f_\lambda(x(\lambda)), x(\lambda) - x^* \rangle,
+$$
+so using the form of $\nabla f_\lambda$ above,
+$$
+\lambda c^T (x(\lambda) - x^*) = \langle A^T S_{x(\lambda)}^{-1} J, x(\lambda) - x^*\rangle,
+$$
+and the RHS of the above is $J^T S_{x(\lambda)}^{-1} A(x(\lambda) - x^*)$. But, $A(x(\lambda) - x^*) = s(x(\lambda)) - s(x^*)$, since $s(x) = Ax-  b$, and the $b$'s cancel out. Therefore, since $S_x$ is a diagonal matrix,
+$$
+\lambda c^T(x(\lambda) - x^*) = \sum_{i=1}^m \frac{s(x(\lambda)) - s(x^*)}{s(x(\lambda))} \leq m.
+$$
+The last inequality follows since each term in the sum is at most 1, meaning that
+$$
+c^T x(\lambda) \leq m/\lambda + OPT.
+$$
+Therefore, if we set $\lambda > m/\ep$, meaning that $x(\lambda)$ gives cost at most $OPT + \ep$. 
+
+A few notes: If we want to solve the LP exactly, it is enough to take $\lambda$ exponential in $L$ (not shown here). Also, the number of steps to get accuracy $\ep$ is logarithmic in $1/\ep$.
+
+
+\subsection{Now we want to verify the Hessian Newton condition}
+To verify the Hessian condition necessary for convergence of Newton's method, we want to show that if we move from $x$ to $x'$ in a Newton iteration, then
+$$
+(1-\ep)A^T S_x^{-1} A \preceq A^T S_{x_\alpha}^{-2} A \preceq (1+\ep) A^TS_x^{-1}A,
+$$
+where we write $x_\alpha = x+\alpha(x' -x) = \alpha x' + (1-\alpha) x$. This Loewner ordering $A \preceq B$ means that for all $z \in \BR^n$, $z^TAz \leq z^TBz$. We can drop all of the $A$'s, by replacing $z$ with $Az$. So, it suffices to show that
+$$
+(1-\ep) S_x^{-2} \preceq S_{x_\alpha}^{-2} \preceq (1+\ep)S_x^{-2}. 
+$$
+It turns out to be true that $A \preceq B \Rightarrow A^{-1} \preceq B^{-1}$. 
+Therefore, by this fact (we don't actually need it here, since $S_x$ is diagonal), as well as taking the square root (which is certainly allowed since $S_x$ is diagonal, we have that it suffices to show
+$$
+\sqrt{1/(1+\ep)} S_x \preceq S_{x_\alpha} \preceq \sqrt{1/(1-\ep)} S_x.
+$$
+By rescaling $\ep$ by at most a factor of 2, it suffices to show
+$$
+(1-\ep) S_x \preceq S_{x_\alpha} \preceq (1+\ep) S_x,
+$$
+or equivalently, by subtracting $S_x$ an applying $S_x^{-1}$,
+$$
+-\ep I \preceq S_x^{-1} ( S_{x_\alpha} - S_x) \preceq \ep I,
+$$
+meaning all eigenvalues of the matrix in the middle are of magnitude at most $\ep$; in other words, all of its diagonal entries have magnitude at most $\ep$. Hence it suffices to show:
+$$
+\| S_x^{-1} (s(x_\alpha) - s(x)) \|_\infty \leq \ep.
+$$
+Remember  for $v \in \BR^n$, $\| v\|_\infty$ and $\| v\|_p = (\sum |a_i|^p)^{1/p}$. Minkowski's inequality shows that $\| v\|_p$ is indeed a norm. Also, $p \geq q$ implies that $\| a\|_p \leq \| a\|_q$. We will bound the infinity norm by the 2 norm, so it suffices to bound:
+$$
+\| S_x^{-1} (s(x_\alpha) - s(x)) \|_2.
+$$
+Now, since the $b$'s cancel, remember that $s(x_\alpha) - s(x) = Ax_\alpha - Ax$, so we want to bound
+$$
+\| S_x^{-1} A(x_\alpha - x) \|_2 = \alpha \cdot \| S_x^{-1} A(x' - x)\|,
+$$
+and using definition of $x'$ in terms of $x$ (just the Newton update step),
+\begin{equation}
+\label{eq:newton}
+\alpha \cdot \| S_x^{-1} A (\nabla^2 f_\lambda(x))^{-1} \nabla f_\lambda(x) \|_2.
+\end{equation}
+Now, $\| v\|_2 = \| v\|_I$, with $\| v\|_A = \sqrt{x^TAx}$. Now, using shorthand for gradient and Hessian, the above norm squared is:
+$$
+\nabla^T (\nabla^2)^{-T} A^TS_x^{-1}S_x^{-1} A (\nabla^2)^{-1} \nabla.
+$$
+But $A^T S_x^{-2} A = \nabla^2$, and there is a $\nabla^{-2T} = \nabla^{-2}$ right next to it, so we get:
+$$
+\nabla^T (\nabla^2)^{-1} \nabla,
+$$
+so (\ref{eq:newton}) is:
+$$
+\alpha \cdot \| \nabla f_\lambda(x) \|_{(\nabla^2 f_\lambda(x))^{-1}}  = \alpha \cdot \delta_\lambda(x) \leq \delta_\lambda(x)\leq 1/3
+$$
+if $x$ is coarsely central for $\lambda$.
+
+Therefore, as long as we start step $k+1$ with a solution $x$ that is coarsely central for $\lambda_{k+1}$, we will have that the Newton Hessian condition is verified with $\ep = \delta_{\lambda_k}(x)$ at step $k$, so as long as we keep this below 1/3 (which we will), we will be good.
+
+\subsection{Rate at which we can increase $\lambda$?}
+We want to figure out the largest increase of $\lambda_k \ra \lambda_{k+1}$ to ensure that if $\tilde x(\lambda_k)$ is finely central, how big can we make $\lambda_{k+1}$ while keeping $\tilde x(\lambda_k)$ coarsely central for $f_{\lambda_{k+1}}$. In particular, given $\delta_{\lambda_k}(\tilde x(\lambda_k)) \leq 1/100$, we want $\delta_{\lambda_{k+1}}(\tilde x(\lambda_k)) \leq 1/3$.
+
+We will have $\lambda_{k+1} = (1+t) \lambda_k$; how big can we make $t$?
+
+Look at
+$$
+\delta_{\lambda_{k+1}} (\tilde x(\lambda_k)) = \| \nabla f_{\lambda_{k+1}} (\tilde x(\lambda_k)) \|_{(\nabla^2 f_{\lambda_{k+1}}(\tilde x(\lambda_k)))^{-1}}.
+$$
+Fortunately, since we are in an LP setting, the $\lambda_{k+1}$ norm is the same as the $\lambda_k$ norm: just look at the Hessian: it doesn't depend on $\lambda$! So, this is
+$$
+\| (1+t) \lambda_k c - A^T S_{\tilde x(\lambda_k)}^{-1} J\|_M,
+$$
+with $M = (\nabla^2 f_{\lambda_{k+1}}(\tilde x(\lambda_k)))^{-1}$. We want to make the stuff inside the norm look like the $\lambda_k$th centrality, plus extra additional stuff, then apply triangle inequality; in particular, add and subtract $ t A^T S_{\tilde x(\lambda_k)}^{-1} J$, get
+$$
+\| (1+t)(\lambda_k c - A^T S_{\tilde x(\lambda_k)}^{-1} J) + t A^T S_{\tilde x(\lambda_k)}^{-1} J \|_M
+$$
+which by triangle inequality (which follows since this ``matrix norm'' is just a normal $l_2$ norm with a different basis), is at most:
+$$
+(1+t) \| \lambda_k c - A^T S_{\tilde x}^{-1} J \|_M + t \| A^T S_{\tilde x}^{-1} J\|_M \leq (1+t) \delta_{\lambda_k}(\tilde x(\lambda_k)) + t \| A^T S_{\tilde x}^{-1} J\|_M.
+$$
+This is at most
+\begin{equation}
+\label{eq:1plust}
+\frac{1+t}{100} + t \| A^T S_{\tilde x}^{-1} J\|_{(A^T S_{\tilde x}^{-2} A)^{-1}}.
+\end{equation}
+The squared norm in the equation above is somewhat nasty; it is:
+\begin{equation}
+\label{eq:jnorm}
+J^T S_{\tilde x}^{-1} A (A^T S_{\tilde x}^{-2} A)^{-1} A^T S_{\tilde x}^{-1} J
+\end{equation}
+Now, in general, for $X \in \BR^{m \times n}, v \in \BR^m$, $X(X^TX)^{-1} X^Tv$ is the orthogonal projection of $v$ on the column space of $X$, assuming that $X$ has full column rank.\footnote{Assuming $X$ is square, expand out the SVD of $X$, get that this thing is $UU^T$, where $X = U\Sigma V^T$. Here $U$ actually refers to the $m \times n$ ($n \leq m$) matrix with orthogonal columns that ``matters'' in the SVD. It is now clear that $UU^Tv$ gives the orthogonal projection of $v$ onto the column space of $U$ (which is the same as that of $X$, by what SVD is).} (This assumption implies that $A$ has more constraints than variables.) Here, we have $X = S_{\tilde x(\lambda_k)}^{-1} A$. 
+
+This norm (\ref{eq:jnorm}) is the inner product of the all-one's vector after projecting onto orthogonal subspace and the all-one's vector $J$ itself. But, for a general vector $v \in \BR^m, S \subseteq \BR^m$ a subspace, if the orthogonal projection of $v$ onto $S$ is $u$, then we have $\langle v, u \rangle = \langle u, u + (v-u) \rangle = \langle u, u \rangle$, since $\langle u, v-u \rangle = 0$; but, projecting onto orthogonal subspace just decreases norms. So, the quantity (\ref{eq:1plust}) is at most
+$$
+\frac{1+t}{100} + t \| J\|_2 = \frac{1+t}{100} + t \sqrt m.
+$$
+So, if we increase $\lambda_{k+1}$ by a $(1+t)$ factor compared to $\lambda_k$, then the centrality for $\lambda_{k+1}$ is $(1+t)/100 + t\sqrt m \leq 1/3$ if \fbox{$t = 1/(4\sqrt m)$}.
+
+\subsection{Finely central point for $\lambda_0$?}
+To get $\tilde x(\lambda_0)$, we need to make sure it has positive volume, so that there exists an interior point. In particular, we modify the LP to be:
+$$
+\min c^Tx + Nz,
+$$
+for $N = 10^L$, and $z$ is a new variable, subject to
+$$
+Ax + z J \geq b, \quad 0 \leq z \leq 2^{L+1}, \quad \forall i, -2^L \leq x_i \leq 2^L.
+$$
+Now, the point $x = 0, z = \| b\|_\infty$ is an interior point (technically one can show that this is in the interior of the above polytope, but all we need is that it is finely central for $\lambda_0$). We also claim that an optimal solution to this modified LP gives us an optimal solution to the original one: in particular, in an optimal solution to this modified LP, you never place any mass on $z$ whatsoever: assuming there's a feasible solution to the original LP, the individual $x_i$ must be at most $O(2^L)$, meaning the objective has value at most $O(2^L)$, so in order to put mass on $z$ and beat this objective we must have $z = O(1/2^L)$, which in turn implies that the new LP has optimum at $z = 0$ (this is not a complete proof; see the references for details).
+
+To construct a finely central point, we define $\tilde x = (0, \| b\|_\infty)$, where $z = \| b\|_\infty$. $\tilde x$ is not necessarily finely central. Now, note that $\tilde x$ is perfectly central for $\lambda = 1$ with cost function $c' = A^T S_{\tilde x}^{-1} J$. Instead of slowly increasing $\lambda$, we actually decrease $\lambda$ by a factor of $1-t$, and repeating all of the analysis above gives a finely central point for this cost function $c'$, for a very tiny $\lambda$. Once $\lambda$ is super-tiny, a finely central point for this cost function is a finely central point for any other $\lambda$. Then, we just change the cost function to $c$, and we will still be finely central. Then, we can run everything forwards.
+
+More precisely:
+\begin{itemize}
+\item $\tilde x$ is perfectly central for $\lambda = 1, c' = A^T S_{\tilde x}^{-1} J$.
+\item Let $\tilde x(1) \gets (0, \| b\|_\infty)$, $\lambda \gets 1$.
+\item For $\lambda > \lambda_0 = 2^{-\Theta(L)}$, let $\lambda \gets(1-1/\sqrt m)\lambda$, and run $O(1)$ Newton steps on $\tilde x$ to get a new $\tilde x(\lambda)$. This will be finely central for the new $\lambda$, and also coarsely central for the next $\lambda$ (namely, $(1-t)\lambda$) by the exact same analysis as was used above.
+\item Then output $\tilde x$ as $\tilde x(\lambda_0)$, use the forward algorithm for IPM.
+\end{itemize}
+
+\subsection{Overview}
+How many iterations do we need in the outer loop? We start at $\lambda_0$, and end at $\lambda_t = m/\ep = (1+1/\sqrt m)^T \lambda_0$. So, we want
+$$
+(1+1/\sqrt m)^T \lambda_0 > m/\ep,
+$$
+with $\lambda_0 = 2^{-\Theta(L)}$, so taking logs gives us that
+$$
+T \ln(1+1/\sqrt m) > L + \ln(m/\ep),
+$$
+so
+$$
+T \geq \sqrt m(L + \ln(m/\ep)).
+$$
+
+Also, a bit of history: 
+\begin{itemize}
+\item The first IPM for LP was given in \cite{karmarkar_new_1984}; it was an iterative approach with an outer loop and inner loop. It needed $T = \Omega(mL)$. 
+\item More recently, \cite{renegar_polynomial-time_1988}, showed how to get $T = \tilde O(\sqrt mL)$. 
+\item State-of-the-art: \cite{lee_path_2014}, get $T = \tilde O(\sqrt{rank(A)} L)$. 
+\end{itemize}
+Throught this analysis, we assumed that the Hessian is invertible, and to get this, we need $n \leq m$ (this is necessary, not sufficient). (In fact, these full-rank conditions don't matter too much, since we can use the Moore-Penrose pseudoinverse instead.) But, there is a simple trick to make sure that the Hessian is invertible (this is a pset problem).
+
+The fastest methods for lots of common problems nowadays (e.g. instead of Edmonds-Karp, Ford-Fulkerson), go through LP and use interior point methods.
+
+\section{Preview: Learning from Experts}
+Suppose some event will happen today (either it will rain or not rain \footnote{Today, it is {\it definitely} raining.}), or some stock will go up or down). 
+
+Based on what experts say, you want to figure out what to do. Say there are $T$ days; each day, it will rain or not; there are $n$ experts. Over time, you start to learn who the right people are. On day 1, you have no clue who is right. So, what to do?
+\begin{itemize}
+\item For $t = 1, \ldots, T$:
+\item Predict the majority vote amongst the experts who are alive.
+\item At the end of the day, ``kill'' (not actually; just ignore) all experts who were wrong that day.
+\end{itemize}
+\begin{lemma}
+If there exists a perfect expert, then we make at most $\lceil \log_2 n \rceil$ mistakes.
+\end{lemma}
+\begin{proof}
+Each time we make a mistake, the number of alive experts gets cut by a factor of at least 2; we can cut people like this at most $\log_2n$ times.
+\end{proof}
+
+What if the best expert makes at most $E$ errors? We may kill him/her accidentally. So, if all experts are dead, we just revive them all.
+\begin{lemma}
+We make at most $(E+1) \lceil \log_2 n \rceil$ errors.
+\end{lemma}
+\begin{proof}
+Break up time into phases; each phase is one mistake of the best expert: inside of each phase, we have at most $\log_2n$ mistakes, by the same analysis. This gives the bound immediately.
+\end{proof}
+
+Next time: for all $\eta \in (0,1)$, we can get at most $(2+\eta) E +\frac{2 \log n}{\eta}$ mistakes. This gives us a 2-competitive ratio with an {\it additive} $\log n$. The idea is that when someone is wrong, decrease your ``confidence'' in them, and take a weighted majority vote based on confidences. This is related to regret minimization.
+\bibliographystyle{alpha}
+
+\bibliography{lec22.bib}
+
+\end{document}

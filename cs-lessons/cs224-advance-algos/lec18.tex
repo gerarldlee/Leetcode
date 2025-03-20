@@ -1,0 +1,200 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm, mathtools}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\DeclarePairedDelimiter \norm {\|} {\|}
+
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newcommand{\Var}{\mathrm{Var}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{17 --- March 21, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Brian Hentschel}
+
+\section{Overview}
+
+In this lecture we finish streaming algorithms (more can be seen in CS 226, Algorithms for Big Data next semester) and go over the ``power of +-1 random variables''. We also cover least squares regression. 
+
+\section{Turnstile Streaming}
+
+Goal is to answer queries about $x \in \mathbb{R}^{n}$ approximately. $x$ starts as the $0$ vector. In turnstile streaming, we are going to pick some (possibly random) vector $\Pi \in \mathbb{R}^{m \times n}$ with $m << n$ and maintain $y = \Pi x$. In addition to having $\Pi x$ approximate $x$, we want $\Pi$ to have a very small memory footprint. 
+
+\subsection{$\ell_{2}$-estimation in Turnstile Streaming:}
+Let $\Pi_{ij} = \frac{\sigma_{ij}}{\sqrt{m}}$ where $\sigma_{ij}: [m] \times [n] \rightarrow \{-1,+1\}$ is a hash function chosen from a 4-wise independent family. 
+
+Claim: (due to Alon, Matias, and Szegedy in \cite {AlonMS99}) For $m = \Omega(\frac{1}{\epsilon^{2}}, \Pr(\norm{y}_{2}^{2} - \norm{x}_{2}^{2} > \epsilon\norm{x}_{2}^{2}) < \frac{1}{3}$
+
+Note: If a lower probability is needed, it is enough to  take the median of many runs.
+
+Proof: We will prove $\E \norm{y}_{2}^{2} = \E \norm{x}_{2}^{2}$ and $\Var [\norm{y}_{2}^{2}] \leq \frac{c}{m} \norm{x}_{2}^{4}$. If both are true, then using Chebyshev's inequality we have $$P(\norm{y}_{2}^{2} - E\norm{y}_{2}^{2}) > \epsilon \E \norm{y}_{2}^{2} < \frac {1}{\epsilon^{2} (\E \norm{y}_{2}^{2})^{2}} \cdot \Var(\norm{y}_{2}^{2}) < \frac{1}{3}$$ for m as chosen. 
+
+Claim 1: $\E \norm{y}_{2}^{2} = \E \norm{x}_{2}^{2}$
+$$\E \norm{y}_{2}^{2} = E \sum_{i} y_{i}^{2} = \sum_{i} \E y_i^{2} = m \E y_{1}^{2} $$
+\begin{align*}
+\E y_{1}^{2} &= \frac{1}{m} E < \sigma, x>^{2} \\
+&= \frac{1}{m} \E(\sum_{j} (\sigma_{j^{2}}x_j^{2} + \sum_{j' \neq j} \sigma_{j}\sigma_{j'}x_{j}x_{j'})) \\
+&= \frac{1}{m} (\sum_{j} x_{j}^{2} + \sum_{j' \neq j} \E(\sigma_{j}\sigma_{j'}) x_{j}x_{j'}) \\
+&= \frac{1}{m} (\sum_{j} x_{j}^{2}) = \frac{1}{m} \norm{x}_{2}^{2} \\
+\end{align*}
+where the third line follows from the linearity of expectation and the last line follows from 4-wise independence. Altogether, it follows that $\E \norm{y}_{2}^{2} = \norm{x}_{2}^{2}$. 
+
+Claim 2: $\Var [\norm{y}_{2}^{2}] \leq \frac{c}{m} \norm{x}_{2}^{4}$ \\
+$\Var [\norm{y}_{2}^{2}] = \E\norm{y}_{2}^{4} - (\E \norm{y}_{2}^{2})^{2}$. From claim 1, the second term is $\norm{x}_{2}^{4}$. The first term expands as $$\E\norm{y}_{2}^{4} = \E (\sum_{i} y_{i}^{2})^{2} = \E (\sum_{i} y_{i}^{4} + \sum_{i \neq i'} y_{i}^{2} y_{i'}^{2})$$ We calculate the first only in the notes. The second calculation is similar. 
+$$
+\E \sum_{i} y_{i}^{4} = m \cdot \E y_{1}^4 = \frac{1}{m^{2}} \E <\sigma, x> = \frac{1}{m^{2}}\E (\sum_{j} \sigma_{j}x_{j})^4$$
+This is a sum of monomials of the type: $\sigma_{j1}\sigma_{j2}\sigma_{j3}\sigma_{j4}x_{j1}x_{j2}x_{j3}x_{j4}$, where the $j_{i}$ are not necessarily distinct. If there exists a $\sigma_{ji}$ to an odd power, then by 4-wise indendence of the $\sigma$ the expectation of that term is 0. Thus we are left with a monomial in our expectation consisting only of $\sigma_{j1}^{2}\sigma_{j2}^{2}x_{j1}^{2}x_{j2}^{2}$ and $\sigma_{j1}^{4}x_{j1}^{4}$ terms. The expectation then becomes $$\E [\sum_{j} x_{j}^{4} + \sum_{j \neq j'} 3x_{j}^{2}x_{j'}^{2}] \leq 3 \cdot \norm{x}_{2}^{4}$$ Then $\Var[\norm{y}_{2}^{2}] = \frac{2}{m} \norm{x}_{2}^{4}$.
+
+\textbf{Algorithm:} When updating, for $x_{i} \leftarrow x_{i} + \Delta$, we update $y_{i} \leftarrow y_{i} + \Delta \cdot \Pi^i$, where $\Pi^i$ is the $i$th column of $\Pi$. In this case, this requires getting each entry of $\Pi^i$ by computing the 4-wise hash. This is a constant time operation and we do it for $m$ values in $\Pi$ so the total update time is $\Theta(m) = \Theta(\frac{1}{\epsilon^{2}})$. In 2004, Thorup and Zhong showed that letting $\Pi$ have a single $+-1$ value in each column gives the same guarantees \cite{ThorupZ2004}, where the row in each column is chosen from a two-wise indpendent $h: [n] \rightarrow [m]$ and $\sigma: [n] \rightarrow \{-1,+1\}$ is chosen still from a 4-wise independent family. 
+
+\subsection{Heavy-Hitters}
+
+This section covers the approximation of heavy hitters using the same matrix as was used by Thorup and Zhang. The matrix was in fact introduced in this paper by Charikar, Chen and Farach-Colton \cite{Charikar2004}, and is known as the CountSketch.
+
+Goal: Find all $i$ such that $|x_{i}|$ is ``large''. Formally: A word $i$ is an $\epsilon$-$\ell_{2}$ heavy hitter if $|x_{i}| > \epsilon \norm{x}_{2}$. There are at most $\frac{1}{\epsilon^{2}}$ heavy hitters. The following algorithm reports a list $L$ of size $O(\frac{1}{\epsilon^{2}})$ containing all $\epsilon$ heavy hitters. 
+
+Count Sketch: Maintain $y = \Pi x$ for the same $\Pi$ as seen in the previous section, but stacks $R = \Theta(\lg n)$ of them on top of each other. You can imagine we maintain a grid of counters (the entries of $y$), which we will call $C_{a,b}$ for $a\in[R]$ and $b\in[k]$ where $R = \Theta(\log n)$ and $k = \Theta(1/\epsilon^2)$. The counters are initialized to zero. The algorithm has $R$ hash functions $h_{i}$ from $[n]$ to $[k]$ and another $R$ sigma functions from $[n]$ to $\{-1,+1\}$. Both the $h_r$ and $\sigma_r$ functions are chosen from 2-wise independent families. 
+
+To process an update ``$x_{i} \leftarrow x_{i} + \Delta$'': for each $r\in[R]$, perform the update $C_{r,h_r(i)} \leftarrow C_{r,h_r(i)} + \Delta \cdot \sigma_r(i)$.
+
+Now notice that, any any index $i\in[n]$ and any $r\in[R]$, we have that $\sigma_r(i)\cdot C_{r,h_r(i)}$ is equal to $x_i$ plus some ``noise''. The noise comes from other coordinates that collide with $i$ under $h_r$ (and their mass is added to the same counter, after taking a dot product with random signs). To get a good estimate of $x_i$, we then output the median over all $r$ of $\sigma_r(i)\cdot C_{r,h_r(i)}$. Why does this work? For any $r\in[R]$, let us look at the expected error of the estimate. We will use Cauchy-Schwarz, which states that for any random variable $Z$, $\E |Z| \le (\E Z^2)^{1/2}$.
+
+Fix $r\in[R]$. Let $I_{\mathcal{E}}$ denote the indicator random variable for event $\mathcal{E}$.
+\begin{align*}
+\E |x_i - \sigma_r(i)C_{r,h_r(i)}| &= \E|\sum_{\substack{j \neq i\\h(i)=h(j)}} \sigma_r(i)\sigma_{r}(j) x_{j}|\\
+{}&= \E|\sum_{\substack{j \neq i\\h_r(i)=h_r(j)}} \sigma_{r}(j) x_{j}|\\
+{}&\le (\E(\sum_{\substack{j \neq i\\h_r(i)=h_r(j)}} \sigma_{r}(j) x_{j})^2)^{1/2}\\
+{}&= (\sum_{j \neq j'} (\E I_{h_r(j) = h_r(i)}) (\E \sigma_r(j)\sigma_r(j'))x_{j}x_{j'} + \sum_{j \neq i} (\E I_{h_r(j) = h_r(i)}) x_{j}^{2})^{1/2} \\
+{}&= (\sum_{j \neq j'} (\E I_{h_r(j) = h_r(i)})\cdot 0 \cdot x_{j}x_{j'} + \sum_{j \neq i} (\E I_{h_r(j) = h_r(i)}) x_{j}^{2})^{1/2} \text{ (using }2\text{-wise independence)}\\
+{}&\leq \frac{1}{\sqrt{k}} \norm{x}_{2} \\
+{}&< (\epsilon / 12) \norm{x}_{2} \text{ (picking } k = 144/\epsilon^2\text{)}\\
+\end{align*}
+We have thus shown that the expected error from a single $C_{r,h_r(i)}$ in estimating $x_i$ is at most $(\epsilon/12)\norm{x}_2$. Thus by Markov, the probability of error more than $(\epsilon/4)\norm{x}_2$ is at most $1/3$. Thus we expect at most $R/3$ of the $C_{r,h_r(i)}$ counters across $r\in[R]$ to give error more than $(\epsilon/4)\norm{x}_2$ error. Thus by Chernoff, the probability that at least $R/2$ of these counters give more than this error is $\exp(-\Omega(R)) \le 1/n^{c+1}$ for $R = C\log n$, where $c$ can be made an arbitrarily large constant by increasing $C$. Thus by a union bound over all $i\in[n]$, with probability $1 - 1/n^c$ we can obtain estimates $\tilde{x}_i$ such that $|\tilde{x}_i - x_i| < (\epsilon/4)\|x\|_2$ for all $i\in[n]$ simultaneously. Now note that every heavy hitter $i$ will be be estimated with $|\tilde{x}_i| > (\epsilon - \epsilon/4)\|x\|_2 = (3\epsilon/4)\|x\|_2$. Meanwhile, every index $i$ which is not even $(\epsilon/2)$-heavy will be estimated with $|\tilde{x}_i| < (\epsilon/2 + \epsilon/4) = (3\epsilon/4)\|x\|_2$. The number of $(\epsilon/2)$-heavy hitters is at most $4/\epsilon^2$. Thus if we let $L$ be the set of the indices with the top $4/\epsilon^2$ $|\tilde{x}_i|$ values, $L$ will contain the actual $\epsilon$-heavy hitters with probability at least $1 - 1/n^c$.
+
+Querying the data structure is a for loop over all $i\in[n]$, taking $O(n\log n)$ time. The space is $O(kR)$, which is $O(\epsilon^{-2}\log n)$. The update time is $O(\log n)$, and the failure probability is $1/n^c$. It is possible to come up with a data structure with the same complexities and failure probability, but where the query time is exponentially better, taking only $O(\epsilon^{-2}\mathop{poly}(\log n))$; see \cite{LarsenNNT16}.
+
+\section{Least Squares Regression}
+The previous matrix can also be used to estimate the parameters $\beta_{j}$ in least squares regression. 
+
+\textbf{Problem Description:} We are given a matrix $X$ in $\mathbb{R}^{n \times d}, n >> d$ and $y \in \mathbb{R}^{n}$. For each $y_{i} \in y$, we have $y = \sum_{i = 1}^{d} \beta_{j}x_{ij} + \epsilon$, where $\epsilon$ is distributed normally with variance $\sigma^{2}$ and mean $0$. Our goal is to estimate the parameters $B_{j}$. This will be done by solving $$B^{LS} = \arg \min_{\beta \in \mathbb{R}^{d}} \norm{X\beta - y}_{2}^{2} = (X^{\top}X)^{+}X^{\top}y$$ Computing $X^{\top}X$ takes $O(nd^{2})$ if we do simple matrix multiplication and calculating the pseudo-inverse is $O(d^{3})$.  Since $n > d$, our goal will be to lower the cost of the matrix multiplication $X^{\top}X$ via approximation. The following technique was introduced by Sarl\'{o}s in the paper \textit{Improved Approximation Algorithms for Large Matrices via Random Projections} \cite{Sarlos2006}. 
+
+Definition: For a linear subpsace $V \subset \mathbb{R}^{n}, \Pi$ is an $\epsilon$ subspace embedding if $$\forall x \in V \quad (1 - \epsilon) \norm{x}^{2}_{2} \leq \norm{\Pi x}_{2}^{2} \leq (1 + \epsilon) \norm{x}_{2}^{2}$$
+
+Let $V$ have dimension $r$. Then $V$ can be written as $V=\{Uz : z \in \mathbb{R}^{r}\}$ where $UU^\top = I, U \in \mathbb{R}^{n \times r}$. The definition of $\Pi$ could also be written as:
+\begin{itemize}
+\item $\forall z, \quad  (1 - \epsilon) \norm{z}^{2}_{2} \leq \norm{\Pi U z}_{2}^{2} \leq (1 + \epsilon) \norm{z}^{2}_{2}$
+\item $\forall z, \quad \norm{z^{\top} [(\Pi U)^{\top} \Pi U - I] z}_{2} < \epsilon \norm{z}_{2}^{2}$
+\end{itemize}
+The last bullet point is equivalent to claiming that $(\Pi U)^{\top} \Pi U - I$ has no eigenvalue larger than $\epsilon$. 
+
+Claim 1: If $\Pi$ is an $\epsilon$-subspace embedding for span \{y, cols(x)\} then for $\tilde{\beta}^{LS} = \arg \min \norm{\Pi x \beta - \Pi y}_{2}^{2}$, we have $$
+\norm{X\tilde{\beta}^{LS} - y} \leq \frac{1+\epsilon}{1 - \epsilon} \norm{X\beta^{LS} - y}_{2}^{2} $$
+
+Proof: First we note that $\Pi x \beta^{LS} - \Pi y = \Pi (x \beta^{LS} - y)$, and $(x \beta^{LS} - y)$ is in the subspace of $\{y, cols(x)\}$. Then we have 
+\begin{align*}
+(1 - \epsilon) \norm{X\tilde{\beta}^{LS} - y}_{2}^{2} &\leq \norm{\Pi (X\tilde{\beta}^{LS} - y)}_{2}^{2} \\
+&\leq \norm{\Pi (X\beta^{LS} - y)}_{2}^{2} \\
+&\leq (1 + \epsilon) \norm{X\beta^{LS} - y}_{2}^{2} \\
+\norm{X\tilde{\beta}^{LS} - y}_{2}^{2} &\leq \frac{1 + \epsilon}{1 - \epsilon} \norm{X\beta^{LS} - y}_{2}^{2}\\
+\end{align*}
+
+We can now replace $\beta_{LS}$ with $\tilde{\beta}^{LS}$, with $\tilde{\beta}^{LS}$ an $m \times d$ matrix. Performing the matrix multiplication $(\Pi x)^{\top} (\Pi x)$ then takes $O(md^{2})$ time. We also need to compute $\Pi x$, which since $\Pi$ is extremely sparse ends up proportional to the number of nonzero entries in $x$. This is $O(nd)$. 
+
+Claim 2: If $m = \Theta(\frac{d^{2}}{\epsilon^{2}})$ and U is an orthonormal basis of dimension $r \times d$, then $$P(\norm{(\Pi U)^{\top}(\Pi U) - I} > \epsilon) < \frac{1}{\epsilon}$$
+
+Proof: By Markov's inequality, $P(\norm{(\Pi U)^{\top}(\Pi U) - I}_{2} > \epsilon) < \frac{1}{\epsilon^{2}} \E \norm{M}_{2}^{2}$ where $M = (\Pi U)^{\top}(\Pi U) - I$. Now, $M$ is a $d\times d$ real symmetric matrix and thus has $d$ real eigenvalues $|\lambda_1| \ge |\lambda_2| \ge \ldots \ge |\lambda_d|$. We have $\norm{M}_2^2 = \lambda_1^2$. Meanwhile $\mathop{trace}(M^2) = \sum_{i=1}^d \lambda_i^2$. Thus $\Pr(\norm{}_2 > \eps) <  \frac{1}{\epsilon^{2}} \E \mathop{trace}(M^{2})$. A simple calcuation shows that $\E \mathop{trace}(M^{2}) = O(d^2/m)$ (see for example \cite{MengM13,NelsonN13}; also see an earlier, but suboptimal analysis in \cite{ClarksonW13}). Thus we can set $m = \Theta(d^2/(\eps^2\delta))$ to achieve failure probability $\delta$.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AlonMS99}
+Noga~Alon, Yossi~Matias, Mario~Szegedy.
+\newblock The Space Complexity of Approximating the Frequency Moments.
+\newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+\bibitem{ClarksonW13}
+Kenneth~L.~Clarkson, David~P.~Woodruff.
+\newblock Low rank approximation and regression in input sparsity time.
+\newblock {\em STOC}, 81--19, 2013.
+
+\bibitem{LarsenNNT16}
+Kasper~Green~Larsen, Jelani~Nelson, Huy~L.~Nguyen, Mikkel~Thorup.
+\newblock Heavy Hitters via Cluster-Preserving Clustering.
+\newblock {\em FOCS}, 61--70, 2016.
+
+\bibitem{MengM13},
+Xiangrui~Meng, Michael~W.~Mahoney.
+\newblock Low-distortion subspace embeddings in input-sparsity time and applications to robust linear regression.
+\newblock {\em STOC}, 91--100, 2013.
+
+\bibitem{NelsonN13}
+Jelani~Nelson, Huy~L.~Nguyen.
+\newblock OSNAP: Faster Numerical Linear Algebra Algorithms via Sparser Subspace Embeddings.
+\newblock {\em FOCS}, 117--126, 2013.
+
+\bibitem{ThorupZ2004}
+Thorup~Mikkel, Zhang~Yin.
+\newblock Tabulation based 4-universal hashing with applications to second moment estimation.
+\newblock {\em SODA}, 615--624, 2004. 
+
+\bibitem{Charikar2004}
+Charikar~Moses, Chen~Kevin C., Farach-Colton~Martin.
+\newblock Finding Frequent Items in Data Streams. 
+\newblock {\em Theor. Comput. Sci.} 3--15, 2004.
+
+\bibitem{Sarlos2006}
+Sarl{\'{o}}s~Tam{\'{a}}s.
+\newblock Improved Approximation Algorithms for Large Matrices via Random Projections.
+\newblock {\em IEEE Symposium on Foundations of Computer Science (FOCS).} 143--152, 2006.
+
+
+\end{thebibliography}
+
+\end{document}

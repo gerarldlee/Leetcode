@@ -1,0 +1,361 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{9 --- Feb. 21, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Gavin McDowell}
+
+\section{Overview}
+
+Today: office hours 5-7, not 4-6.
+
+We're continuing with online algorithms. In this lecture:
+
+\begin{enumerate}
+	\item List update problem
+	\item Paging
+\end{enumerate}
+
+\section{List Update}
+
+\paragraph{Parameters:}
+\begin{itemize}
+	\item $n$ items in a linked list 
+	\item $\sigma$ query sequence to touch items
+\end{itemize}
+
+\paragraph{Cost Function:}
+\begin{itemize}
+	\item in general, cost to touch $i$th item in list is $f(i)$
+	\item for default cost function, $f(i) = i$
+	\item also common: paging cost $f(i) = \begin{cases} 0 & i \geq k\\1& i>k\end{cases}$ for a cache of size $k$
+\end{itemize}
+
+\paragraph{Goal:} minimize sum of costs in processing the query sequence $\sigma$
+
+
+\paragraph{Allowed Operations:}
+\begin{itemize}
+	\item free exchanges of accessed item with any item toward the front, i.e. bring item arbitrarily closer to front for free on query
+	\item "paid exchanges", where we can transpose any adjacent items (not just the queried item) which are closer to the front than the queried item for a cost of $1$.
+\end{itemize}
+
+Some other operations may be allowed, such as {\bf insert(x)} at tail for a cost of the length of the list, and {\bf delete(i)}, which is cost of item index, but these will not be used in the heuristics discussed.
+
+\paragraph{Note:} only one heuristic uses paid exchanges and it's not an important one
+
+\subsection{Heuristics}
+
+\begin{enumerate}
+	\item {\bf MF} (move to front): when someone says touch item $x$, walk the list, move this to front of the list. aka LRU in paging cost function
+	\item {\bf Transpose}: move accessed item one position closer to the front. gradually gain importance to move toward the front.
+	\item {\bf FC} (Frequency Count): keep items sorted in decreasing order of frequency
+	\item {\bf DF} (Decreasing Frequency): statically optimal strategy--keep items in sorted order decreasing by final frequency (must know future)
+\end{enumerate}
+
+
+\paragraph{Note on Optimality:}
+\begin{itemize}
+	\item {\bf static} optimality: strategy not allowed to change state
+	\item {\bf dynamic} optimality: strategy allowed to do free/paid exchanges
+\end{itemize}
+
+\paragraph{Notation:}
+\begin{itemize}
+	\item $C_A(\sigma)$ is the total cost of strategy $A$ on sequence $\sigma$
+\end{itemize}
+
+First paper which proved a competitive ratio is due to Bentley, McGeoch, CACM '85 \cite{bent85}, who showed:
+\begin{theorem}
+	If no insert/delete operations are allowed, then $\forall$ access sequences $\sigma$, $C_{MF}(\sigma) \leq 2C_{DF}(\sigma)$ (if items in MF are initially sorted by time of first access)
+\end{theorem}
+
+We won't prove this.
+
+\paragraph{Notes:}
+\begin{itemize}
+	\item This is pitting {\bf MF} against {\bf static OPT}. i.e. you can move things but OPT cannot.
+	\item This paper also showed that {\bf Transpose} isn't good in a static setting, and that even {\bf FC} can be forced to have unbounded competitive ratio in dynamic setting.
+\end{itemize}
+
+We will prove a theorem due to Sleator, Tarjan, JACM, '85 \cite{sleat85}, which states
+\begin{theorem}
+	$\forall \sigma, \forall A, C_{MF}(\sigma) \leq 2C_A(\sigma) + X_A(\sigma) - F_A(\sigma) - m$, where $A$ is some strategy (which might know the future), $X_A(\sigma)$ is the number of paid exchanges by $A$ on $\sigma$, $F_A(\sigma)$ is the number of free exchanges, $C_A(\sigma)$ is total cost, not counting paid exchanges, and $m = |\sigma|$. Note that the actual cost is $2C_A(\sigma) + X_A(\sigma)$.
+\end{theorem}
+
+\begin{proof}
+	{\bf Potential function} argument. Assume that $A$ and $MF$ start with same state (either same order, or empty list, requiring insertions). Define potential $\Phi$ to be the number of inversions in {\bf MF's} list using the sorted order of {\bf A's} list. 
+
+	Recall for potential functions:
+	\begin{equation*}
+		(\text{total amortized cost}) = (\text{total actual cost}) + \Phi_{final} - \Phi_{init}
+	\end{equation*}
+	\[
+	\Rightarrow (\text{actual cost of MF}) = (\text{amortized cost of MF}) + \Phi_{init} - \Phi_{final}
+	\]
+
+	Initial potential is $0$, and final potential is nonnegative, so this is $\leq (\text{amortized cost})$. Thus it's enough to bound the amortized cost (which we can do for every single operation, not just sum)
+
+	Bound on amortized cost:
+
+	{\bf search(x)}:
+		Suppose $x$ is at position $i$ in $A$'s list, $k$ in MF's list. We have
+		\[
+			(\text{am cost}) = \underset{actual\,cost}{k} + \Delta\Phi
+			\]
+
+		Suppose also that $t$ items precede $x$ in MF's list, but are after $x$ in A's list. Thus $k-t-1$ items precede $x$ in both lists (all the things remaining before $x$ except those $k$).
+
+		By moving $x$, {\bf MF}
+		\begin{itemize}
+			\item creates $k-t-1$ new inversions (for those items above)
+			\item undoes $t$ inversions
+		\end{itemize}
+
+		Thus, $\Delta\Phi = k - 2t - 1$ so
+		\[
+			(\text{am cost}) = 2k - 2t - 1 = 2(k-t) - 1
+		\]
+		Since $x$ is the $i$th item in $A$'s list. We know that $k-t-1 \leq i-1$ because $x$ is at $i$ in $A$'s list, and there are $k-t-1$ items preceding $x$ in both lists. Thus, 
+		\[
+			(\text{am cost}) \leq 2i - 1
+		\]
+		
+		Because any free exchanges that are performed by $A$ move $x$ closer to the front, it can only undo some number of inversions (all including $x$) as it doesn't otherwise change the order. Thus any inversions $A$ performs will be compensated by the potential function and thus this upper bound includes any free inversions, so we can neglect $F_A(\sigma)$. Any paid exchanges will increase the value of the RHS of the statement we wish to prove. Thus we take the worst case of this, where $X_A(\sigma) = 0$, providing the tightest bound, and can see that the bound we have proved is in fact bounded by the RHS of the equation above.
+
+	Since $C_A(i) = i$ know that in the sum over all $m$ terms, we have the amortized cost of $C_{MF}(\sigma) \leq \sum_\sigma (2i - 1) \leq 2C_A(\sigma) + X_A(\sigma) - F_A(\sigma) - m$.
+
+\end{proof}
+
+\paragraph{Note:} there are short (almost 1-line examples) to break {\bf FC} (i.e. demonstrate unbounded competitive ratio). Left as an exercise.
+
+\section{Paging}
+
+A more cared-about problem. There are $n$ items, and we have a cache of size $k$. If it's in cache, we can fetch for free. If not, have to bring it in from memory (evicting someone else from the cache). Evictions cost $1$. How do you pick who to evict?
+
+\begin{enumerate}
+	\item $\sigma$ is a sequence of item requests
+	\item if some item is already in in cache, pay $0$
+	\item else pay $1$ and must bring item into cache (pick evicted member if the cache is full)
+\end{enumerate}
+
+Must come up with an {\bf eviction policy}.
+
+\subsection{Eviction Policies:}
+
+\begin{enumerate}
+	\item {\bf LRU}: Least Recently Used (equivalent to MF)
+	\item {\bf FIFO}: First-in First-out (evict member that's been there the longest by timestamp)
+	\item {\bf LFU}: Least Frequently Used (almost like Freq Count, but requires accessed item to be brought into the cache)
+	\item {\bf MIN}: MIN algorithm evicts the page that will be requested furthest in the future (Belady, IBM Sys.J., '66 \cite{belady66}), which is OPT
+\end{enumerate} 
+
+Another set of theorems, all due to \cite{sleat85}
+
+\begin{theorem}
+	\begin{enumerate}
+		\item {\bf LFU} is terrible (unbounded compet. ratio)
+		\item {\bf LRU} is $k$-competitive
+		\item {\bf FIFO} is $k$-competitive
+		\item No (deterministic--can get $\ln k$ is the best possible compet. ratio w/ randomization) strategy can have competitive ratio $< k$
+	\end{enumerate}
+\end{theorem}
+
+We will prove (2) and (4).
+
+\begin{proof}
+	of (4): Can't beat $k$-competitive determinstic. Let $A$ be our strategy, and choose $n = k+1$. In order to make it is difficult as possible, our adversary can keep requesting the one page in the universe which is not currently in $A$'s cache. In this case, $C_A(\sigma) = |\sigma|$ because we have to pay $1$ for every single request. 
+	
+	Note that we can't play this game with {\bf MIN} because {\bf MIN} has to know all of $\sigma$, whereas in this case we are letting our adversary pick requests in sigma dynamically, making it as hard for $A$ as possible. 
+	
+	Thus, $A$ will fault on every page, but {\bf MIN} (which is OPT) will only fault once every $k$ requests, because it will evict the page requested furthest in the future, meaning that all $k$ other pages will be requested before it is required again.
+
+\end{proof}
+
+\begin{proof}
+	of (2): LRU is $k$-competitive. Will show {\bf 1-bit LRU} is $k$-competitive, which suffices because LRU is an implementation of $1$-bit LRU.
+
+	{\bf Definition of 1-bit LRU:}
+	\begin{itemize}
+		\item initially, all $k$ pages in cache are unmarked
+		\item when $p$ is requested, mark $p$ (whether or not it was already in the cache)
+		\item if no room in cache, evict any unmarked page
+			\begin{itemize}
+				\item if all pages marked, unmark all
+				\item evict any unmarked page
+			\end{itemize}
+		\item can think about $\sigma$ in "phases", where a "phase" starts each time we unmark all pages
+	\end{itemize}
+
+	Actual LRU is an implementation of $1$-bit LRU. Since we're not allowed to evict marked person, and unmarked people have not touched in this phase (touched in last phase or earlier), the least recently used person must be unmarked. We're allowed to evict LRU person, so we can choose to evict LRU person in our implementation.
+
+	{\bf Note:} easy randomization gets you $2\ln k$ (pick random unmarked page to evict)
+
+	{\bf Analysis of 1-bit LRU:} will center around the number of page faults per phase for different strategies.
+
+	For {\bf 1-bit LRU}, we have $k$ distinct pages accessed in a phase. Since we have at most $k$ distinct pages, at most $k$ of them were not in the cache in this phase. Thus, we can do no worse than $k$ page faults per phase.
+
+	For {\bf OPT}, in order for a phase to end, all pages must be marked, and a page which isn't in the cache has to be requested (to start the new page). Thus, in this phase (counting the one which starts the following phase), we have accessed $k+1$ distinct pages, which means that OPT must fault $\geq 1$ per phase.
+
+	Thus, if {\bf OPT} faults at least once per phase, and {\bf 1-bit LRU} faults at most $k$ times perm phase, we have a competitive ratio of $k$.
+\end{proof}
+
+{\bf Question:} how much better is LRU than other 1-bit LRU implementations?
+
+{\bf Open Question:} for randomized paging with resource augmentation: what's the best competitive ratio?
+
+\paragraph{Note:} This is pretty bad! If $k$ is huge (like megabytes) this only gets us within a factor of millions of OPT.
+
+\subsection{Resource Augmentation}
+
+\begin{definition}
+	{\bf Resource Augmentation} \cite{sleat85} or "Bicriteria approximation". LRU has a cache of size $k$, but only allow OPT to have a cache of size $h$. Would like to be competitive against weakened OPT.
+\end{definition}
+
+\begin{theorem}
+	FIFO + LRU both achieve competitive ratio of $\leq \frac{k}{k-h+1}$ in the resource augmentation model.
+\end{theorem}
+
+{\bf Question:} What about randomized strategies?
+
+{\bf Answer:} Depends on the allowed adversary 
+
+
+\subsection{Types of adversaries:}
+\begin{enumerate}
+		\renewcommand{\theenumi}{\alph{enumi}}
+	\item {\bf all-powerful}: knows your random coins. (e.g. in LRU, adversary knows which random page you're going to evict) deterministic to adversary, so can't beat $k$-competitive
+	\item {\bf adaptive}: can choose next request based on machine state (what's in the cache, not in cache)--gets to see all parts of machine at all times, so knows cache state at all times (could also weaken this, only knowing page faults, not knowing which pages are evicted)
+	\item {\bf oblivious}: must fix $\sigma$ in advance--knowing code but not random coins
+\end{enumerate}
+
+Due to (Fiat, Karp, Luby, McGeoch, Sleator, Young, J.Alg '91 \cite{fiat91}):
+
+\begin{theorem}
+ $\exists$ algorithm "Mark" which is $2H_k$-competitive against oblivious adversaries, where $H_k = 1 + \frac12 + \frac13 + \cdots + \frac1k = \ln k + O(1)$ is the $k$th harmonic number.
+	\[
+		\forall \sigma, \mathbb{E}C_{Mark}(\sigma) \leq 2H_k\cdot C_{OPT}(\sigma) + O(1)
+		\]
+
+\end{theorem}
+
+{\bf Notes:}
+\begin{itemize}
+	\item With radnomized algorithm, competitive ratio refers to expected cost of algorithm, as performance is a random variable.
+	\item This analysis doesn't work with an adaptive adversary.
+\end{itemize}
+
+\begin{proof}
+	Note that $\Omega(\ln k)$ is necessary even with randomization.
+
+	Again pick $n = k+1$, and let $m = |\sigma|$. Fix algorithm $A = A_s$, where $s$ is its random seed. This is because randomized algorithms can be viewed as deterministic algorithms with an extra input (the seed). We also pick a uniformly random sequence $\sigma$. Then we have
+
+	\[
+		\underset{\sigma,s}{\mathbb{E}}C_{A}(\sigma) = \underset{s}{\mathbb{E}}\underset{\sigma}{\mathbb{E}}C_{A_s}(\sigma) = \underset{s,\sigma}{\mathbb{E}}\sum_{\text{operations}\,i\in\sigma} \mathbb{E} I (\text{page }i\text{ not in cache}) = \frac{m}{k+1}
+	\]
+	Since we have here the sum of independent bernoulli random variables. With high probability, this is very close to the real value (for large $m$).
+
+	OPT evicts the page it'll see last, so how long does it take to see all of these pages? This is the {\bf coupon collector} problem. It turns out to be something like $(k+1)\ln (k+1)$. Thus OPT fails a $1/((k+1)\ln (k+1))$ fraction of the time, while $A_S$ fails like $1/(k+1)$ fraction of the time. By union bound, with high probability, there's a single $\sigma$ that's hard for both $A$ and OPT.
+
+	Pick random $\sigma$, which has positive probability of being hard for both. Therefore $\exists \sigma$ which is hard for both at the same time. Thus there's an access sequence which gives us exactly $\ln k$, with a factor of $2$ gap between our upper and lower bounds.
+\end{proof}
+
+{\bf Proved Later:}
+\begin{itemize}
+	\item $H_k$-competitive "Partition" alg. (McGeoch, Sleator, Algorithmica '91 \cite{mcgeoch91})
+	\item $H_k$-competitive "Equitable" alg. (Achlioptas, Chrobak, Noge, Theor. C.S. '00 \cite{achli00})
+	\item $2\ln\frac{k}{k-h+1}$-comp. possible, $\ln\frac{k}{k-h+1}$-comp. impossible (Young, '91 \cite{young91})
+\end{itemize}
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{bent85}
+Jon~L.~Bentley, Catherine~C.~McGeoch.
+\newblock Amortized Analyses of Self-organizing Sequential Search Heuristics.
+\newblock {\em Commun. ACM}, 28(4):404--411, 1985.
+
+\bibitem{sleat85}
+Daniel~Sleator, Robert~Tarjan.
+\newblock Amortized Efficiency of List Update and Paging Rules.
+\newblock {\em Commun. ACM}, 28(2):202--208, 1985
+
+\bibitem{belady66}
+L.~A.~Belady.
+\newblock A study of replacement algorithms for a virtual-storage computer.
+\newblock {\em IBM Systems Journal}, 5(2):78--101, 1966.
+
+\bibitem{fiat91}
+Amos~Fiat, Richar~Karp, Mike~Luby, Lyle~McGeoch, Daniel~Sleator, Neal~E.~Young.
+\newblock Competitive Paging Algorithms.
+\newblock {\em Journal of Algorithms}, 12:685--699, 1991.
+
+\bibitem{mcgeoch91}
+Lyle~McGeoch, Daniel~Sleator.
+\newblock A strongly competitive randomized paging algorithm.
+\newblock {\em Algorithmica}, 6:816--825, 1991.
+
+\bibitem{achli00}
+Dimitris~Achlioptas, Marek~Chrobak, John~Noga
+\newblock Competitive analysis of randomized paging algorithms.
+\newblock {\em Theoretical Computer Science}, 234:203--218, 2000.
+
+\bibitem{young91}
+Neal~Young
+\newblock Competitive paging and dual-guided algorithms for weighted caching and matching.  
+\newblock (Thesis) {\em Computer Science Dept., Princeton University}, 1991.
+
+\end{thebibliography}
+
+\end{document}

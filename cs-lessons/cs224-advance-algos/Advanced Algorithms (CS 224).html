@@ -1,0 +1,193 @@
+
+<!-- saved from url=(0055)http://people.seas.harvard.edu/~cs224/spring17/lec.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Advanced Algorithms (CS 224)</title>
+  <style>
+    table { border-collapse: collapse; }
+    td,th { vertical-align: top; text-align: left; padding: 0.5ex 0.5em; }
+    .odd { background-color: #dddddd; }
+  </style>
+</head>
+
+<body>
+
+<h1>CS 224: Advanced Algorithms</h1>
+
+<h2>Prof. <a href="http://people.seas.harvard.edu/~minilek">Jelani
+Nelson</a> &nbsp;&nbsp;&nbsp; TFs: Zhixian Lei, Tom Morgan</h2>
+
+<hr>
+<font size="+1">
+  [<a href="http://people.seas.harvard.edu/~cs224/spring17/index.html">Home</a>]
+  [Lectures]
+  [<a href="http://people.seas.harvard.edu/~cs224/spring17/hmwk.html">Assignments</a>]
+  [<a href="http://people.seas.harvard.edu/~cs224/spring17/proj.html">Project</a>]
+</font>
+<hr>
+
+<h2>Scribing</h2>
+
+<ul>
+<li>Use this <a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec-template.tex">template</a> when
+  scribing.
+
+</li><li>Each student may have to scribe 1-2 lectures, depending on class
+  size.
+
+</li><li> Pick a date below when you are available to scribe and send your
+  choice to <b><tt>
+cs224-s17-staff@seas.harvard.edu</tt></b>. First-come first-served.
+
+</li><li>Submit scribe notes (pdf + source) to <b><tt>
+cs224-s17-staff@seas.harvard.edu</tt></b>.
+
+</li><li>Please give real bibliographical citations for the papers that we
+mention in class
+  (<a href="http://www.informatik.uni-trier.de/~ley/db/">DBLP</a> can
+  help you collect bibliographic info).
+
+</li><li>Scribe notes are due <b>by 9pm on the day after lecture</b>. They are posted
+immediately without proofreading (though we may proofread later and ask for some changes to be made.)
+
+</li></ul>
+
+<h2>Scribe Notes</h2>
+
+<ol>
+  <li>Tuesday, Jan. 24 — logistics, course topics, word RAM, predecessor, van Emde Boas, y-fast tries.<br>
+    Scribe: Jerry Ma.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec1.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec1.tex">TeX</a>]
+    <p></p>
+    
+  </li><li>Thursday, Jan. 26 — fusion trees.<br>
+    Scribe: Daniel Alabi.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec2.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec2.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Tuesday, Jan. 31 — Chernoff bound, hashing: load balancing, k-wise independence, dynamic dictionary, linear probing.<br>
+    Scribe: Saketh Rama.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec3.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec3.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Thursday, Feb. 2 — linear probing analysis (5-wise independence), moment bounds via symmetrization, approximate static membership (Bloom filters).<br>
+    Scribe: Rohil Prasad.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec4.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec4.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Tuesday, Feb. 7 — approximate static membership, cuckoo hashing, approximate static dictionary (Bloomier filters).<br>
+    Scribe: Rohit Agrawal.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec5.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec5.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Thursday, Feb. 9 — power of two choices, amortized analysis, binomial heaps.<br>
+    Scribe: Albert Chalom.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec6.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec6.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Tuesday, Feb. 14 — Fibonacci heaps, splay trees.<br>
+    Scribe: David Stoner.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec7.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec7.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Thursday, Feb. 16 — splay tree analysis, online algorithms, list update problem.<br>
+    Scribe: Tiffany Wu.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec8.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec8.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Tuesday, Feb. 21 — move-to-front analysis, paging.<br>
+    Scribe: Gavin McDowell.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec9.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec9.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Thursday, Feb. 23 — randomized paging, packing/covering LPs, online primal-dual.<br>
+    Scribe: Alex Wei.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec10.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec10.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Tuesday, Feb. 28 — online primal/dual: deterministic/randomized ski rental, set cover.<br>
+    Scribe: Meena Jagadeesan.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec11.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec11.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Thursday, Mar. 2 — approximation algorithms: weighted set cover, vertex cover, integrality gaps, PTAS/FPTAS/FPRAS.<br>
+    Scribe: Kevin Zhang.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec12.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec12.tex">TeX</a>]        
+    <p></p>
+
+  </li><li>Tuesday, Mar. 7 — PTAS (knapsack), FPTAS (knapsack), FPRAS (definite counting), semidefinite programming, MaxCut.<br>
+    Scribe: Hongyao Ma.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec13.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec13.tex">TeX</a>]            
+    <p></p>
+
+  </li><li>Thursday, Mar. 9 — semidefinite programming, max-cut, approximation algorithms in other settings: streaming algorithms, distinct elements.<br>
+    Scribe: Demi Guo.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec14.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec14.tex">TeX</a>]
+    <p></p>
+    
+  </li><li>Tuesday, Mar. 14. <b>NO CLASS (Spring break).</b><br>
+    <p></p>
+
+  </li><li>Thursday, Mar. 16. <b>NO CLASS (Spring break).</b><br>
+    <p></p>
+
+  </li><li>Tuesday, Mar. 21 — approximate nearest neighbor, locality sensitive hashing.<br>
+	  <b>Guest lecture:</b> <a href="http://people.csail.mit.edu/indyk/">Piotr Indyk</a>. [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec17.pptx">Slides</a>]<br>
+    Scribe: Artidoro Pagnoni.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec17.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec17.tex">TeX</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec17_images.tar.gz">images (gzipped tar)</a>]
+    <p></p>
+
+  </li><li>Thursday, Mar. 23 — power of random signs: AMS sketch, Thorup-Zhang, CountSketch, subspace embeddings.<br>
+    Scribe: Brian Hentschel.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec18.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec18.tex">TeX</a>]
+    <p></p>
+    
+  </li><li>Tuesday, Mar. 28 — linear programming: stanford form, vertices, bases, simplex.<br>
+    Scribe: Nicholas Hasselmo.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec19.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec19.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Thursday, Mar. 30 — strong duality, ellipsoid algorithm, interior point methods.<br>
+    Scribe: Dimitris Kalimeris.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec20.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec20.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Tuesday, Apr. 4 — first-order methods (gradient descent), second-order methods (Newton's method).<br>
+    Scribe: Matthew Deutsch.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec21.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec21.tex">TeX</a>]        
+    <p></p>
+
+  </li><li>Thursday, Apr. 6 — interior point analysis, learning from experts.<br>
+    Scribe: Noah Golowich.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec22.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec22.tex">TeX</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec22.bib">BIB</a>]
+    <p></p>
+
+  </li><li>Tuesday, Apr. 11 — multiplicative weights (with application to linear programming).<br>
+    Scribe: Thomas Orton.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec23.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec23.tex">TeX</a>]
+    <p></p>
+
+  </li><li>Thursday, Apr. 13 — linear programming via MW wrap-up, max flow overview, Ford-Fulkerson.<br>
+    Scribe: Evan Yao.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec24.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec24.tex">TeX</a>]    
+    <p></p>
+    
+  </li><li>Tuesday, Apr. 18 — blocking flows, Dinitz's algorithm.<br>
+    Scribe: Christina Chen.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec25.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec25.tex">TeX</a>]    
+    <p></p>
+
+  </li><li>Thursday, Apr. 20 — link-cut trees, heavy-light decomposition.<br>
+    Scribe: Stefan Gramatovici.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec26.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec26.tex">TeX</a>]    
+    <p></p>
+    
+  </li><li>Tuesday, Apr. 25 — cell-probe model, chronogram technique, &#937;(lg n / lglg n) lower bounds for dynamic partial sums and connectivity.<br>
+    Scribe: Jeff Cai.
+    [<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec27.pdf">PDF</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec27.tex">TeX</a>][<a href="http://people.seas.harvard.edu/~cs224/spring17/lec/lec27_images.tar.gz">images (gzipped tar)</a>]    
+    <p></p>
+    
+</li></ol>
+
+
+
+</body></html>

@@ -1,0 +1,237 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{October 13th}{Fall 2015}{Prof.\ Jelani Nelson}{Vasileios Nakos}
+
+\section{Overview}
+
+ In the last lecture we looked at $(\epsilon,\delta)$-DJL: There exists a distribution $\mathbb{D}_{\epsilon,\delta}$ over $\mathbb{R}^{m \times n}$ with $m = O(\eps^{-2}\log(1/\delta))$ such that $\forall x ,\|x\| =1$ we have that $\mathbb{P}_{\Pi \sim \mathbb{D}_{\epsilon,\delta} } [ | \|\Pi x \|_2^2 -1| < max\{\epsilon, \epsilon^2\}] < \delta$. Moreover, we have seen metric JL which tells us that for all $X \subset l_2^n$ there exist a matrix $\Pi \in \mathbb{R}^{m \times n}$ with $m = \Theta ( \epsilon^{-2} \log|X|)$ such that for all $x \in T$ we have that $ | \|\Pi x \|_2^2 -1| <\epsilon$, where $T = \{ \frac{x-y}{\|x-y\|}, x,y \in X \}$. 
+
+\section{Today}
+
+Today we are going to look at three main things:
+
+\begin{itemize}
+\item Johnson-Lindenstrauss lower bound
+\item Beyond worst-case analysis and more  specifically what is called Gordon's Theorem
+\item Bounding supremum of gaussian processes.
+\end{itemize}
+
+\section{Main Section}
+
+
+\subsection{Lower bounds on Dimensionality Reduction}
+
+\subsubsection{Lower bounds on Distributional Johnson Lindenstrauss Lemma}
+
+The first lower bound was proved by Jayram and Woodruff \cite{Jayram} and then by Kane,Meka,Nelson \cite{Meka}. The lower bound tells that any $(\epsilon,\delta)$-DJL for $\epsilon,\delta \in (0,1/2)$ must have $m = \Omega( min\{n, \epsilon^{-2} \log(\frac{1}{\delta})\})$. The second proof builds on the following idea: Since for all $x$ we have the probabilistic guarantee  $\mathbb{P}_{\Pi \sim\mathbb{D}_{\epsilon,\delta} } [ | \| \Pi x \|_2^2 -1| < max\{ \epsilon, \epsilon^2 \}] < \delta$, then it is true also for any distribution over $x$. We are going to pick $x$ according to the uniform distribution over the sphere. Then this implies  that there exists a matrix $\Pi$ such that $\mathbb{P}_x[ | \|\Pi x \|_2^2 -1| < \epsilon] < \delta $. It is shown that this cannot happen for any fixed matrix $\Pi\in\R^{m\times n}$ unless $m$ satisfies the lower bound.
+ 
+\subsubsection{Johnson-Lindenstrauss lower bound for the linear mapping case } 
+
+If we insist on linear maps, then a lower bound of Kasper and Nelson \cite{Larsen} tells us that $m$ must be at least $\Omega(min\{n, \epsilon^{-2} \log|X|\})$. The hard set is shown to exist via the probabilistic method, and is constructed by taking the union of $\{0,e_1,\ldots,e_n\}$ in $\R^n$ together with plus sufficiently many random vectors. We just need to take a fine finite net that approximates all possible linear maps that work for the simplex (i.e.\ $\{e_1,\ldots,e_n\}$) and then argue that for each linear map in the net then with some good probability there exists a point from the random ones such that its length is not preserved by the map. So, approximating well enough the set of linear maps and adjusting the parameteres then we can take a union bound over all matrices in the net.\\
+
+\subsubsection{Johnson-Lindenstrauss lower bound for the general case } 
+
+
+This lower bound has been found by Alon \cite{Alon}. It tells that $m$ must be at least $\Omega( min\{n, \epsilon^{-2} \frac{\log n}{\log(\frac{1}{\epsilon})}$ to preserve distances between the set of points $X = \{0,e_1,\ldots,e_n\}$. The hard set is the simplex $X= \{0,e_1,..,e_n\}$. Let $f$ be the mapping. Translate the embedding so that $f(0) = 0$ (i.e.\ translate the embedding so that each point $x\in X$ is actually mapped to $f(x) - f(0)$; this does not affect any distances). Now write $f(e_i) = v_i$. Then we have that $\|v_i\| = 1 \pm \epsilon$ since $f$ preserves the distance from $e_i$ to $0$. We also have for $i\neq j$ that $\|v_i - v_j \| = \sqrt{2} (1\pm \epsilon)$. This implies since $\|v_i-v_j\| = \|v_i\|^2 + \|v_j\|^2 - 2\inprod{v_i,v_j}$ we get that $\inprod{v_i,v_j}= O(\epsilon)$. Setting $w_i = \frac{v_i}{\|v_i\|}$ we have that $\|w_i\| =1$ and $\inprod{w_i,w_j} = O(\epsilon)$. Let $\Pi$ be the matrix that has $w_i$ as columns. Then observe that $A = \Pi^T \Pi$ is a matrix with $1$ on the diagonal and elements with absolute value at most $\epsilon$ everywhere. We have that $rank(A) = rank( \Pi^T \Pi) = rank(\Pi) \leq m$. We are going to use the following lemma which solves the problem for $\epsilon = \frac{1}{\sqrt{n}}$ and then bootstrap it to work for all values of $\epsilon$.
+
+\begin{lemma}
+Any real symmetric matrix that is $\frac{1}{\sqrt{n}}$-near to the identity matrix, i.e.\ its diagonals are $1$ and off-diagonals are in $[-1/\sqrt{n}, 1/\sqrt{n}]$, must have $rank(A) \geq \Omega(n)$. 
+\end{lemma}
+
+\begin{proof}
+
+Let $\lambda_1,..\lambda_r$ be the non-zero eigenvalues of $A$, where $r=rank(A)$. By Cauchy-Schwarz, we have $r \geq \frac{ (\sum_{i=1}^r \lambda_i )^2 }{\sum_{i=1}^r \lambda_i^2}$. By standard linear algebra the numerator is the trace of $A$ squared and the denominator is just the Frobenius norm of $A$ squared. We have that $tr(A)=n$ and $\|A\|_F^2 \leq n + n(n-1)\epsilon^2$. Plugging everything into the inequality along with the fact that $\epsilon = \frac{1}{\sqrt{n}}$ we get the desired result.
+
+\end{proof}
+
+
+\begin{theorem}
+
+Any real symmetric matrix that is $\epsilon$-near to the identity matrix must have $rank(A) \leq min\{ n, \epsilon^{-2} \frac{\log n}{\log\frac{1}{\epsilon} } \}$. 
+\end{theorem}
+
+\begin{proof}
+
+Define the matrix $A^{ (k) }$ such that $(A^{ (k) })_{ij} = a_{ij}^k$. We will build our proof on the following claim: It holds that $rank(A^{ (k) } \leq { r+k-1 \choose k}$ where $r=rank(A)$. Assumign that the claim is true we pick $k$ to be the closest integet to $\log n_{\epsilon^{-1}} \sqrt{n}$. Thus $\epsilon^k \leq \frac{1}{\sqrt{n}}$, so we have that $\Omega(n) \leq r(A^{ (k) }) \leq {r+k-1 \choose k}$. Using the fact that ${n \choose k} \leq (enk^{-1})^k$ and walking thought the calculations we can get the desired result.\\
+What remains is to prove the claim. Let $t_1,..t_r$ be the row-space of $A$. This means that $\forall i \exists \beta \in mathbb{R}^r$ such that $a_i = \sum_{q=1}^r \beta_q t_q$. Then observe that  $(A^{ (k) })_{ij} = a_{ij}^k = (\sum_{q=1}^r \beta e_q (t_q)_j)^k = \sum_{q1,...,q_k} \Pi_{z=1}^k \beta_{q_z} \Pi_{z=1}^k t_{q_z}$. It is easy to see that each vector of this form is a linear combination of vectors of the form $(\Pi_{z=1}^y (t_{q_z})_1^{d_z^1},\Pi_{z=1}^y (t_{q_z})_2^{d_z^2},..)$. where $\sum d_z^i = k$. This is a standard combinatorics problem of putting $r$ balls into bins $k$ bins with repetition, so the answer is ${r+k-1 \choose k}$.
+
+
+\end{proof} 
+
+\subsection{Beyond Worst Case Analysis}
+
+
+Given a subset $T$ of the unit sphere- for example $\{T = \frac{x-y}{\|x-y\|}, x,y \in X\}$- ideally we would like that $\forall x \in T, | \|\Pi x \|^2 -1| < \epsilon$. We want that $\mathbb{P}_{\Pi}( sup_{x\in T} | \|\Pi x \|^2 -1| > \epsilon  ) < \delta$.\\
+
+We are moving with Gordon's Theorem \cite{Gordon} which was several times \cite{Klartag} \cite{Dirksen} \cite{Jagermann}. First of all we are going to define the gaussian mean widht of the set.
+\begin{definition}
+The Gaussian mean width of a set $T$ is defined as $g(T) = \mathbb{E}_g sup_{x \in T} \inprod{g,x}$.
+\end{definition}
+Back to Gordon's Theorem. Suppose that $\Pi_{ij} = \frac{\pm 1}{\sqrt{m}}$ for random signs, with $m \geq \Omega( \epsilon^{-2} ( g^2(T) + \log\frac{1}{\delta})$. Then we have that $\mathbb{P}_{\Pi}( sup_{x\in T} | \|\Pi x \|^2 -1| > \epsilon  ) < \delta$. Actually, we just need a distribution that decays as fast as a gaussian, has variance one and zero mean.\\
+
+Let us give a simple example of the gaussian mean width. For example, if $T$ is the simplex then we have that $g(T)= \|g \|_{\infty}$ which is roughly equal to $\log n$ by standard computations on gaussians. Actually, what Gordon's theorem tells us is that if the vectors of $T$ have a nice geometry then one can improve upon Johnson-Lindenstrauss: the more well-clustered the vectors are, the lower dimension you can achieve. \\
+
+We continue with the following claim: $\forall T$ which is a subset of the unit sphere, $g(T) \leq O(\sqrt{\log N})$, where $N = |T|$.
+
+\begin{proof}
+Define $Z_i = |\inprod{g_i,x_i}|$, where $T=\{x_1,..,x_N\}$. Then \[g(T) \leq \mathbb{E}_g max\{Z_1,..Z_N\} = \int_0^{\infty} \mathbb{P}_g( max\{Z_1,..,Z_N\} >u ) du =\] \[= \int_0^{2\sqrt{\log n}} \mathbb{P}_g( max\{Z_1,..,Z_N\} >u ) du + \int_0^{2\sqrt{\log n}} \mathbb{P}_g( max\{Z_1,..,Z_N\} >u ) du \leq \] 
+
+\[ \leq  2\sqrt{\log n} + \int_{2\sqrt{\log n}}^{\infty} \mathbb{P}_g( \exists Z_i \geq u) du \leq 2\sqrt{\log n} +  \int_{2\sqrt{\log n}}^{\infty} \sum_i \mathbb{P}_g( Z_i \geq u) du \leq		\]
+
+
+\[ 2\sqrt{\log N} + \int_{2\sqrt{\log n}}^{\infty} Ne^{-u^2/2} \leq 2\sqrt{\log n} + O(1)				\]
+
+\end{proof}
+ 
+ 
+\subsubsection{ How to bound g(T)} 
+
+\begin{itemize}
+
+\item $g(T) \leq \sqrt{\log|T|}$, as we just showed. In fact if every vector in $T$ has norm at most $\alpha$, then one gets $g(T) \lesssim \alpha\sqrt{\log |T|}$.
+\item Let $T' \subset T$ be such that $\forall x \in T$, $\exists x' \in T'$ such that $\|x-x'\| \leq \epsilon$. That is, $T'$ is an $\epsilon$-net of $T$. This implies that $\inprod{g,x} = \inprod{g,x'} + \inprod{g,x-x'} \leq \|g\|_2 \epsilon$, which implies that $g(T) \leq g(T') + \epsilon \mathbb{E} \|g\|_2^2 \leq g(T') + e ( \mathbb{E} \|g\|_2^2)^ {\frac{1}{2}} \leq g(T') + \epsilon\sqrt{n} \leq O(\sqrt{\log|T'|}) + \epsilon\sqrt{n}$. Thus if $T$ is covered well by a small net, one can get a better bound.
+\item  Let $T_ \subset T_1 \subset T_2 \subset ... \subset T$, such that $T_r$ is a $(2^{-r})$-net of $T$ (we are assuming every vector in $T$ has at most unit norm). Then $x = x^{(0)} + (x^{(1)} - x^{(0)} ) + (x^{(2)} - x^{(1)}) +... $. Then we have 
+\begin{align*}
+\E sup_{x\in T} \inprod{g,x} &\le \E \sup_{x\in T}\inprod{g, x^{(0)}}  + \sum_{r=1}^\infty \E \sup_{x\in T}\inprod{g, x^{(r)} - x^{(r-1)}}\\
+{}&\lesssim \log^{1/2} |T_0| + \sum_{r=1}^\infty (\sup_{x\in T} \|x^{(r)} - x^{(r-1)}\|)\cdot \log^{1/2}(|T_r|\cdot |T_{r-1}|)\\
+{}&\lesssim \log^{1/2} |T_0| + \sum_{r=1}^\infty \frac 1{2^r}\cdot \log^{1/2}|T_r| .
+\end{align*}
+The llast inequality holds since by the triangle inequality, $\|x^{(r)} - x^{(r-1)}\| \le \|x^{(r)} - x\| + \|x^{(r-1)} - x\| \le 3/2^{r-1}$. Furthermore, $|T_{r-1}| \le |T_r|$, so $\log(|T_r|\cdot |T_{r-1}|) \le \log(|T_r|^2) = 2\log|T_r|$.
+
+Thus $g(T) \leq \sum_{r=0}^{\infty} 2^{-r} \log^{\frac{1}{2}}|T_r| = \sum_{r=0}^{\infty} 2^{-r} N(T_2,\| \dot \|_2, 2^{-r})$, where $N(T,d,\epsilon)$ is the size of the best $\epsilon$-net of $T$ under metric $d$. Bounding this sum by an integral, we have that $g(T)$ is at most a constant factor times $\int_{0}^{\infty} \log^{\frac{1}{2}} N(T,\| \cdot \|_2,u) du$. This inequality is called Dudley's inequality.
+
+\item Write $S_0 \subset S_1 \subset ... \subset T$, such that $|S_0| =1$ and $\|S_s| \leq 2^{2^s}$. One can show that the Dudley bound is in fact 
+$$
+\inf_{ \{S_s \}_{s=0}^{\infty} } \sum_{s=0}^{\infty} 2^{s/2} \sup_{x \in T} d_{ \| \cdot \|_2 } (x,S_s) .
+$$
+Write 
+$$
+\gamma_2(T) = \inf_{ \{S_s \}_{s=0}^{\infty} } \sup_{x \in T} \sum_{s=0}^{\infty} 2^{s/2}  d_{ \| \cdot \|_2 } (x,S_s) .
+$$
+It was shown by Fernique \cite{Fernique} that $g(T) \lesssim \gamma_2(T)$ for all $T$. Talagrand later showed that in \cite{Talagrand} the lower bound is also true, and hence $g(T) = \Theta(\gamma_2(T))$; this is known as the ``majorizing measures'' theorem, which we will not prove in this class.
+\end{itemize}
+ 
+ 
+\subsubsection{Johnson Lindenstrauss implies Gordon's Theorem }
+
+What we already saw is that Gordon's theorem implies the Johnson Lindenstrauss lemma. In fact this summer by Oymak, Recht and Soltanolkotabi \cite{Recht} it was proved that with right parameteres the Distributional Johnson Lindenstrauss lemma implies Gordon's theorem. Basically take a DJL $\epsilon' = \frac{\epsilon}{\gamma_2^2(T)}$ then for $m \geq \epsilon^{-2} ( \gamma_2^2(T)\log\frac{1}{\delta})$( where we hide constants in the inequalities) we take the guarantee for Gordon's Theorem. Actually, their proof works by preserving the sets $S_s$ (plus differences and sums of vectors in these sets) at different scales. The result is not exactly optimal because it is known $m = O(\epsilon^{-2}(\gamma_2^2(T) + \log(1/\delta)))$ suffices (see for example \cite{Jagermann,Dirksen}), but it provides a nice reduction from Gordon's theorem to DJL.
+ 
+
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+
+\bibitem{Jayram}
+T. S. Jayram, David P. Woodruff.
+\newblock Optimal Bounds for Johnson-Lindenstrauss Transforms and Streaming Problems with Subconstant Error.
+\newblock {\em ACM Transactions on Algorithms} 9(3), 26, 2013.
+
+\bibitem{Meka}
+Daniel M.\ Kane, Raghu Meka, Jelani Nelson.
+\newblock Almost optimal explicit Johnson-Lindenstrauss transformations.
+\newblock In {\em Proceedings of the 15th International Workshop on Randomization and Computation (RANDOM)}, pages 628--639, 2011. 
+
+\bibitem{Larsen}
+Kasper Green Larsen and Jelani Nelson.
+\newblock The Johnson-Lindenstrauss lemma is optimal for linear dimensionality reduction.
+\newblock {\em CoRR} abs/1411.2404, 2014.
+
+\bibitem{Alon}
+Noga Alon.
+\newblock Problems and results in extremal combinatorics--I.
+\newblock {\em Discrete Mathematics} 273(1-3), pages 31--53, 2003.
+
+
+\bibitem{Klartag}
+Bo'az Klartag, Shahar Mendelson.
+\newblock Empirical processes and random projections.
+\newblock {\em J. Functional Analysis}, 225(1), pages 229--245, 2005.
+
+\bibitem{Recht}
+Samet Oymak, Benjamin Recht, Mahdi Soltanolkotabi.
+\newblock Isometric sketching of any set via the Restricted Isometry Property. 
+\newblock {\em CoRR} abs/1506.03521, 2015.
+
+\bibitem{Dirksen}
+Sjoerd Dirksen.
+\newblock Tail bounds via generic chaining.
+\newblock {\em Electron. J. Probab.}, 20(53):1--29, 2015.
+
+\bibitem{Fernique}
+Xavier Fernique.
+\newblock Regularit\'{e} des trajectoires des fonctions al\'{e}atoires gaussiennes.
+\newblock {\em Ecole d’Et\'{e} de Probabilit\'{e}s de Saint-Flour IV}, {\em Lecture Notes in Math.}, vol.\ 480, pages 1--96, 1975.
+
+\bibitem{Jagermann}
+Shahar Mendelson, Alain Pajor, Nicole Tomczak-Jaegermann.
+\newblock Reconstruction and subgaussian operators in asymptotic geometric analysis.
+\newblock {\em Geometric and Functional Analysis}, vol.\ 1, pages 1248--1282, 2007.
+
+\bibitem{Gordon}
+Yehoram Gordon.
+\newblock On Milman's inequality and random subspaces which escape through a mesh in $\mathbb{R}^n$.
+\newblock {\em Geometric Aspects of Functional Analysis}, vol.\ 1317, pages 84--106, 1986--87.
+
+\bibitem{Talagrand}
+Michel Talagrand.
+\newblock Majorizing measures: the generic chaining.
+\newblock {\em Ann. Probab.}, 24(3), pages 1049--1103, 1996.
+
+\end{thebibliography}
+
+\end{document}

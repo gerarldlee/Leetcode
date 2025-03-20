@@ -1,0 +1,329 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,tikz}
+\usepackage{url}
+\usetikzlibrary{trees}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{claim}{Claim}
+\newtheorem{lemma}{Lemma}
+
+
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\teps}{\tilde \varepsilon}
+\newcommand{\ep}{\varepsilon}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\var}{\text{var}}
+\global\long\def\pp#1{\left(#1\right)}
+\global\long\def\ppp#1{\left[#1\right]}
+
+\newcommand{\EquationName}[1]{\label{eq:#1}}
+\newcommand{\ClaimName}[1]{\label{clm:#1}}
+\newcommand{\LemmaName}[1]{\label{lem:#1}}
+\newcommand{\CorollaryName}[1]{\label{cor:#1}}
+\newcommand{\SectionName}[1]{\label{sec:#1}}
+\newcommand{\TheoremName}[1]{\label{thm:#1}}
+\newcommand{\RemarkName}[1]{\label{rem:#1}}
+\newcommand{\FigureName}[1]{\label{fig:#1}}
+\newcommand{\QuestionName}[1]{\label{que:#1}}
+
+\newcommand{\Equation}[1]{Eq.\:\eqref{eq:#1}}
+\newcommand{\Claim}[1]{Claim~\ref{clm:#1}}
+\newcommand{\Lemma}[1]{Lemma~\ref{lem:#1}}
+\newcommand{\Corollary}[1]{Corollary~\ref{cor:#1}}
+\newcommand{\Section}[1]{Section~\ref{sec:#1}}
+\newcommand{\Theorem}[1]{Theorem~\ref{thm:#1}}
+\newcommand{\Remark}[1]{Remark~\ref{rem:#1}}
+\newcommand{\Question}[1]{Question~\ref{que:#1}}
+
+\newcommand{\Eqsub}[1]{\eqref{eq:#1}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newcommand{\bs}[1]{\boldsymbol{#1}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+
+\begin{document}
+
+\lecture{13 --- October 15, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Yakir Reshef}
+
+\section{Recap and overview}
+Last time we started by talking about lower bounds for JL that were worst-case. That is, we stated a lower bound on the reduced dimension $m$ such that for any $\Pi$ mapping to $\R^m$ there would exist a "bad" set $T$ of x's whose distances would not be preserved by $\Pi$. But this left open the question of how well we could do on some particular set $T$. This was where Gordon's theorem came in. It said
+\begin{theorem}[Gordon]
+Suppose $T \subset S^{n-1}$. If $\Pi \in \R^{m \times n}$ has $\Pi_{ij} = g_{ij}/\sqrt{m}$, where the $g_{ij}$ are iid standard normals, and $m \gtrsim \frac{g^2(T) + 1}{\ep^2}$, then
+\[
+P_\Pi\left(\exists x \in T \, : \, \left|\|\Pi x\| - 1 \right| > \ep \right) < \frac{1}{10} .
+\]
+where $g(T) = E_g \sup_{x \in T} \langle g, x \rangle$ is the mean width of $T$, with the expectation taken over a gaussian with mean zero and identity covariance.
+\end{theorem}
+
+Recall that we also mentioned the following result last time concerning  $g(T)$, with one direction of the inequality showed by Fernique and the other by Talagrand:
+\begin{theorem}
+Let $T \subset \R^n$ bounded, and let $T_0 \subset T_1 \subset \cdots T$ be such that $\left|T_0\right| = 1$ and $\left|T_r\right| \leq 2^{2^r}$. Define
+\[
+\gamma_2(T,d) := \inf_{\{T_r\}_{r=0}^\infty}  \sup_{x \in T} \sum_{r=0}^\infty 2^{r/2} d(x,T_r) .
+\]
+Then $\gamma_2(T, \ell_2) \simeq g(T)$.
+\end{theorem}
+
+Henceforth, when we say $\gamma_2(T)$ without specifying a metric, $\ell_2$ is implied.
+
+Gordon's theorem implies DJL, because in general $g(T)$ is at most $\sqrt{\log|T|}$ in it can be much smaller for some $T$. Today we'll show that the converse is also true, i.e., that DJL implies Gordon's theorem.
+
+\section{Today: DJL $\Rightarrow$ Gordon's theorem}
+\subsection{Statement of result}
+The main result is summarized in the following theorem.
+\begin{theorem}[\cite{Recht}] \label{thm:ORS}
+Define $L = \lceil \log n \rceil$, $\tilde \ep = \ep / (c \gamma_2(T))$, $\tilde \ep_r = \max \{2^{r/2} \tilde \ep, 2^{r/2} \tilde \ep^2 \}$, $\delta_r = \frac{\delta}{C 2^r 8^{2^r}}$. Let $T \subset S^{n-1}$. Then if $D$ satisfies $(\ep_r, \delta_r)$-DJL for $r = 0, \ldots, L$, then
+\[
+P_{\Pi \sim D} \left( \sum_{x \in T} \left| \| \Pi x\|_2^2 - 1 \right| > \ep \right) < \delta
+\]
+\end{theorem}
+To see why this implies Gordon's theorem, we consider the random sign matrix, e.g., $\Pi_{ij} = \frac{\sigma_{ij}}{\sqrt{m}}$. We know that this matrix satisfies $(\tilde \ep, \tilde \delta)$-DJL for $m \gtrsim \frac{\log(1/\tilde \delta)}{\tilde \ep^2}$, which equals $\frac{2^r \log(1/\tilde \delta)}{(2^{r/2} \tilde\ep)^2} \geq \frac{\log(1/\delta_r)}{\ep_r^2}$ for all $r$. The theorem therefore applies and so we see that we get an $(\ep, \delta)$ guarantee with $m \gtrsim \log(1/\delta) / \tilde \ep^2 \eqsim \frac{\gamma_2^2(T)}{\ep^2}\log(1/\delta)$. And since $\gamma_2(T) \simeq g(T)$, this is approximately $\frac{g^2(T) \log(1/\delta)}{\ep^2}$, which gives Gordon's theorem. As mentioned last time, different proofs yield that $\frac{g^2(T) + \log(1/\delta)}{\ep^2}$ actually suffices.
+
+\subsection{Proof of result}
+To prove the above theorem, the lemma below suffices.
+\begin{lemma} \label{lem:conditions}
+For a given set $T$, let $T_r$ be the sequence that achieves the infimum in the definition of $\gamma_2$. To achieve $\sup_{x \in T} \left| \|\Pi x\|_2^2 - 1\right| < \ep$, it suffices that for all $r = 0, \ldots, L$, the following hold simultaneously for all $r\in [L]$.
+\begin{itemize}
+\item For all $v \in T_{r-1} \cup T_r \cup (T_{r-1} - T_r)$,
+\begin{equation}
+\|\Pi v\| \le (1 + 2^{r/2}\teps)\|v\| \EquationName{ineq1}
+\end{equation}
+\item For all $v \in T_{r-1} \cup T_r \cup (T_{r-1} - T_r)$,
+\begin{equation}
+|\|\Pi v\|^2 - \|v\|^2| \le \max\{2^{r/2}\teps, 2^r \teps^2\}\cdot \|v\|^2 \EquationName{ineq2}
+\end{equation}
+\item For all $u\in T_{r-1}$ and $v\in T_r - \{u\}$,
+\begin{equation}
+|\inprod{\Pi u, \Pi v} - \inprod{u, v}| \le \max\{2^{r/2}\teps, 2^r \teps^2\} \cdot \|u\|\cdot \|v\|
+\EquationName{ineq3}
+\end{equation}
+\item We also have 
+\begin{equation}
+\|\Pi\| \le 1 + (1/4)2^{L/2}\teps
+\EquationName{ineq4}
+\end{equation}
+\end{itemize}
+\end{lemma}
+We note that it is not too bad to show that the first three conditions hold with high probability since they are all JL-type conditions. The third one is a bit less obvious since it's about dot products instead of norms. But notice that $\| u + v\|^2 - \|u - v\|^2 = 4 \langle u, v\rangle$. So if $\|u\| = \|v\| = 1$, then $\Pi$ preserving $u + v$ and $u - v$ means that $ \langle \Pi u, \Pi v \rangle = \frac{1}{4} ( \| \Pi u + \Pi v\|^2 - \| \Pi u + \Pi v\|^2 ) = \langle u, v \rangle \pm O(\ep)$. If $u$ and $v$ don't have unit norm you can scale them to achieve the above condition. So the third condition also follows from the DJL assumption. (We neglect the fourth condition above for now, since it's based on a standard argument which is based on a constant-sized net of $S^{n-1}$ that we'll see later in the course.)
+
+We now argue that the lemma suffices to prove our theorem.
+\begin{claim}
+Lemma~\ref{lem:conditions} implies Theorem~\ref{thm:ORS}.
+\end{claim}
+\begin{proof}
+Define $\tilde L = \lceil \log(1/\tilde \ep^2) \rceil \leq L$ (Note that if $\tilde L > L$ then we're not interested because then we're not reducing dimensionality!) Fix $x \in T$. We will show
+\[
+\left| \| \Pi x \|^2 - \|x \|^2 \right| < \ep
+\]
+Define $e_r(T) = d(x, T_r)$, and define
+\[
+\tilde{\gamma}_2(T) = \sum_{r=1}^L 2^{r/2}\cdot e_r(T) .
+\]
+Clearly $\tilde{\gamma}_2(T) \le \gamma_2(T)$.
+
+Also define
+\[
+z_r = \text{argmin}_{y \in T_r} \|x - y\|_2
+\]
+
+\begin{align}
+\nonumber |\|\Pi x\|^2 - \|x\|^2| &\le |\|\Pi z_{\tilde{L}}\|^2 - \|z_{\tilde{L}}\|^2| + |\|\Pi x\|^2 - \|\Pi z_{\tilde{L}}\|^2| + | \|x\|^2 - \|z_{\tilde{L}}\|^2 |\\
+\nonumber {}&\le \underbrace{|\|\Pi z_0\|^2 - \|z_0\|^2|}_{\alpha} + \underbrace{|\|\Pi x\|^2 - \|\Pi z_{\tilde{L}}\|^2|}_\beta + \underbrace{| \|x\|^2 - \|z_{\tilde{L}}\|^2 |}_\Gamma\\
+&\hspace{.2in}{} + \underbrace{\sum_{r=1}^{\tilde{L}} (| \|\Pi z_r\|^2 - \|z_r\|^2| - | \|\Pi z_{r-1}\|^2 - \|z_{r-1}\|^2|)}_\Delta
+\end{align}
+
+In class we bounded $\alpha$ and $\Gamma$, as the bound on $\alpha$ is simple and the bound on $\Gamma$ sufficiently captures the proof idea. However, in these notes we bound all of $\alpha, \beta, \Gamma, \Delta$. 
+
+\paragraph{Bounding $\alpha$:} We have $\alpha\le \max\{\teps, \teps^2\} \le \teps$ by \Equation{ineq2}.
+
+\paragraph{Bounding $\beta$:} We have
+\begin{align}
+\nonumber |\|\Pi x\|^2 - \|\Pi z_{\tilde{L}}\|^2| &= |\|\Pi x\| - \|\Pi z_{\tilde{L}}\|| \cdot |\|\Pi x\| + \|\Pi z_{\tilde{L}}\||\\
+\nonumber {}&\le |\|\Pi x\| - \|\Pi z_{\tilde{L}}\|| \cdot \left(|\|\Pi x\| - \|\Pi z_{\tilde{L}}\|| + 2\cdot\|\Pi z_{\tilde{L}}\|\right)\\
+{}&= |\|\Pi x\| - \|\Pi z_{\tilde{L}}\||^2 + 2|\|\Pi x\| - \|\Pi z_{\tilde{L}}\||\cdot\|\Pi z_{\tilde{L}}\| \EquationName{boundbeta}
+\end{align}
+We thus need to bound $|\|\Pi x\| - \|\Pi z_{\tilde{L}}\||$ and $\|\Pi z_{\tilde{L}}\|$. By \Equation{ineq1} we have $\|\Pi z_{\tilde{L}}\| \le (1+2^{\tilde{L}/2}\teps) \le 2$.
+
+Next, we have
+\allowdisplaybreaks
+\begin{align}
+\nonumber |\|\Pi x\| - \|\Pi z_{\tilde{L}}\|| &= |\|\Pi x\| - \|\Pi z_L\| + \|\Pi z_L\| - \|\Pi z_{\tilde{L}}\||\\
+\nonumber {}&\le \|\Pi (x-z_L)\| + \|\Pi (z_L - z_{\tilde{L}})\|\\
+\nonumber {}&\le \|\Pi\|\cdot\|x-z_L\| + \|\sum_{r=\tilde{L}+1}^L \Pi (z_r - z_{r-1})\|\\
+{}&\le \|\Pi\|\cdot e_L(T) + \sum_{r=\tilde{L}+1}^L \|\Pi (z_r - z_{r-1})\| \EquationName{opnorm}
+\end{align}
+By \Equation{ineq4}, $\|\Pi\| \le \frac 14 2^{L/2}\teps + 1$. Also by \Equation{ineq1}, $\|\Pi (z_r - z_{r-1})\| \le (1 + 2^{r/2}\teps)\|z_r - z_{r-1}\|$. Thus, using $2^{r/2}\teps \ge 1$ for $r > \tilde{L}$,
+\begin{align}
+\nonumber \Eqsub{opnorm} &\le (\frac 14 2^{L/2}\teps + 1)e_L(T) + \sum_{r=\tilde{L}+1}^L (1+ 2^{r/2}\teps)\|z_r - z_{r-1}\|\\
+\nonumber {}&\le (\frac 14 2^{L/2}\teps + 1)e_L(T) + \sum_{r=\tilde{L}+1}^L (1+ 2^{r/2}\teps)\|z_r - z_{r-1}\|\\
+\nonumber {}&\le \frac 54 2^{L/2}\teps e_L(T) + \sum_{r=\tilde{L}+1}^L 2^{r/2+1}\teps\|z_r - z_{r-1}\|\\
+\nonumber {}&\le \frac 54 2^{L/2}\teps e_L(T) + 4\sqrt{2}\teps\sum_{r=\tilde{L}+1}^L 2^{(r-1)/2}\cdot e_{r-1}(T)\\
+\nonumber {}&\le 4\sqrt{2}\teps\sum_{r=\tilde{L}}^L 2^{r/2}\cdot e_r(T)\\
+{}&\le 4\sqrt{2}\teps \cdot \tilde{\gamma}_2(T) 
+\end{align}
+
+Thus in summary,
+$$
+\beta \le \Eqsub{boundbeta} \le 32\teps^2\tilde{\gamma}_2^2(T) + 16\sqrt{2}\teps\tilde{\gamma}_2(T)
+$$
+
+\paragraph{Bounding $\Gamma$:} 
+
+Note $2^{r/2}\teps \ge 1/\sqrt{2}$ for $r\ge \tilde{L}$. Thus
+\begin{align*}
+|\|x\| - \|z_{\tilde{L}}\|| &\le e_{\tilde{L}}(T)\\
+{}&\le \sqrt{2}\cdot 2^{\tilde{L}/2}\teps e_{\tilde{L}}(T)\\
+{}&\le \sqrt{2}\teps\cdot \tilde{\gamma}_2(T) .
+\end{align*}
+Thus
+\begin{align*}
+\Gamma &= |\|x\|^2 - \|z_{\tilde{L}}\|^2|\\
+{}&= |\|x\| - \|z_{\tilde{L}}\|| \cdot |\|x\| + \|z_{\tilde{L}}\||\\
+{}&\le |\|x\| - \|z_{\tilde{L}}\||^2 + 2|\|x\| - \|z_{\tilde{L}}\||\cdot\|z_{\tilde{L}}\||\\
+{}&\le 2\teps^2\cdot \tilde{\gamma}_2^2(T) + 2\sqrt{2}\teps\cdot \tilde{\gamma}_2(T)
+\end{align*}
+
+\paragraph{Bounding $\Delta$:}
+
+By the triangle inequality, for any $r\ge 1$
+\begin{align}
+\nonumber |\|\Pi z_r\|^2 - \|z_r\|^2| &= |\|\Pi(z_r - z_{r-1}) + \Pi z_{r-1}\|^2 - \|(z_r - z_{r-1}) + z_{r-1}\|^2|\\
+{}&= | \|\Pi(z_r - z_{r-1})\|^2 + \|\Pi z_{r-1}\|^2 + 2\inprod{\Pi(z_r - z_{r-1}), \Pi z_{r-1}}\\
+\nonumber &\hspace{.2in}{} - \|z_r - z_{r-1}\|^2 - \|z_{r-1}\|^2 - 2\inprod{z_r - z_{r-1}, z_{r-1}}|\\
+\nonumber {}&\le | \|\Pi(z_r - z_{r-1})\|^2 - \|z_r - z_{r-1}\|^2| + |\|\Pi z_{r-1}\|^2 - \|z_{r-1}\|^2|\\
+&\hspace{.2in}{} + 2|\inprod{\Pi(z_r - z_{r-1}), \Pi z_{r-1}} - \inprod{z_r - z_{r-1}, z_{r-1}}| .
+\end{align}
+
+By \Equation{ineq2} we have 
+$$
+| \|\Pi(z_r - z_{r-1})\|^2 - \|z_r - z_{r-1}\|^2| \le \max\{2^{r/2}\teps, 2^r \teps^2\}\cdot 2e_{r-1}^2(T) \le 2^{r/2+2}\teps e_{r-1}^2(T) ,
+$$
+with the second inequality holding since $2^{r/2}\teps \le 1$ for $ \le \tilde{L}$.
+
+By \Equation{ineq3} we also have
+$$
+|\inprod{\Pi(z_r - z_{r-1}), \Pi z_{r-1}} - \inprod{z_r - z_{r-1}, z_{r-1}}| \le 2^{r/2 + 1}\teps e_{r-1} .
+$$
+
+Therefore
+$$
+|\|\Pi z_r\|^2 - \|z_r\|^2| - |\|\Pi z_{r-1}\|^2 - \|z_{r-1}\|^2| \le \teps(2 e_{r-1}(T) + 4 e_{r-1}^2(T))2^{r/2}
+$$
+Noting $e_r(T) \le 1$ for all $r$,
+\begin{align*}
+\Delta &\le 10\teps\left(\sum_{r=1}^{\tilde{L}} 2^{r/2} e_{r-1}(T)\right) \\
+{}&= 10\sqrt{2}\teps\left(\sum_{r=0}^{\tilde{L}-1} 2^{r/2} e_r(T)\right) \\
+{}&\le 10\sqrt{2}\teps\tilde{\gamma}_2(T) .
+\end{align*}
+
+\paragraph{Finishing up:} We have thus established
+\begin{align*}
+|\|\Pi x\|^2 - \|x\|^2| &\le \teps + 32\teps^2 \tilde{\gamma}_2^2(T) + 16\sqrt{2}\teps\tilde{\gamma_2}(T) + 8\teps^2 \tilde{\gamma}_2^2(T) + 2\sqrt{2}\teps\tilde{\gamma}_2(T) + 10\sqrt{2}\teps \tilde{\gamma}_2(T)\\
+{}&= \teps + 28\sqrt{2}\teps\tilde{\gamma}_2(T) + 40\teps^2\tilde{\gamma}_2^2 ,
+\end{align*}
+which is at most $\eps$ for $\teps \le \eps / (84\sqrt{2}\tilde{\gamma}_2(T))$.
+
+\end{proof}
+
+
+
+\section{Doing JL fast}
+Typically we have some high-dimensional computational geometry problem, and we use JL to speed up our algorithm in two steps: (1) apply a JL map $\Pi$ to reduce the problem to low dimension $m$, then (2) solve the lower-dimensional problem. As $m$ is made smaller, typically (2) becomes faster. However, ideally we would also like step (1) to be as fast as possible. So far the dimensionality reduction has been a dense matrix-vector multiplication. So we can ask: can we do better in terms of runtime?
+
+There are two possible ways of doing this: one is to make $\Pi$ sparse. We saw in pset 1 that this sometimes works: we replaced the AMS sketch with a matrix each of whose columns has exactly 1 non-zero entry. The other way is to make $\Pi$ structured, i.e., it's still dense but has some structure that allows us to multiply faster. We'll start talking today about sparse JL.
+
+\subsection{Sparse JL}
+One natural way to speed up JL is to make $\Pi$ sparse. If $\Pi$ has $s$ non-zero entries per column, then $\Pi x$ can be multiplied in time $O(s\cdot\|x\|_0)$, where $\|x\|_0 = |\{i : x_i \neq 0\}|$. The goal is then to make $s, m$ as small as possible.
+
+First some history: 
+\cite{Achlioptas} showed that you can set
+\[
+\Pi_{ij} = \begin{cases} 
+      +/\sqrt{m/3} & \text{w.p. } \frac{1}{6} \\
+      -\sqrt{m/3} & \text{w.p. } \frac{1}{6} \\
+      0 & \text{w.p. } \frac{2}{3}
+   \end{cases}
+\]
+and that this gives DJL, even including constant factors. But it provides a factor-3 speedup since in expectation only one third of the entries in $\Pi$ are non-zero. On the other hand, \cite{M2008} proved that if $\Pi$ has independent entries then you can't speed things up by more than a constant factor.
+
+The first people to exhibit a $\Pi$ without independent entries and therefore to break this lower bound were \cite{DKS2010}, who got $m = O(\frac{1}{\ep^2} \log(1/\delta))$, $s = \tilde O(\frac{1}{\ep} \log^3(1/\delta))$ nonzeros per column of $\Pi$. So depending on the parameters this could either be an improvement or not.
+
+Today we'll see \cite{KN2014}, which showed that you can take $m = O(\frac{1}{\ep^2} \log(1/\delta))$ and $s = O(\frac{1}{\ep} \log(1/\delta))$, a strict improvement. You do this by choosing exactly $s$ entries in each column of $\Pi$ to have non-zero entries and then choosing the signs of those entries at random and normalizing appropriately. Alternatively, you can break each column of $\Pi$ up into $s$ blocks of size $m/s$, and choose exactly 1 non-zero entry in each block. The resulting matrix is exactly the count sketch matrix.
+
+The analysis uses Hanson-Wright. Previously, for dense $\Pi$, we observed that $\Pi x = A_x \sigma$ where $A_x$ was an $m \times mn$ matrix whose $i$-th row had $x^T / \sqrt{m}$ in the $i$-th block of size $n$ and zeros elsewhere. Then we said $\| \Pi x \|^2 = \sigma^T A_x^T A_x \sigma$, which was a quadratic form, which allowed us to appeal to HW. We'll do something similar here.
+
+First some notation: we'll write $\Pi_{ij} = \frac{\sigma_{ij} \delta_{ij}}{\sqrt{s}}$ where $\delta_{ij} \in \{0,1\}$ is a random variable indicating whether the corresponding entry of $\Pi$ was chosen to be non-zero. (So the $\delta_{ij}$ are not independent.) For every $r \in [m]$, define $x(r)$ by $(x(r))_i = \delta_{ri} x_i$. The claim is now that $\Pi x = A_x \sigma$ where $A_x$ is an $m \times mn$ matrix whose $i$-th row contains $x(r)^T / \sqrt{s}$ in the $i$-th block of size $n$ and zeros elsewhere. This allows us to again use the HW trick: specifically, we observe that $A_x^T A_x$ is a block-diagonal matrix as before. And since we're bounding the difference between $\sigma^T A_x^T A_x \sigma$ and its expectation, it is equivalent to bound $\sigma^T B_x \sigma$ where $B_x$ is $A_x^T A_x$ with its diagonals zeroed out.
+
+Now condition on $B_x$ and recall that HW says that for all $p \geq 1$, $\| \sigma^T B_x \sigma \|_p \leq p \|B_x\| + \sqrt{p} \|B_x\|_F$. Then, taking $p$-norms with respect to the $\delta_{ij}$ and using the triangle inequality, we obtain the bound
+\[
+\| \sigma^T B_x \sigma \|_p \leq p \| \|B_x\| \|_p + \sqrt{p} \| \|B_x\|_F \|_p
+\]
+If we can bound the right-hand-side, we'll obtain required DJL result by application of Markov's inequality, since $\sigma^T B_x \sigma$ is positive. Therefore, it suffices to bound the p-norms with respect to the $\delta_{ij}$ of the operator and Frobenius norms of $B_x$.
+
+We start with the operator norm: since $B_x$ is block-diagonal and its $i$-th block is $x(r) x(r)^T - \Lambda(r)$ where $\Lambda(r)$ is the diagonal of $x(r) x(r)^T$, we have $\|B_x \| = \frac{1}{s} \max_{1 \leq r \leq m} \| x(r) x(r)^T - \Lambda(r) \|$. But the operator norm of the difference of positive-definite matrices is at most the max of either operator norm. Since both matrices have operator norm at most 1, this gives us tht $\|B_x\| \leq 1/s$ always.
+
+So it remains only to bound the Frobenius norm. This is where we'll pick up next time.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+\bibitem{Recht}
+Samet Oymak, Benjamin Recht, Mahdi Soltanolkotabi.
+\newblock Isometric sketching of any set via the Restricted Isometry Property. 
+\newblock {\em CoRR} abs/1506.03521, 2015.
+
+\bibitem{Achlioptas}
+Dimitris Achlioptas.
+\newblock Database-friendly random projections.
+\newblock {\em J. Comput. Syst. Sci.} 66(4): 671--687, 2003.
+
+\bibitem{DKS2010}
+Anirban Dasgupta, Ravi Kumar, Tam{\'{a}}s Sarl{\'{o}}s.
+\newblock A sparse Johnson: Lindenstrauss transform.
+\newblock {\em STOC}, pages 341--350, 2010.
+
+\bibitem{KN2014}
+Daniel M. Kane, Jelani Nelson.
+\newblock Sparser Johnson-Lindenstrauss Transforms.
+\newblock {\em Journal of the ACM}, 61(1): 4:1--4:23, 2014.
+
+\bibitem{M2008}
+Jir{\'{\i}} Matousek.
+\newblock On variants of the Johnson-Lindenstrauss lemma.
+\newblock {\em Random Struct. Algorithms}, 33(2): 142--156, 2008.
+
+\end{thebibliography}
+
+
+\end{document}

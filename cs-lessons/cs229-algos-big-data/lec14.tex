@@ -1,0 +1,380 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{filecontents}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\on}{\operatorname}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\Var}{\on{\bf Var}}
+
+\newcommand{\Eqsub}[1]{\eqref{eq:#1}}
+\newcommand{\EquationName}[1]{\label{eq:#1}}
+\newcommand{\Equation}[1]{Eq.\:\eqref{eq:#1}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{filecontents}{\jobname.bib}
+@article{har2012approximate,
+  title={Approximate Nearest Neighbor: Towards Removing the Curse of Dimensionality.},
+  author={Har-Peled, Sariel and Indyk, Piotr and Motwani, Rajeev},
+  journal={Theory of computing},
+  volume={8},
+  number={1},
+  pages={321--350},
+  year={2012}
+}
+
+@inproceedings{AndoniR15,
+  author = {Alexandr Andoni and Ilya P.\ Razenshteyn},
+  title = {Optimal data-dependent hashing for approximate near neighbors},
+  booktitle = {STOC},
+  year = 2015,
+  pages = "793--801",
+}
+
+@article{ailon2009fast,
+  title={The fast Johnson-Lindenstrauss transform and approximate nearest neighbors},
+  author={Ailon, Nir and Chazelle, Bernard},
+  journal={SIAM Journal on Computing},
+  volume={39},
+  number={1},
+  pages={302--322},
+  year={2009},
+  publisher={SIAM}
+}
+
+@inproceedings{KushilevitzOR98,
+  author    = {Eyal Kushilevitz and
+               Rafail Ostrovsky and
+               Yuval Rabani},
+  title     = {Efficient Search for Approximate Nearest Neighbor in High Dimensional
+               Spaces},
+  booktitle = {Proceedings of the Thirtieth Annual {ACM} Symposium on the Theory
+               of Computing, Dallas, Texas, USA, May 23-26, 1998},
+  pages     = {614--623},
+  year      = {1998},
+}
+
+@inproceedings{indyk1998approximate,
+  title={Approximate nearest neighbors: towards removing the curse of dimensionality},
+  author={Indyk, Piotr and Motwani, Rajeev},
+  booktitle={Proceedings of the thirtieth annual ACM symposium on Theory of computing},
+  pages={604--613},
+  year={1998},
+  organization={ACM}
+}
+
+@inproceedings{gionis1999similarity,
+  title={Similarity search in high dimensions via hashing},
+  author={Gionis, Aristides and Indyk, Piotr and Motwani, Rajeev and others},
+  booktitle={VLDB},
+  volume={99},
+  pages={518--529},
+  year={1999}
+}
+
+@inproceedings{andoni2006near,
+  title={Near-optimal hashing algorithms for approximate nearest neighbor in high dimensions},
+  author={Andoni, Alexandr and Indyk, Piotr},
+  booktitle={Foundations of Computer Science, 2006. FOCS'06. 47th Annual IEEE Symposium on},
+  pages={459--468},
+  year={2006},
+  organization={IEEE}
+}
+
+@inproceedings{andoni2014beyond,
+  title={Beyond locality-sensitive hashing},
+  author={Andoni, Alexandr and Indyk, Piotr and Nguyen, Huy L and Razenshteyn, Ilya},
+  booktitle={Proceedings of the Twenty-Fifth Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages={1018--1028},
+  year={2014},
+  organization={SIAM}
+}
+
+@article{motwani2007lower,
+  title={Lower bounds on locality sensitive hashing},
+  author={Motwani, Rajeev and Naor, Assaf and Panigrahy, Rina},
+  journal={SIAM Journal on Discrete Mathematics},
+  volume={21},
+  number={4},
+  pages={930--935},
+  year={2007},
+  publisher={SIAM}
+}
+
+
+
+\end{filecontents}
+
+\usepackage{natbib}
+
+\begin{document}
+
+\lecture{14 --- October 20, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Rachit Singh}
+
+\section{Overview}
+
+In the last lecture we discussed how distributional JL implies Gordon's theorem, and began our discussion of sparse JL. We wrote $\norm{\Pi x}^2 = \sigma^TA_x^TA_x\sigma$ and bounded the expression using Hanson-Wright in terms of the Frobenius norm.
+
+\smallskip
+
+In this lecture we'll bound that Frobenius norm and then discuss applications to fast nearest neighbors.
+\section{Sparse JL from last time}
+Note that we defined $B_x = A_x^TA_x$ as the center of the product from before, but with the diagonals zeroed out. $B_x$ is a block-diagonal matrix with $m$ blocks $B_{x,1},\ldots,B_{x,r}$ with
+$$
+(B_{x,r})_{i,j} =\begin{cases}
+0, & \ i = j\\
+\delta_{r,i} \delta_{r,j} x_i x_j, &\ i\neq j .
+\end{cases}
+$$
+\subsection{Frobenius norm}
+We can write the Frobenius norm as 
+\begin{align*}
+  \|B_x\|^2_F &= \frac{1}{s^2}\sum_{r = 1}^m\sum_{i \neq j}\delta_{r_i}\delta_{r_j}x_i^2x_j^2 \\
+  &= \frac{1}{s^2}\sum x_i^2 x_j^2 (\sum_{r = 1}^m \delta_{r_i}\delta_{r_j})
+\end{align*}
+where we define the expression in the parentheses to be $Q_{ij}$.
+
+\begin{claim}
+  $$\|Q_{ij}\|_p \lesssim p$$
+\end{claim}
+
+Let's assume the claim and show that the Frobenius norm is correct.
+
+\begin{align*}
+  \|\|B_x\|_F\|_p &= (\E[\|B_x\|_F]^p)^{1/p} \\
+  &= (((\E[\|B_x\|_F]^2)^{p/2})^{2/p})^{1/2} \\
+  &= \|\,\|B_x\|^2_F\,\|^{1/2}_{p/2} \\
+  &\leq \|\,\|B_x\|_F^2\,\|^{1/2}_p \\
+  &= (\|\frac{1}{s^2} \sum_{i \neq j} x_i^2x_j^2 Q_{ij}\|_p)^{1/2} \\
+  &\leq \frac{1}{s} \|\sum_{i \neq j} x_i^2x_j^2 Q_{ij}\|_p^{1/2} \\
+  &\lesssim \frac{\sqrt{p}}{s} (\sum_{i \neq j}x_i^2x_j^2)^{1/2} \\
+  &\leq \frac{\sqrt{p}}{s}\\
+  &\simeq \frac{\epsilon}{\sqrt{\ln 1/\delta}} \simeq \frac{1}{\sqrt{m}}
+\end{align*}
+
+Now, we can do the following:
+
+\begin{align*}
+\|\|\Pi x\|_2^2 - 1\|_p = \|\sigma^TB_x\sigma\|_p &\leq \sqrt{\frac{p}{m}} + \frac{p}{s} \\
+(\on{Markov}) \implies \qquad \Pr(|\,\|\Pi x\|^2 - 1\,| > \epsilon) &\leq \frac{\| \|\Pi x\|_2^2 - 1\|_p^p}{\epsilon^p}\\
+&\leq 2^p \cdot \left(\frac{\on{max}(\sqrt{\frac{p}{m}},\frac{p}{s})}{\epsilon}\right)^p < \delta
+\end{align*}
+
+Now we can prove the claim
+
+\begin{proof}
+  Let's just fix column $i$. It has $s$ nonzero elements somewhere. There's another column $j$, and the question is how many of the nonzero locations of $i$ match with nonzero elements of $j$. Let's have $Y_t$ be an indicator random variable for column $j$ having a nonzero element in the $t$th nonzero row of $i$ (\emph{note}: this is not the $t$th row of all the elements). Then $Q_{ij} = \sum_{t = 1}^{s} Y_t$. If we had independence across the entries, this would just be a Chernoff bound. But we don't, so it isn't.
+
+  \smallskip
+
+  However, the moments are dominated by the independent case.
+  \begin{align*}
+    \E[\sum_t Y_t]^p &= \sum_{s = 1}^{\on{min}(p, s)}\sum_{d_1, d_2, \ldots, d_l \sum d_j = p}\sum_{i_1 < i_2 < \ldots < i_l} \E[\prod_{q = 1}^s Y_{i_q}]
+  \end{align*}
+
+  Remember that the expected value of any $Y_t$ is $s/n$. The product at the end is just $(s/n)^l$ in the independent case. In our case, it's a conditional product:
+  \begin{align*}
+    \E\left[\prod_{q = 1}^l Y_l\right] &= \Pr(Y_{i_1} = 1) \cdot \Pr(Y_{i_2} = 1|Y_{i_ 1} = 1) \ldots\\\
+    &= \frac{s}{m}\cdot\frac{s-1}{m-1}\ldots\frac{s - l + 1}{m - l + 1} \\
+    &\leq (s/m)^l
+  \end{align*}
+  So the sum is actually dominated by the independent case, which can be handled via Bernstein's inequality.
+\end{proof}
+
+Note the runtime to apply the sparse JL map is $O(s \times \on{supp}(x))$
+
+\section{Fast JL Transform (FJLT)}
+Now we'll use a different approach that'll give $O(n\lg n)$ time, which is better in cases where $x$ is dense. This is due to Ailon \& Chazelle '09 \cite{ailon2009fast}. It is called, as the section title suggests, the FJLT.
+
+Here's their definition of $\Pi$:
+$$\Pi = \frac 1{\sqrt{m}}\cdot PHD$$
+where $P$ is an $m \times n$ sampling matrix (note that differs slightly from the paper to make the analysis easier). $H$ is $\sqrt{n}$ times an orthogonal $n \times n$ matrix, i.e.\ $H^TH = n\cdot I$. Also $\on{max}|H_{ij}| = O(1)$, and computing $Hx$ should be fast for any $x$. $D$ is an $n \times n$ diagonal matrix with random signs $\alpha_1,\ldots,\alpha_n$ along the diagonal.
+
+Today we'll let $P = S_\eta$ be an $n\times n$ diagonal matrix where the $i$th diagonal entry $\eta_i$ equals $1$ with probability $m/n$ and $0$ otherwise, and the $\eta_i$ are independent across $i$. Note that an example of $H$ could be the unnormalized discrete Fourier transform. Another possibility for $H$ is the unnormalized Hadamard matrix where $H_{i,j} = (-1)^{\inprod{i,j}}$. Here $n$ is a power of $2$ and we are interpreting $i, j$ as elements of $\mathbb{F}_2^{\log_2 n}$. Both of these matrices allow $Hx$ to be computed in time $O(n\log n)$. In general, $n\times n$ matrices $F$ which are orthogonal with $\max_{i,j} |F_{i,j}| = O(1/\sqrt{n})$ are called {\em bounded orthonormal systems}.
+
+\smallskip
+
+Motivation: what if we just sampled coordinates from $x$? That would be $Px$; let $y = (1/\sqrt{m})Px$. Then
+$$\E y_i^2 = \frac{\|x\|_2^2}{m} = \frac{1}{m} \implies \E\|y\|^2 = 1$$
+
+Note that the expected value is good, but the variance is pretty bad: what if all the mass of $x$ is at a single index? We can take intuition from the Heisenberg uncertainty principle, which says that both $x$ and $Hx$ cannot have their mass concentrated on few coordinates.
+
+In \cite{ailon2009fast} the following is shown via the Khintchine inequality:
+\begin{claim}
+  $$\forall x, \|x\|_2 = 1, \Pr_\alpha\left(\|HDx\|_\infty > c\cdot \sqrt{\frac{\lg(n/\delta)}{n}}\right) < \delta/2$$
+\end{claim}
+
+If we condition on $\alpha$ so that the event of the above claim holds, then Bernstein implies that for
+  $$m \geq \frac{\log(1/\delta)\log(n/\delta)}{\epsilon^2} ,$$
+we will have $\|(1/\sqrt{m}) P H D x\|_2^2 = (1\pm\eps)\|x\|_2^2$ with probability $1-\delta/2$. Thus by a union bound, the overall failure probability is $\delta$.
+
+If we actually want to have $O(\eps^{-2}\log(1/\delta))$ rows, one way to achieve this is to set use the matrix $\Pi' \cdot (1/\sqrt{m}) PHD$, where $\Pi'$ is for example a dense random sign matrix with $m' = O(\eps^{-2}\log(1/\delta))$ rows.
+
+The total time to apply $\Pi'\cdot \Pi$ is then $O(n\log n + m' \cdot m)$. 
+
+A slightly different analysis can improve the $\log(n/\delta)$ dependence in $m$ to actually be $\log(m/\delta)$ as follows. 
+
+\begin{theorem}\label{thm:fjlt}
+Let $x\in\R^n$ be an arbitrary unit norm vector, and suppose $0 < \eps, \delta < 1/2$. Also let $\Pi = S_\eta H D$ as described above with a number of rows equal to $m\gtrsim \eps^{-2}\log(1/\delta)\log(1/(\eps\delta))$. Then
+$$
+\Pr_\Pi(| \|\Pi x\|_2^2 - 1 | > \eps ) < \delta .
+$$
+\end{theorem}
+\begin{proof}
+We use the moment method. Let $\eta'$ be an independent copy of $\eta$, and let $\sigma\in\{-1,1\}^n$ be uniformly random. Write $z = HDx$ so that $\|\Pi x\|_2^2 = \sum_i \eta_i z_i^2$. Then
+\allowdisplaybreaks
+\begin{align}
+\|\frac 1m\sum_{i=1}^n \eta_i z_i^2 - 1\|_p &= \|\|\frac 1m\sum_i \eta_i z_i^2 - 1\|_{L^p(\eta)}\|_{L^p(\alpha)} \EquationName{sqrtfjlt1}\\
+\nonumber {}  &= \|\|\frac 1m\sum_i \eta_i z_i^2 - \frac 1m\E_{\eta'} \sum_i \eta'_i z_i^2\|_{L^p(\eta)}\|_{L^p(\alpha)}\\
+\nonumber {}  &\le \|\|\frac 1m\sum_i z_i^2 (\eta_i - \eta'_i)\|_{L^p(\eta,\eta')}\|_{L^p(\alpha)}\ (\text{Jensen})\\
+\nonumber {}  &= \|\|\frac 1m\sum_i \sigma_iz_i^2 (\eta_i - \eta'_i)\|_{L^p(\eta,\eta')}\|_{L^p(\alpha)}\ (\text{equal in distribution})\\
+\nonumber {} &\le \frac 2m\cdot \|\|\sum_i \sigma_i \eta_i z_i^2\|_{L^p(\eta)}\|_{L^p(\alpha)}\text{ (triangle inequality)}\\
+\nonumber {} &\le \frac 2m\cdot \|\sum_i \sigma_i \eta_i z_i^2\|_p\\
+\nonumber {}&\lesssim \frac{\sqrt{p}}m\cdot \|(\sum_i \eta_i z_i^4)^{1/2}\|_p \text{ (Khintchine)}\\
+\nonumber {}&\le \frac{\sqrt{p}}m\cdot \|(\max_i \eta_i |z_i|) \cdot (\sum_i \eta_i z_i^2)^{1/2}\|_p\\
+\nonumber {}&\le \frac{\sqrt{p}}m\cdot \|\max_i \eta_i z_i^2\|_p^{1/2} \cdot \|\sum_i \eta_i z_i^2\|_p^{1/2}\text{ (Cauchy-Schwarz)}\\
+{}&\le \sqrt{\frac pm} \cdot \|\max_i \eta_i z_i^2\|_p^{1/2} \cdot (\|\frac 1m\sum_i \eta_i z_i^2 - 1\|_p^{1/2} + 1)\text{ (triangle inequality)} \EquationName{sqrtfjlt2}
+\end{align}
+
+We will now bound $\|\max_i \eta_i z_i^2\|_p^{1/2}$. Define $q = \max\{p, \log m\}$ and note $\|\cdot\|_p \le \|\cdot\|_q$. Then
+\begin{align}
+\nonumber \|\max_i \eta_i z_i^2\|_q &= \left(\E_{\alpha, \eta}\max_i \eta_i z_i^{2q}\right)^{1/q}\\
+\nonumber &\le \left(\E_{\alpha, \eta}\sum_i \eta_i z_i^{2q}\right)^{1/q} \\
+\nonumber &= \left(\sum_i \E_{\alpha, \eta} \eta_i z_i^{2q}\right)^{1/q} \\
+\nonumber &\le \left(n\cdot \max_i \E_{\alpha, \eta} \eta_i z_i^{2q}\right)^{1/q} \\
+\nonumber &= \left(n\cdot \max_i (\E_{\eta} \eta_i)\cdot (\E_\alpha z_i^{2q})\right)^{1/q} \text{ (}\alpha, \eta\text{ independent)}\\
+\nonumber &= \left(m\cdot \max_i \E_\alpha z_i^{2q}\right)^{1/q}\\
+\nonumber {}&\le 2\cdot \max_i \| z_i^2 \|_q\text{ (}m^{1/q} \le 2\text{ by choice of }q\text{)}\\
+\nonumber {}&= 2\cdot \max_i\|z_i\|_{2q}^2\\
+{}&\lesssim q \text{ (Khintchine)} \EquationName{needbos}
+\end{align}
+\Equation{needbos} uses that $H$ is an unnormalized bounded orthonormal system.
+
+Defining $E = \|\frac 1m\sum_i \eta_i z_i^2 - 1\|_p^{1/2}$ and combining \Eqsub{sqrtfjlt1}, \Eqsub{sqrtfjlt2}, \Eqsub{needbos}, we find that for some constant $C>0$
+$$
+E^2 - C\sqrt{\frac{pq}m}E - C\sqrt{\frac{pq}m} \le 0 ,
+$$
+implying $E^2\lesssim \max\{\sqrt{pq/m}, pq/m\}$. By the Markov inequality
+$$
+\Pr(|\|\Pi x\|_2^2 - 1| > \eps) \le \eps^{-p}\cdot E^{2p} ,
+$$
+and thus to achieve the theorem statement it suffices to set $p = \log(1/\delta)$ then choose $m\gtrsim \eps^{-2}\log(1/\delta)\log(m/\delta)$.
+\end{proof}
+
+\begin{remark}
+\textup{
+Note that the FJLT as analyzed above provides suboptimal $m$. If one desired optimal $m$, one can instead use the embedding matrix $\Pi' \Pi$,where $\Pi$ is the FJLT and $\Pi'$ is, say, a dense matrix with Rademacher entries having the optimal $m' = O(\eps^{-2}\log(1/\delta))$ rows. The downside is that the runtime to apply our embedding worsens by an additive $m\cdot m'$. \cite{ailon2009fast} slightly improved this additive term (by an $\eps^2$ multiplicative factor) by replacing the matrix $S$ with a random sparse matrix $P$.
+}
+\end{remark}
+
+\begin{remark}
+\textup{
+The usual analysis for the FJLT, such as the approach in \cite{ailon2009fast}, would achieve a bound on $m$ of $O(\eps^{-2}\log(1/\delta)\log(n/\delta))$. Such analyses operate by, using the notation of the proof of Theorem~\ref{thm:fjlt}, first conditioning on $\|z\|_\infty \lesssim \sqrt{\log(n/\delta)}$ (which happens with probability at least $1-\delta/2$ by the Khintchine inequality), then finishing the proof using Bernstein's inequality. In our proof above, we improved this dependence on $n$ to a dependence on the smaller quantity $m$ by avoiding any such conditioning.
+}
+\end{remark}
+
+\subsection{Application: High-dimensional approximate nearest neighbors search (ANN)}
+
+Let's assume that we're working with $L2$ distances in $\R^d$. Let's define the \emph{exact nearest neighbors problem} as follows: we're given $n$ points $P = \{p_1, p_2\ldots p_n\}, p_i \in \R^d$. We need to create a data structure such that a query on point $q \in \R^d$ returns a point $p \in P$ such that the distance $\|p - q\|_2$ is minimized. An example application might be image retrieval (\emph{similar images}). In the approximate case, we want to return a point $p$ such that $\|p - q\|_2 \leq c\cdot \underset{p' \in P}{\on{min}}\|p' - q\|_2$. Note that the simple solution is to store all the points in a list and just check them all on query, but that requires $nd$ time to calculate.
+
+\subsubsection{Voronoi diagrams}
+One way to solve this problem is to construct the \emph{Voronoi diagram} for the points in the space, which is the division of the space into areas $A_i$ such that all points $x \in A_i$ are closest to $p_i$. Then on a query we do \emph{planar point location} to find the correct Voronoi cell for a point. However, when $d \neq 2$, the curse of dimensionality strikes. In $d$ dimensions, the Voronoi diagram requires $n^{\theta(d)}$ space to store. Note that this is a lower bound!
+
+\subsubsection{Approximate Nearest Neighbor (ANN)}
+This reduces to the problem c-NN (\cite{har2012approximate}). 
+
+\emph{(c, r)-NN}: If there exists $p \in P$ such that $\|p - q\| \leq r$, then return $p' \in P$ such that $\|p' - q\| \leq cr$. If there doesn't exist such a $p$, then FAIL.
+
+The easiest reduction is just binary search on $r$, but the above reference avoids some problems.
+
+\begin{center}
+ \begin{tabular}{||c c c||} 
+ \hline
+ Space & Time & Ref. \\
+ \hline\hline
+ $dn + n^{O(1/\epsilon^2)}$ & $(d + \frac{\log n}{\epsilon})^{O(1)}$ & \cite{KushilevitzOR98}\cite{indyk1998approximate} \\ 
+ \hline
+ $dn + n^{1 + \rho(c)}$ & $n^{\rho(c)}$ &  \\
+ \hline\hline
+ &$\rho(c)=$& Ref. \\
+ \hline\hline
+ &$1/c$ & \cite{gionis1999similarity} \\
+ \hline
+ &$\frac{1}{c^2} + o(1)$ & \cite{andoni2006near}\\
+ \hline
+ &$(7/8)c^2 + o(1/c^3)$ & \cite{andoni2014beyond} \\
+ \hline
+ &$\frac{1}{(2c^2 - 1)} + o(1)$ & \cite{AndoniR15} \\
+ \hline
+ $O(dn)$ & $\frac{2.06}{c}$ & \cite{motwani2007lower}\\
+ \hline
+\end{tabular}
+\end{center}
+
+Today we just show the following result:
+
+\begin{enumerate}
+\item ANN with $n^{O(\log(1/\epsilon)/\epsilon^2)}$ space.
+\item First, $dn+n\cdot O(c/\epsilon^d)$ space
+\item Pretend $r=1$. Impose uniform $\epsilon/\sqrt{d}$ grid on $\mathbb{R}^d$
+\item for each $p_i\in P$, let $B_i=B_{l_2}(p_i,1)$
+\item let $B_i'=$ set of the grid cells that $B_i$ intersects
+\item Store $B'=\cup B_i'$ in a hash table (key = grid cell ID, value = $i$). 
+\item $\#$ of grid cell intersected $\leq Vol(B_{l_2^d}(1+\epsilon)/Vol(\text{grid cell}))$
+\item The volumn of the ball is $R^d2^{O(d)}/d^{d/2}$ 
+\item so we have $\#$ of grid cell intersected $\leq(c/\epsilon)^d$
+\end{enumerate}
+
+Now note $d$ can be reduced to $O(\eps^{-2}\log n)$ using the JL lemma, giving the desired space bound.
+
+\bibliographystyle{alpha}
+\bibliography{\jobname}
+
+\end{document}

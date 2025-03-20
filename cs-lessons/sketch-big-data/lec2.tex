@@ -1,0 +1,247 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+\DeclareMathOperator*{\Var}{\operatorname{Var}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{2 --- September 5, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Saketh Rama}
+
+\section{Overview}
+
+In the last lecture, we surveyed the topics for this course, reviewed some probability theory, and considered Morris's algorithm for approximate counting with small registers.
+
+In this lecture, we focus on another \emph{streaming problem} -- counting \emph{distinct} elements in a stream. We consider an idealized solution to this problem, then outline the non-idealized solution which relies on $k$-wise independent hash functions.
+
+\section{Counting Distinct Elements in a Stream}
+
+More formally, consider a stream $i_1, i_2, i_3, \dots, i_m \in \{1, \dots, n\}.$ We want our \texttt{query()} operation to return the number of distinct integers in the stream.
+
+\subsection{Trivial Solutions}
+
+The most obvious solution is to maintain a bitvector of length $n$ ($n$ bits). Another option is to just remember the stream ($\min(m,n) \lg n$ bits). 
+
+\subsection{Goal for Today}
+
+We can actually solve this in $O(\min(m \lg n, n)$ bits of memory, but it turns out (though we will not prove this in lecture) that we need to require both approximate and randomized, else we need linear memory.
+
+For today, we want to output some answer $\tilde{A}$ such that $\Pr(|\tilde{A} - \text{Answer}| > \eps \cdot \text{Answer}) < \delta.$ As usual, the $\eps$ is the approximation factor and the $\delta$ is the failure probability.
+
+The first work to achieve this was \cite{flajolet1985probabilistic}. We will do something similar, but not quite the same.
+
+\subsection{Idealized Solution}
+
+We will start with an idealized solution that uses real numbers -- and therefore requires infinite memory! However, let's pretend that the real numbers don't require infinite memory for now, because the non-idealized solution is similar in spirit.
+
+\subsubsection{FM} Our basic algorithm (which we will call \textbf{FM} and subsequently upgrade into \textbf{FM+} and \textbf{FM++} as in previous lecture) proceeds as follows:
+
+\begin{enumerate}
+\item Pick random hash function $h : [n] \to [0, 1].$
+\item Maintain in memory the smallest hash we've seen so far: $X = \min_{i \in \text{stream}} h(i).$
+\item \texttt{query()}: output $1/X - 1.$
+\end{enumerate}
+
+For some intuition, say that $t$ is the number of distinct elements. We are partitioning the interval $[0, 1]$ into bins of size $1/(t+1).$ With this in mind, we claim the following:
+
+\begin{claim}
+$\displaystyle \E[X] = \frac{1}{t+1}.$
+\end{claim}
+\begin{proof}
+\begin{align*}
+\E[X] &= \int_0^\infty \Pr(X > \lambda) \, d\lambda \\
+&= \int_0^\infty \Pr(\forall i \in \text{stream}, h(i) > \lambda) \, d\lambda \\
+&= \int_0^\infty \prod_{i \in \text{stream}} \Pr(h(i) > \lambda) \, d\lambda \\
+&= \int_0^1 (1 - \lambda)^t \, d\lambda \\
+&= \frac{1}{t+1}
+\end{align*}
+\end{proof}
+
+We compute similarly to get the variance $\Var[X].$
+
+\begin{claim}
+$\displaystyle \E[X^2] = \frac{2}{(t+1)(t+2)}.$
+\end{claim}
+\begin{proof}
+\begin{align*}
+\E[X^2] &= \int_0^\infty \Pr(X^2 > \lambda) \, d\lambda \\
+&= \int_0^\infty \Pr(X > \sqrt{\lambda}) \, d\lambda \\
+&= \int_0^1 (1 - \sqrt{\lambda})^t \, d\lambda \\
+&= 2 \int_0^1 u^t (1 - u) \, du \hspace{2cm} [u = 1 - \sqrt{\lambda}]
+&= \frac{2}{(t+1)(t+2)}
+\end{align*}
+\end{proof}
+
+So $$\Var[X] = \frac{2}{(t+1)(t+2)} - \frac{1}{(t+1)^2} = \frac{t}{(t+1)^2(t+2)} < (\E[X])^2.$$
+
+\subsubsection{FM+} We can upgrade our basic algorithm into \textbf{FM+} by running it $q = \frac{1}{\eps^2 \eta}$ times in parallel to obtain $X_1, \dots, X_q.$ Then \texttt{query()} should output $$\frac{1}{\frac{1}{q} \sum_{i = 1}^q X_i} - 1.$$
+
+\begin{claim}
+$\displaystyle \Pr\left(\left|\frac{1}{q} \sum_{i = 1}^q X_i - \frac{1}{t+1}\right| > \frac{\eps}{t+1}\right) < \eta.$
+\end{claim}
+\begin{proof}
+By Chebyshev's inequality, 
+
+\begin{align*}
+\Pr\left(\left|\frac{1}{q} \sum_{i = 1}^q X_i - \frac{1}{t+1}\right| > \frac{\eps}{t+1}\right) &< \frac{\Var[\frac{1}{q} \sum_i X_i]}{\frac{\eps^2}{(t+1)^2}} \\
+&< \frac{1}{\eps^2 q} = \eta.
+\end{align*}
+\end{proof}
+
+This gives us a \emph{linear} dependence on the failure probability, but we want \emph{logarithmic}. 
+
+\subsubsection{FM++} To achieve this, we will define \textbf{FM++} as running $t = \Theta(\lg\frac{1}{\delta})$ independent copies of FM+, each with $\eta = 1/3.$ Then \texttt{query()} outputs the \emph{median} across all FM+ estimates.
+
+The new space for FM++ is now $\displaystyle O\left(\frac{1}{\epsilon^2} \lg \frac{1}{\delta}\right).$
+
+To analyze this, define indicator random variables $Y_1, \dots, Y_t,$ where $Y_i$ is 1 iff the $i$th copy of FM+ failed to achieve a $(1+\epsilon)$-approximation (the event in the probability bound).
+
+\subsection{Non-Idealized Solution} First, we need a pseudorandom hash function $h$. We will use \textbf{$k$-wise independent hash functions}.
+
+\subsubsection{$k$-wise independent hash functions}
+
+\begin{definition}
+A family $\mathcal{H}$ of functions mapping $[a]$ into $[b]$ is \emph{$k$-wise independent} iff for all distinct $i_1, \dots, i_k \in [a]$ and for all $j_1, \dots, j_k \in [b],$ $$\Pr_{h \in \mathcal{H}}(h(i_1) = j_1 \land \cdots \land h(i_k) = j_k) = \frac{1}{b^k}.$$
+\end{definition}
+
+Note that we can store $h \in \mathcal{H}$ in memory with $\log_2|\mathcal{H}|$ bits.
+
+One example of such a family $\mathcal{H}$ is the set of all functions mapping $[a]$ to $[b]$. Then $|\mathcal{H}| = b^a,$ and so $\lg|\mathcal{H}| = a \lg b.$ A less trivial example is due to Carter and Wegman \cite{carter1977universal}, where $\mathcal{H}$ is the set of all degree-$(k-1)$ polynomials over $\mathbb{F}_q$ such that $a = b = q.$ Then $|\mathcal{H}| = q^k,$ and so $\lg|\mathcal{H}| = k \lg q.$ (This is not too hard to justify but we will not do so in lecture.)
+
+Having seen these examples, we will just assume that we have access to some 2-wise independent hash families, which will let us store in $\lg n$ bits.
+
+\subsubsection{Common Strategy: Geometric Sampling of Streams} Suppose we have a substitute that gives us $\tilde{t}$ as a 32-approximation to $t.$ To get the $(1+\eps)$-approximation, we will use the common strategy of \textbf{\emph{geometric sampling of streams}}. This is important to understand because it is used fairly often in scenarios like this one.
+
+First, let us consider the trivial solution (\textbf{TS}): remember the first $K$ distinct elements in the stream, with $K = c/\eps^2.$ Our algorithm then composes these trivial solutions as follows:
+
+\begin{enumerate}
+\item Assume $n$ is a power of 2.
+\item Pick $g : [n] \to [n]$ from a 2-wise family.
+\item \texttt{init()}: create $\lg n + 1$ trivial solutions $\mathrm{TS}_0, \dots, \mathrm{TS}_K.$
+\item \texttt{update($i$)}: feed $i$ to $\mathrm{TS}_{\mathrm{LSB}(g(i))}$
+\item \texttt{query()}: choose $j$ such that $\displaystyle \frac{\tilde{t}}{2^{j+1}} \approx \frac{1}{\epsilon^2}.$ (We want this squared term due to Chebyshev's inequality.)
+\item output: $\mathrm{TS}_{j \cdot \texttt{query()} \cdot 2^{j+1}}$
+\end{enumerate}
+
+Consider $g : [16] \to [16],$ say with $g(i) = 1 0 \textbf{1} 0.$ In this case, the LSB index is 1 (hence the ``+1'' in \texttt{init()}). For the LSB index to equal $j$, we need a ``run'' of $j-1$ zeros from right to left.
+
+Define a set of \emph{virtual streams} wrapping the trivial solutions. $$\begin{array}{rlcc}
+\mathrm{VS} & 0 & \longrightarrow & \mathrm{TS}_0 \\
+\vdots & \vdots & \vdots & \vdots \\
+\mathrm{VS} & \lg n & \longrightarrow & \mathrm{TS}_{\lg n}
+\end{array}$$
+
+Fix some $j \in \{0, \dots, \lg n\}.$ Let $Z_i$ be an indicator random variable for $\mathrm{LSB}(g(i)) = j.$ Then the number of distinct elements in VS $j$ is $\sum_{i \in \text{stream}} Z_i = Z.$ Note that $\E[Z] = \frac{t}{2^{j+1}},$ and $\Var[\sum_i Z_i] = \sum_i \Var[Z_i]$ due to the pairwise independence we have inherited from our 2-wise hash function. (In fact, that is why we required the 2-wise independence in the first place, so that we can do this with the variance later on.) We can then conclude that $$\sum_i \Var[Z_i] < \frac{t}{2^{j+1}} = Q_j,$$ where we have denoted this last term as $Q_j.$
+
+Now we can apply Chebyshev with a 9/10 probability. Note that $Z - Q_j = O(\sqrt{Q_j}),$ so $$Z = Q_j \pm O(\sqrt{Q_j}) = \left(1 \pm O\left(\frac{1}{\sqrt{Q_j}}\right)\right) Q_j.$$ We want the term inside the $O$-expression to be $\eps.$ (Also, if $j$ is too small, such that $\tilde{t}/(2^{j+1})$ cannot be approximately $1/\eps^2$ as needed, then just run the trivial solution alone and backoff to the above algorithm if needed.)
+
+Without being too pedantic here, just find the highest nonempty virtual stream. We can analyze this to obtain the 90\% probability stated at the outset.
+
+How much space do we need? We need to store $g$ ($\lg{n}$), and also $\mathrm{TS}_j$ for $j \in \{0, \dots, \lg{n}\}.$ So in total, we need $O\left(\frac{1}{\eps^2}\cdot \lg^2{n} \cdot \lg \frac{1}{\delta} \right) bits.$
+
+\subsection{State-of-the-Art Bounds in Literature}
+
+\subsubsection{Lower Bound} The lower bound is $\displaystyle \Omega\left(\frac{1}{\eps^2} \lg{\frac{1}{\delta}} + \lg{n}\right)$ bits. For those interested in the history of this lower bound, see the following references:
+
+\begin{enumerate}
+\item \cite{alon1996space}
+\item \cite{woodruff2004optimal}
+\item \cite{indyk2005optimal}
+\item \cite{jayram2009data}
+\end{enumerate}
+
+\subsubsection{Upper Bound} First was the work on ``HyperLogLog'', which established $$O\left(\frac{1}{\eps^2} \lg\lg n + \lg n\right).$$ Forthcoming work from B{\l}asiok (2018?) has established $$O\left(\frac{1}{\eps^2} \lg\frac{1}{\delta^2} + \lg n\right),$$ and so the problem is pretty much completely solved.
+
+\section{Future Work: Continuous Monitoring}
+
+A related area which may offer interesting opportunities is the \emph{continuous monitoring} problem, where we expect $m$ queries and must maintain correctness throughout A basic union bound is a trivial solution to this.
+
+\bibliographystyle{plain}
+
+\begin{thebibliography}{42}
+
+\bibitem{flajolet1985probabilistic}
+Philippe~Flajolet, G. Nigel~Martin.
+\newblock Probabilistic Counting Algorithms for Data Base Applications.
+\newblock {\sl J. Comput. Syst. Sci.}, 31(2):182--209, 1985.
+
+\bibitem{carter1977universal}
+J.~Lawrence~Carter, Mark~N.~Wegman.
+\newblock Universal Classes of Hash Functions.
+\newblock {\sl Proceedings of the Ninth Annual ACM Symposium on Theory of Computing}, pp. 106--112, 1997.
+
+\bibitem{alon1996space}
+Noga~Alon, Yossi~Matias, Mario~Szegedy.
+\newblock The Space Complexity of Approximating the Frequency Moments.
+\newblock {\sl Proceedings of the Twenty-Eighth Annual ACM Symposium on Theory of Computing}, pp. 20--29, 1996.
+
+\bibitem{indyk2005optimal}
+Piotr~Indyk, David~Woodruff.
+\newblock Optimal Approximations of the Frequency Moments of Data Streams.
+\newblock {\sl Proceedings of the Thirty-Seventh Annual ACM Symposium on Theory of Computing}, pp. 202--208, 2005.
+
+\bibitem{woodruff2004optimal}
+David~Woodruff.
+\newblock Optimal Space Lower Bounds for All Frequency Moments.
+\newblock {\sl Proceedings of the Fifteenth Annual ACM-SIAM Symposium on Discrete Algorithms}, pp. 167--175, 2004.
+
+\bibitem{jayram2009data}
+Thathachar~Jayram, David~Woodruff.
+\newblock The Data Stream Space Complexity of Cascaded Norms.
+\newblock {\sl 50th Annual IEEE Symposium on Foundations of Computer Science}, pp. 765--774, 2009.
+
+\bibitem{flajolet2007hyperloglog}
+Philippe~Flajolet, {\'E}ric~Fusy, Olivier~Gandouet, Fr{\'e}d{\'e}ric~Meunier.
+\newblock Hyperloglog: The Analysis of a Near-Optimal Cardinality Estimation Algorithm.
+\newblock {\sl AofA: Analysis of Algorithms}, pp. 137--156, 2007.
+
+\end{thebibliography}
+
+\end{document}

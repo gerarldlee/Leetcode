@@ -1,0 +1,447 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{fullpage}
+%\usepackage{stmaryrd}
+\usepackage{bbm}
+\usepackage{hyperref}
+\usepackage{changepage}
+\usepackage[normalem]{ulem}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+\DeclareMathOperator*{\Tr}{Tr}
+
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\eqdef}{\mathbin{\stackrel{\rm def}{=}}}
+\newcommand{\norm}[1]{\left\| #1 \right\|}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{note}[theorem]{Note}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{ 22 --- November 5, 2013}{Fall 2013}{Prof.\ Jelani Nelson}{Abdul Wasay}
+
+
+%% %% %% 
+\section{Introduction to the Matrix Completion Problem}
+
+(Notes heavily borrow from Fall 2013 notes by Kristan Temme and Yun William Yu)
+
+This is sometimes called the Netflix problem. A motivation for the matrix completion problem comes from user ratings 
+of some products which are put into a matrix $M$. The entries $M_{ij}$ 
+of the matrix correspond to the $j$'th user's rating of  product $i$. 
+We assume that there exists an ideal matrix that encodes the ratings of 
+all the products by all the users. However, it is not possible to ask 
+every user his opinion about every product. We are only given some 
+ratings of some users and we want to recover the actual ideal matrix $M
+$ from this limited data.  So matrix completion is the following 
+problem:  
+
+{\bf Problem:} Suppose you are given some matrix $M \in {\mathbb{R}}
+^{n_1 \times n_2}$. Moreover, you also are given some entries $
+\left( M_{ij} \right)_{ij \in \Omega}$ with $|\Omega| \ll n_1n_2$.
+
+{\bf Goal:} We want to recover the missing elements in $M$.  
+
+This problem is impossible if we don't make any additional assumptions 
+on the matrix $M$ since the missing $M_{ij}$ could in principle be 
+arbitrary.  We will discuss a recovery scheme that relies on the 
+following three assumptions.
+
+\begin{enumerate}
+\item  $M$ is (approximately) low rank.
+\item  Both the columns space and the row space are ``incoherent''. We 
+say a space is  incoherent, when the projection of any vector onto this 
+space has a small $\ell_2$ norm.
+\item If $M = U\Sigma V^T$ then all the entries of $UV^T$ are bounded.
+\item  The subset $\Omega$ is chosen uniformly at random. 
+\end{enumerate} 
+
+\begin{note}
+	There is work on adversarial recovery where the values are not 
+	randomly chosen but carefully picked to trick us by an adversary. 
+\end{note}
+Under these assumptions we show that there exists an 
+algorithm that needs a number of entries in $M$ bounded by $|\Omega| 
+\leq (n_1 + n_2) \;  r \; \mbox{poly}\left(\log(n_1n_2)\right)\cdot \mu
+$. Here $\mu$ captures to what extent properties 2 and 3 above hold. 
+One would naturally consider the following recovery method for the 
+matrix $M$:
+
+\begin{eqnarray*}
+	&&\mbox{minimize}   \;\;\;\; \mbox{rank}(X) \\ 
+	&&\mbox{subject to:} \;\;\;\;  X_{ij} = M_{ij} \;\; \forall i,j \in 
+	\Omega.
+\end{eqnarray*}
+
+Unfortunately this optimization problem is $NP$-hard. We will therefore 
+consider the following alternative optimization problem in trace norm, or
+{\em nuclear norm}.
+
+\begin{eqnarray*}
+	&&\mbox{minimize}   \;\;\;\; \|X\|_* \\ 
+	&&\mbox{subject to:} \;\;\;\;  X_{ij} = M_{ij} \;\; \forall i,j \in 
+	\Omega,
+\end{eqnarray*}
+
+where the nuclear norm of $X$ defined as the sum of the singular values of $X$, 
+i.e. $\|X\|_* = \sum_i \sigma_i(X)$. This problem is an SDP (semi-
+definite program), and can be solved in time polynomial in $n_1n_2$.  
+%% %% %%
+
+%% %% %%
+
+\section{Work on Matrix Completion}
+Let's now go through the history of prior work on this 
+problem. Recall the setup and model:
+
+\begin{itemize}
+\item Matrix completion setup:
+ \begin{itemize}
+  \item Want to recover $M \in \mathbb{R}^{n_1 \times n_2}$, under the assumption that $\text{rank}(M) = r$, where $r$ is small.
+  \item Only some small subset of the entries $(M_{ij})_{ij \in \Omega}$ are revealed, where $\Omega \subset [n_1] \times [n_2], |\Omega| = m \ll n_1, n_2$
+  \end{itemize}
+  \item Model:
+  \begin{itemize}
+  \item $m$ times we sample $i, j$ uniformly at random + insert into $\Omega$ (so $\Omega$ is a multiset). 
+  \item Note that the same results hold if we choose $m$ entries without replacement, but it's easier to analyze this way. In fact, if you can show that if recovery works with replacement, then that implies that recovery works without replacement, which makes sense because you'd only be seeing more information about $M$.
+  \end{itemize}
+  \item We recover $M$ by Nuclear Norm Minimization (NNM): 
+  \begin{itemize}
+  \item Solve the program $ \min \norm{X}_{*}$ s.t. $\forall i,j\in \Omega, X_{ij} = M_{ij} $
+  \end{itemize}
+
+ \item {[}Recht, Fazel, Parrilo '10] \cite{recht2010guaranteed} was first to give some rigorous guarantees for NNM. 
+ \item {[}Cand{\'e}s, Recht, '09] \cite{candes2009exact} was the first paper to show provable guarantees for NNM applied to matrix completion.
+ \item There were some quantitative improvements (in the parameters) in two papers: [Cand{\'e}s, Tao '09] \cite{candes2010power} and [Keshavan, Montanari, Oh '09] \cite{keshavan2010matrix}
+ \item \textbf{Today} we're going to cover an analysis given in [Recht, 2011] \cite{recht2011simpler}, which has a couple of advantages.
+ \begin{itemize}
+ \item First, it has the laxest of all the conditions.
+ \item Second, it's also the simplest of all the analyses in the papers.
+ \item Thus, it's really better in every way there is.
+ \end{itemize}
+\end{itemize}
+
+The approach of \cite{recht2011simpler} was inspired by work in quantum tomography \cite{GLF+10}. A more general theorem than the one proven in class today was later proven by Gross \cite{Gross11}.
+
+It is worth noting that there have been other important works on matrix completion which we will not get to in the course. In particular, one particular paradigm is {\em Alternating Minimization (AM)}.
+
+The basic idea behind AM is as follows. It is an iterative algorithm. We try to find an approximate rank-$k$ factorization $M \approx X\cdot Y$, where $X$ has $k$ columns and $Y$ has $k$ rows. We start off with initial $X_0, Y_0$. Then we do as follows:
+\begin{enumerate}
+\item initialize $X_0, Y_0$ (somehow)
+\item \textbf{for} $\ell = 1,\ldots, T$:
+\begin{enumerate}
+\item $X_\ell \leftarrow \mathop{argmin}_X \|R_\Omega(M - XY_{\ell - 1})\|_F^2$
+\item $Y_\ell \leftarrow \mathop{argmin}_Y \|R_\Omega(M - X_\ell Y)\|_F^2$
+\end{enumerate}
+\item \textbf{return} $X_T, Y_T$
+\end{enumerate}
+
+Rigorous analyses of modifications of the above AM template have been carried out in \cite{Hardt14,HardtW14}. The work \cite{SchrammW15} has also shown some performance guarantees when the revealed entries are {\em adversarial} except for random (though in this case, many more entries have to be revealed).
+
+\section{Theorem Statement}
+
+We're almost ready to formally state the main theorem, but need a couple of definitions first.
+\begin{definition}
+Let $M = U \Sigma V^*$ be the singular value decomposition. (Note that $U \in \mathbb{R}^{n_1 \times r}$ and $V \in \mathbb{R}^{n_2 \times r}$.)
+\end{definition}
+\begin{definition}
+Define the incoherence of the subspace $U$ as $\mu(U) = \frac{n_1}{r} \cdot \max_i \norm{P_U e_i}^2$, where $P_U$ is projection onto $U$.
+Similarly, the incoherence of $V$ is $\mu(V) = \frac{n_2}{r} \cdot \max_i \norm{P_V e_i}^2$, where $P_V$ is projection onto $V$.
+\end{definition}
+
+
+\begin{definition}
+ $\mu_0 \eqdef \max \{ \mu(U), \mu(V) \}$. 
+\end{definition}
+
+
+\begin{definition}
+$\mu_1 \eqdef \norm{UV^*}_{\infty}\sqrt{n_1n_2/r}$, where $\|UV\|_\infty$ is the largest magnitude of an entry of $UV$.
+\end{definition}
+
+\begin{theorem}
+If  $m \gtrsim \max\{\mu_1^2, \mu_0 \} \cdot n_2 r \log^2 (n_2)$ then with high probability $M$ is the unique solution to the semi-definite program $ \min \norm{X}_{*}$ s.t. $\forall i,j\in \Omega, X_{ij} = M_{ij} $.
+\end{theorem}
+Note that $1 \le \mu_0 \le \frac{n_2}{r}$. The way $\mu_0$ can be $\frac{n_2}{r}$ is if a standard basis vector appears in a column of $V$, and the way $\mu_0$ can get all the way down to $1$ is like the best case scenario where all the entries of $V$ are like $\frac{1}{\sqrt{n_2}}$ and all the entries of $U$ are like $\frac{1}{\sqrt{n_1}}$, so for example if you took a Fourier matrix and cut off some of its columns. Thus, the condition on $m$ is a good bound if the matrix has low incoherence.
+
+One might wonder about the necessity of all the funny terms in the condition on $m$. Unfortunately, [Candes, Tao, '09] \cite{candes2010power} showed $m \gtrsim \mu_0 n_2 r \log(n_2) $ is needed (that is, there is a family of examples $M$ that need this). If you want to have any decent chance of recovering $M$ over the random choice of $\Omega$ using this SDP, then you need to sample at least that many entries. The condition isn't completely tight because of the square in the log factor and the dependence on $\mu_1^2$. However, Cauchy-Schwarz implies $\mu_1^2\le \mu_0^2 r$.
+
+Just like in compressed sensing, there are also some iterative algorithms to recover $M$, but we're not going to analyze them in class. For example, the \textbf{SparSA} algorithm given in [Wright, Nowak, Figueiredo '09] \cite{wright2009sparse} (thanks for Ben Recht for pointing this out to me). That algorithm roughly looks as follows when one wants to minimize $\| A X - M \|_F^2  + \mu \| X \|_*$:
+\begin{enumerate}
+\item[] Pick $X_0$, and a stepsize $t$ and iterate (a)-(d) some number of times:
+\begin{enumerate}
+\item[(a)] $Z = X_k-t\cdot A^T(A X_k - M)$
+\item[(b)] $[U,\mathbf{diag}(s),V] = \mathbf{svd}(Z)$
+\item[(c)] $r = \max(s-\mu t,0)$
+\item[(d)] $X_{k+1} = U \mathbf{diag}( r ) V^T$
+\end{enumerate}
+\end{enumerate}
+
+As an aside, trace-norm minimization is actually tolerant to noise, but I'm not going to cover that.
+
+\section{Analysis}
+The way that the analysis is going to go is we're going to condition on lots of good events all happening, and if those good events happen, then the minimization works. The way I'm going to structure the proof is I'll first state what all those events are, then I'll show why those events make the minimization work, and finally I'll bound the probability of those events not happening.
+
+\subsection{Background and more notation}
+Before I do that, I want to say some things about the trace norm.
+\begin{definition}
+$\inprod{A, B} \eqdef \Tr(A^*B) = \sum_{i,j} A_{ij} B_{ij}$
+\end{definition}
+
+\begin{claim}
+\label{tracedual}
+The dual of the trace norm is the operator norm:
+\[
+\norm{A}_{*} = \sup_{\substack{ B \text{ s.t.} \\ \norm{B} \le 1}} \inprod{A, B} 
+\]
+\end{claim}
+This makes sense because the dual of $\ell_1$ for vectors is $\ell_\infty$ and this sort of looks like that because the trace norm and operator norm are respectively like the $\ell_1$ and $\ell_\infty$ norm of the singular value vector. More rigorously, we can prove it by proving inequality in both directions. One direction is not so hard, but the other requires the following lemma.
+
+\begin{lemma}
+\[
+\underbrace{\norm{A}_{*}}_\text{(1)} = 
+\underbrace{\min_{\substack{X, Y \text{ s.t.} \\ A = XY^*}} \norm{X}_F \cdot \norm{Y}_F}_\text{(2)} =
+\underbrace{\min_{\substack{X, Y \text{ s.t.} \\ A = XY^*}} \frac{1}{2} \left(\norm{X}_F^2 + \norm{Y}_F^2 \right)}_\text{(3)}
+\]
+\end{lemma}
+\begin{proof}[Proof of lemma.] \ 
+
+\noindent \textbf{(2) $\le$ (3):}
+\\
+\indent AM-GM inequality: $ xy \le \frac{1}{2} (x^2 + y^2)$.
+
+\noindent \textbf{(3) $\le$ (1):} 
+\noindent\begin{adjustwidth}{0.5cm}{0pt}
+We basically just need to exhibit an $X$ and $Y$ which are give something that is at most the $\norm{A}_*$.
+Set $X = Y^* = A^{1/2}$.
+ In general, given $f: \mathbb{R}^+ \mapsto \mathbb{R}^+$ , then $ f(A) = Uf(\Sigma) V^*$. i.e. write the SVD of $A$ and apply $f$ to each diagonal entry of $\Sigma$. You can easily check that $A^{1/2} A^{1/2} = A$ and that the square of the Frobenius norm of $A^{1/2}$ is exactly the trace norm.
+\end{adjustwidth}
+
+\noindent \textbf{(1) $\le$ (2):}
+\begin{adjustwidth}{0.5cm}{0pt}
+Let $X, Y$ be some matrices such that $A = XY^*$. Then
+\allowdisplaybreaks
+ \begin{align}
+\nonumber  \norm{A}_* &= \norm{XY^*}_* \\
+\nonumber  &\le \sup_{\substack{\{a_i\} \text{ orthonormal basis } \\ \{b_i\} \text{ orthonormal basis }  } } \sum_i \inprod{ XY^* a_i, b_i  } & \hspace{1em} \substack{\text{This can be seen to be true by letting } \\ a_i = v_i  \text{ and } b_i = u_i \\ \text{ (from the SVD), when we get equality.}} \\
+\nonumber  & = \sup_{\cdots} \sum_i \inprod{Y^* a_i, X^* b_i } \\
+\nonumber  & \le \sup_{\cdots} \sum_i \norm{Y^* a_i}  \cdot \norm{X^* b_i} \\
+  & \le \sup_{\cdots} (\sum_i \norm{Y^* a_i}^2)^{1/2}  (\sum_i \norm{X^* b_i}^2)^{1/2} & \substack{\text{(by Cauchy-Schwarz)}} \label{eqn:cs}\\
+\nonumber  &  = \norm{X}_F \cdot \norm{Y}_F & \substack{\text{because } \{a_i\}, \{b_i\} \text{ are orthonormal bases }\\ \text{ and the Frobenius norm is rotationally invariant}  }
+ \end{align}
+ \end{adjustwidth}
+% Need to fix!!!
+
+\end{proof}
+
+\begin{proof}[Proof of claim.] \ 
+
+\noindent \textbf{Part 1:} 
+\vspace{-2em}
+\begin{adjustwidth}{0.5cm}{0pt}
+\[ \norm{A}_* \le \sup_{\norm{B} =1} \inprod{A, B} . \]
+We show this by writing 
+$A = U \Sigma V^*$. Then take $B = \sum_i u_i v_i^*
+$. That will give you something on the right that is at least the trace norm.
+\end{adjustwidth}
+\noindent\textbf{Part 2:}
+\vspace{-2em}
+\begin{adjustwidth}{0.5cm}{0pt}
+
+ \[\norm{A}_* \ge \inprod{A,B} \hspace{1em} \forall B \text{ s.t. } \norm{B} = 1  . \]
+We show this using the lemma.
+\begin{itemize}
+\item Write $A = XY^*$ s.t. $\norm{A}_* = \norm{X}_F \cdot \norm{Y}_F$ (lemma guarantees that there exists such an $X$ and $Y$).
+\item Write $B = \sum_i \sigma_i a_i b_i, \forall i, \sigma_i \le 1$.
+\end{itemize}
+Then using a similar argument to \eqref{eqn:cs},
+\vspace{-1em}\begin{align*}
+\inprod{A,B} & = \inprod{XY^*, \sum_i \sigma_i a_i b_i} \\
+& = \sum_i \sigma_i \inprod{Y^* a_i, X^* b_i } \\
+&  \le \sum_i | \inprod{Y^* a_i, X^* b_i } | \\
+& \le \norm{X}_F \norm{Y}_F = \norm{A}_*
+\end{align*}
+\end{adjustwidth}
+which concludes the proof of the claim.
+\end{proof}
+
+Recall that the set of matrices that are $n_1 \times n_2$ is itself a vector space. I'm going to decompose that vector space into $T$ and the orthogonal complement of $T$ by defining the following projection operators.
+\begin{itemize}
+\item  $P_{T^\perp} (Z) \eqdef (I - P_U) Z (I - P_V)$ 
+\item $P_T(Z) \eqdef Z - P_{T^\perp} ( Z)$
+\end{itemize}
+So basically, the matrices that are in the vector space $T^\perp$ are the matrices that can be written as the sum of rank 1 matrices $a_i b_i^*$ where the $a_i$'s are orthogonal to all the $u$'s and the $b_i$'s are orthogonal to all the $v$'s.
+Also define $R_\Omega (Z)$ as only keeping entries in $\Omega$, multiplied by multiplicity in $\Omega$. If you think of the operator $R_\Omega: \mathbb{R}^{n_1 n_2} \mapsto \mathbb{R}^{n_1 n_2}$ as a matrix, it is a diagonal matrix with the multiplicity of entries in $\Omega$ on the diagonal.
+
+\subsection{Good events}
+We will condition on all these events happening in the analysis. It will turn out that with high probability---probability $1 - \frac{1}{poly(n_2)}$, and you can make the $\frac{1}{poly(n_2)}$ factor decay as much as you want by increasing the constant in from of $m$---all these events will occur:
+\begin{enumerate}
+\item $\norm{\frac{n_1 n_2}{m} P_T R_\Omega P_T - P_T  } \lesssim \sqrt{ \frac{\mu_0 r(n_1 + n_2) \log(n_2)}{m}  } \ll \frac{1}{2}$ \\ \\ This is simple to understand from the perspective of leverage score sampling for approximate matrix multiplication (AMM) with spectral norm error (as in pset 4, problem 2). Specifically, recall that AMM we have matrices $A, B$ with the same number $n$ of rows and want for some $\Pi$ with $m$ rows that $\|(\Pi A)^T(\Pi A) - A^T B\| \le \eps \|A\|\cdot \|B\|$. Now, note here that $P_T = P_T P_T$, since $P_T$ is a projection matrix. Thus the above is just an AMM condition for $A = B = P_T$, and $\Pi = R_\Omega^{1/2}$. Now, typically for row sampling we had $\Pi$ be a diagonal matrix with $\Pi_{i,i} = \eta_i/\sqrt{p_i}$, where $\eta_i$ is an indicator random variable for the event that we sampled row $i$, and $p_i = \E \eta_i$. In class we discussed that we should set $p_i$ to be roughly proportional to the {\em leverage score} of row $i$. The total number of samples is thus on the order of the sum of leverage scores. More specifically, according to pset 4 problem 2, the total number of rows samples will be on the order of $O(q\log(q/\delta)/\eps^2)$ to suceed with probability $1-\delta$, where $q$ is the sum of the leverage scores (or equivalently, the maximum rank of $A, B$). In our case, the rank of $P_T$ is the sum of leverage scores of $P_T$, which is $\sum_{a,b} \|P_T e_ae_b^*\|_F^2$, which is $\sum_{a,b} (\|P_U e_a\|_2^2 + \|P_V e_b\|_2^2 - \|P_U e_a\|_2^2\cdot\|P_V e_b\|_2^2)$. Here $P_U$ is orthogonal projection onto $U$, where $M = U \Sigma V^*$. One can verify that this sum is $n_1r + n_2r - r^2 = r(n_1 + n_2 -r) = O((n_1 + n_2)r)$. Thus $q\log(q/\delta)$ is $O(r(n_1 + n_2)\log(n_2/\delta)) = O(rn_2\log(n_2/\delta))$ (note what $m$ is above!). Now, unfortunately $R_\Omega$ samples {\em uniformly} and not according to leverage scores! This is where $\mu_0$ comes in. We need to make sure we oversample enough so that each row's expected number of occurrences in our sampling is {\em at least} its leverage score (show via a modification of your pset 4 pset 2 solution that this suffices). To make this oversampling good enough, we need to oversample by a factor related to the maximum leverage score, hence the $\mu_0$ in $m$.
+\item $\norm{R_\Omega} \lesssim \log(n_2)$ \\ \\ This one is actually really easy (also the shortest): it's just balls and bins. We've already said $R_\Omega$ is a diagonal matrix, so the operator norm is just the largest diagonal entry. Imagine we have $m$ balls, and we're throwing them independently at random into $n_1 n_2$ bins, namely the diagonal entries, and this is just how loaded is the maximum bin. In particular, $m < n_1 n_2$, or else we wouldn't be doing matrix completion since we'd have the whole matrix. In general, when you throw $t$ balls into $t$ bins, the maximum load by the Chernoff bound is at most $\log t$. In fact, it's at most $\log t / \log \log t$, but who cares, since that would save us an extra $\log \log$ somewhere. Actually, I'm not even sure it would save us that since there are other $\log$'s that come into play.
+\item $\exists Y$ in $range(R_\Omega)$ s.t.
+\begin{enumerate}
+\item[(5a)] $\norm{P_T(Y) - UV^*}_F \le \sqrt{ \frac{r}{2n_2} }$
+\item[(5b)] $\norm{P_{T^\perp} (Y)} < \frac{1}{2}$ \\ \\ We will not justify this one in class; see the paper for the argument for the existence of such a $Y$.
+\end{enumerate}
+\end{enumerate}
+
+\subsection{Recovery conditioned on good events}
+Now that we've stated all these things, let's show that they imply trace norm minimization actually works.
+We want to make sure 
+\[ argmin_{\substack{X \text{ s.t.} \\ R_\Omega (X) = R_\Omega (M) }} \norm{X}_* \] is unique and equal to $M$.
+
+Let $Z \in Ker(R_\Omega), (Z \ne 0)$; we want to show $\norm{M + Z}_* > \norm{M}_*$.
+
+First we want to argue that $\norm{P_T(Z)}_F$ cannot be big.
+\begin{lemma}
+\label{boundptz}
+$\norm{P_T(Z)}_F  < \sqrt{\frac{n_2}{2r}} \cdot \norm{P_{T^\perp} (Z)}_F$
+\end{lemma}
+\begin{proof}
+ \[ 0 = \norm{R_\Omega (Z)}_F \ge \norm{R_\Omega (P_T (Z)  )}_F - \norm{R_\Omega (P_{T^\perp} (Z))  }_F
+\] 
+Also
+\begin{align*}
+\norm{R_\Omega (P_T(Z))}_F^2 &= \inprod{R_\Omega P_T Z, R_\Omega P_T Z} \\
+&\ge \inprod{P_T Z, R_\Omega P_T Z} \\
+&= \inprod{Z, P_T R_\Omega P_T Z} \\
+&= \inprod{ P_T Z, P_T R_\Omega P_T P_T Z} \\
+&= \inprod{P_T Z, \frac{m}{n_1 n_2} P_T P_T Z} + \inprod{P_T Z, (P_T R_\Omega P_T - \frac{m}{n_1 n_2}) P_T Z} \\
+&\ge \frac{m}{n_1 n_2 } \norm{P_T Z}_F^2 - \norm{P_T R_\Omega P_T - \frac{m}{n_1 n_2}} \cdot \norm{P_T Z}_F^2 \\
+&\ge \frac{m}{n_1 n_2} \cdot \norm{P_T Z}_F^2
+\end{align*}
+Also have 
+\begin{align*}
+\norm{R_\Omega ( P_{T^\perp} (Z) )}_F^2 &\le \norm{R_\Omega}^2 \cdot \norm{P_{T^\perp} (Z)}_F^2 \\
+&\lesssim \log^2(n_2) \cdot \norm{P_{T^\perp} (Z) }_F^2
+\end{align*}
+
+\paragraph{Summarize:} combining all the inequalities together, and then making use of our choice of $m$,
+\begin{align*}
+\norm{P_T (Z)}_F &< \sqrt{ \frac{n_1 n_2 \log^2 (n_2)}{m}  } \cdot \norm{P_{T^\perp} (Z)}_F  \\
+& < \sqrt{\frac{n_2}{2r}} \cdot \norm{P_{T^\perp} (Z)}_F
+\end{align*}
+\end{proof}
+
+
+
+ Pick $U_\perp, V_\perp$ s.t. $\inprod{U_\perp V_\perp^*, P_{T^\perp} (Z)} = \norm{P_T(Z)}_*$ and s.t. $[U, U_\perp], [V,V_\perp]$ orthogonal matrices. We know from claim \ref{tracedual} that the trace norm is exactly the sup over all $B$ matrices of the inner product. But the $B$ matrix that achieves the sup has all singular values equal to 1, so $B = U_\perp V_\perp^*$, because $P_{T^\perp} (Z)$ is in the orthogonal space so $B$ should also be in the orthogonal space.
+ 
+ Now we have a long chain of inequalities to show that the trace of any $M+Z$ is greater than the trace of $M$:
+
+\begin{align*} 
+\norm{M + Z}_* &\ge \inprod{UV^* + U_\perp V_\perp^*, M + Z}  & \substack{\text{by claim \ref{tracedual}}} \\
+&= \norm{M}_* + \inprod{UV^* + U_\perp V_\perp^*, Z } & \substack{\text{since $M \perp U_{\perp} V_{\perp}^*$}}\\
+&= \norm{M}_* + \inprod{UV^* + U_\perp V_\perp^* - Y, Z } & \substack{\text{since } Z \in ker(R_\Omega) \\  \text{and } Y \in range(R_\Omega)}\\
+&= \norm{M}_* + \inprod{UV^* - P_T(Y), P_T(Z)} + \inprod{U_\perp V_\perp^* - P_{T^\perp} (Y), P_{T^\perp} (Z)} & \substack{\text{decomposition into } T \text{ \& } T^\perp}\\
+&\ge \norm{M}_* - \norm{UV^* - P_T(Y)}_F \cdot \norm{P_T(Z)}_F & \substack{\inprod{x,y} \le \norm{x}_2 \norm{y}_2} \\
+     &\hspace{3em} + \norm{P_{T^\perp} (Z)}_*  & \substack{\text{by our choice of } UV^*} \\
+     &\hspace{3em} - \norm{P_{T^\perp} (Y)} \cdot \norm{P_{T^\perp}(Z)}_* & \substack{\text{norm inequality}}\\
+&\ge \norm{M}_* -\sqrt{ \frac{r}{2 n_2} }\cdot \norm{P_T(Z)}_F  + \frac 12\cdot \norm{P_{T^\perp} (Z)}_*&  \\
+&> \norm{M}_* -\frac 12 \cdot \norm{P_T^\perp(Z)}_F  + \frac 12\cdot \norm{P_{T^\perp} (Z)}_* &\substack{\text{by Lemma~\ref{boundptz}}}\\
+&\ge \norm{M}_* & \substack{\text{since }\norm{\cdot}_* \ge \norm{\cdot}_F}
+\end{align*}
+
+Hence, when all of the good conditions hold, minimizing the trace norm recovers $M$.
+
+\section{Concluding remarks}
+Why would you think of trace minimization as solving matrix completion? Analogously, why would you use $\ell_1$ minimization for compressed sensing? In some way, these two questions are very similar in that rank is like the support size of the singular value vector, and trace norm is the $\ell_1$ norm of the singular value vector, so the two are very analogous. $\ell_1$ minimization seems like a natural choice, since it is the closest convex function to support size from all the $\ell_p$ norms (and being convex allows us to solve the program in polynomial time).
+
+%% %% %%
+
+\bibliographystyle{alpha}
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{BGI{\etalchar{+}}08}
+  
+\bibitem[CR09]{candes2009exact}
+Emmanuel~J Cand{\`e}s and Benjamin Recht, \emph{Exact matrix completion via
+  convex optimization}, Foundations of Computational mathematics \textbf{9}
+  (2009), no.~6, 717--772.
+
+\bibitem[CT10]{candes2010power}
+Emmanuel~J Cand{\`e}s and Terence Tao, \emph{The power of convex relaxation:
+  Near-optimal matrix completion}, Information Theory, IEEE Transactions on
+  \textbf{56} (2010), no.~5, 2053--2080.
+
+\bibitem[Gross]{Gross11}
+David~Gross, \emph{Recovering low-rank matrices from few coefficients in any basis}, Information Theory, IEEE Transactions on (2011), no.~57, :1548–-1566.
+
+\bibitem[GLF+10]{GLF+10}
+David~Gross, Yi-Kai~Liu, Steven~T.~Flammia, Stephen~Becker, and Jens~Eisert. \emph{Quantum state tomography via compressed sensing}, Physical Review Letters (2010), 105(15):150401.
+
+\bibitem{Hardt14}
+Moritz Hardt. \emph{Understanding Alternating Minimization for Matrix Completion}. FOCS, pages 651--660, 2014.
+
+\bibitem{HardtW14}
+Moritz Hardt, Mary Wootters. \emph{Fast matrix completion without the condition number}. COLT, pages 638--678, 2014.
+
+
+\bibitem[KMO10]{keshavan2010matrix}
+Raghunandan~H Keshavan, Andrea Montanari, and Sewoong Oh, \emph{Matrix
+  completion from noisy entries}, The Journal of Machine Learning Research
+  \textbf{99} (2010), 2057--2078.
+
+\bibitem[Rec11]{recht2011simpler}
+Benjamin Recht, \emph{A simpler approach to matrix completion}, The Journal of
+  Machine Learning Research \textbf{12} (2011), 3413--3430.
+
+\bibitem[RFP10]{recht2010guaranteed}
+Benjamin Recht, Maryam Fazel, and Pablo~A Parrilo, \emph{Guaranteed
+  minimum-rank solutions of linear matrix equations via nuclear norm
+  minimization}, SIAM review \textbf{52} (2010), no.~3, 471--501.
+
+\bibitem{SchrammW15}
+Tselil Schramm, Benjamin Weitz. \emph{Low-Rank Matrix Completion with Adversarial Missing Entries}. CoRR abs/1506.03137, 2015.
+
+\bibitem[WNF09]{wright2009sparse}
+Stephen~J Wright, Robert~D Nowak, and M{\'a}rio~AT Figueiredo, \emph{Sparse
+  reconstruction by separable approximation}, Signal Processing, IEEE
+  Transactions on \textbf{57} (2009), no.~7, 2479--2493.
+
+\end{thebibliography}
+\end{document}

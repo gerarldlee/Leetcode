@@ -1,0 +1,292 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{17 --- 10/28}{Fall 2015}{Prof.\ Jelani Nelson}{Morris Yau}
+
+\section{Overview}
+
+In the last lecture we defined subspace embeddings 
+a \emph{subspace embedding} is a linear transformation that has the Johnson-Lindenstrauss property for all vectors in the subspace: 
+\begin{definition}
+	Given $W\subset\R^n$ a linear subspace and $\eps\in(0,1)$, an $\eps$-\textbf{subspace embedding} is a matrix $\Pi\in\R^{m\times n}$ for some $m$ such that
+	\begin{align*}
+	\forall x\in W: (1-\eps)\|x\|_2\leq \|\Pi x\|_2\leq (1+\eps)\|x\|_2
+	\end{align*}
+\end{definition}
+And an oblivious subspace embedding  
+\begin{definition}
+	An $(\epsilon, \delta, d)$ oblivious subspace embedding is a distribution D over $R^{mxn}$ such that $\forall U \in R^{mxn}$, $U^TU = I$
+	$$P_{\Pi \sim D}(\|(\Pi U)^T(\Pi U) \| > \epsilon) < \delta$$
+\end{definition}
+
+In this lecture we go over ways of getting oblivious subspace embeddings and then go over applications to linear regression.  Finally, time permitting, we will go over low rank approximations.  
+
+\section{General Themes}
+Today: 
+\begin{itemize}
+
+\item ways of getting OSE's
+\item  More regression 
+\item Low rank approximation
+\end{itemize}
+
+We can already get OSE's with Gordon's theorem.  The following are five ways of getting OSE's
+ \begin{itemize}
+ \item net argument
+ \item noncommutative kintchine with matrix chernoff
+\item  moment  method
+ \item approximate matrix multiplication with Frobenius error
+ \item chaining 
+\end{itemize}
+
+\subsection{Net Argument}
+
+Concerning the net argument which we'll see the details in the pset.  For any d-dimensional subspace $E \in R^n$ there exists a set $T \subset E \cap S^{n-1}$ of size $O(1)^d$ such that if $\Pi$ preserves every $x \in T$ up to $1 + O(\epsilon)$ then $\Pi$ preserves all of $E$ up to $1 + \epsilon$ 
+
+So what does this mean, if we have distributional JL than that automatically implies we have an oblivious subspace embedding.  We would set the failure probability in JL to be $\frac{1}{O(1)^d}$ which by union bound gives us a failure probability of OSE of $\delta$.
+
+
+\subsection{Noncommutative Khintchine}
+For Noncommutative Khintchine let $\|M\|_p = (\E\|M \|_{S_p}^p)^{\frac{1}{p}}$ with $\sigma_1, ..., \sigma_n$ are $\{1,-1\}$ independent bernoulli.  Than $$\|\sum\limits_{i}\sigma_iA_i\|_p \leq \sqrt{p}\max \big\{\|(\sum\limits_{i} A_i A_i^T)^{\frac{1}{2}} \|_p, \|(\sum A_i^T A_i)^{\frac{1}{2}} \|_p \big\}$$ 
+To take the square root of a matrix just produce the singular value decomposition $U\Sigma V^T$ and take the square root of each of the singular values.  
+
+Now continuing we want $$P(\|(\Pi U)^T (\Pi U)  - I\| > \epsilon) < \delta$$.  We know the above expression is 
+$$P(\|(\Pi U)^T (\Pi U)  - I\| > \epsilon) < \frac{1}{\epsilon^p}E\|(\Pi U)^T (\Pi U)  - I \|^p \leq \frac{C^p}{\epsilon^p}E\|(\Pi U)^T (\Pi U)  - I\|_{S_p}^p$$
+We want to bound $\|(\Pi U)^T (\Pi U)  - I\|_p$ and we know
+$$(\Pi U)^T(\Pi U) = \sum\limits_{i} z_i z_i^T$$ where $z_i$ is the i'th row of $\Pi U$
+This all implies $$\|(\Pi U)^T(\Pi U) - I\|_p = \| \sum\limits_{i} z_i z_i^T - E\sum y_i y_i^T\|_p$$
+where $y_i \sim z_i$.  Now we do the usual trick with proving bernstein.  By convexity we interchange the expectation with the norm and obtain 
+$$\leq \| \sum\limits_{i} (z_i z_i^T - y_i y_i^T)\|_p$$
+which is just the usual symmetrization trick assuming row of $\Pi$ are independent.  Then we simplify
+$$\leq 2\|\sum\limits_{i}\sigma_i z_i z_i^T\|_{L^p(\sigma, z)} \leq \sqrt{p}\|(\sum\limits_{i} \|z_i\|_2^2 z_iz_i^T)^{\frac{1}{2}}\|_p$$  
+This approach of using matrix concentration inequalities has beene used by 
+
+The following was observed by Cohen, noncommutative khintchine can be applied to sparse JL 
+$$m \geq \frac{d polylog(\frac{1}{\delta})}{\epsilon^2}, s\geq \frac{polylog(\frac{d}{\delta})}{\epsilon^2}$$ 
+but Cohen is able to obtain 
+$m \geq \frac{d \log(\frac{d}{\delta})}{\epsilon^2}, s \geq \frac{\log(\frac{d}{\delta})}{\epsilon}$ for s containing dependent entries as opposed to independent entries.  
+There is a conjecture that the multiplies in $d\log(\frac{d}{\delta})$ is actually an addition.  This will have significance in compressed sensing.  
+
+\subsection{Moment Chernoff}
+Consider the following combinatorial argument 
+$$P(\|(\Pi U)^T(\Pi U) - I\| > \epsilon) < \frac{1}{\epsilon^p}E\|(\Pi U)^T(\Pi U) - I \|^p \leq \frac{1}{\epsilon^p}E tr((\Pi U)^T(\Pi U) - I)$$
+We know that the trace of an exponentiated matrix is  
+$$E(tr(B^p)) = \sum\limits_{i_1, i_2, ..i_{p+1}} \prod\limits_{t=1}^p B_{{i_t}{i_{t+1}}}$$  
+The rest is just combinatorics. 
+
+\subsection{AMM$_F$}
+For the main result of this section see \cite{nelson2013lower}
+The basic observation by Nguyen is that  
+$$\|(\Pi U)^T(\Pi U)  - I \| < \|(\Pi U)^T(\Pi U)  - I \|_F$$  
+so what we want is $$P_\Pi(\| (\Pi U)^T(\Pi U)  - I \| > \epsilon) < \delta$$
+We know that $U^TU = I$ so this is exactly the form of matrix multiplication discussed two lectures before.  So rewriting we obtain 
+$$P_\Pi(\| (\Pi U)^T(\Pi U)  - U^TU \| > \epsilon' \| U\|_F^2) < \delta$$
+Where the Frobenius norm of $U$ is d because it's composed of $d$ orthonormal vectors.  So we may set $\epsilon = \frac{\epsilon}{d}$
+and we need $O(\frac{1}{\epsilon'^2\delta}) = O(\frac{d}{\epsilon^2\delta})$ rows.  
+
+\subsection{Chaining}
+The basic idea in chaining is to do a more clever net argument than previously discussed. See for example Section 3.2.1 of the Lecture 12 notes on methods of bounding the gaussian width $g(T)$. {\em Chaining} is the method by which, rather than using one single net for $T$, one uses a sequence of nets (as in Dudley's inequality, or the generic chaining methodology to obtain the $\gamma_2$ bound discussed there).
+
+See \cite{clarkson2013low}
+by Clarkson and Woodruff for an example of analyzing the SJLT using a chaining approach. They showed it suffices to have $m \geq \frac{d^2 \log^{O(1)}(\frac{d}{\epsilon})}{\epsilon^2}, s = 1$. As we saw above, in later works it was shown that the logarthmic factors are not needed (e.g.\ by using the moment method, or the AMM$_F$ approach). It would be an interesting exercise though to determine whether the \cite{clarkson2013low} chaining approach is capable of obtaining the correct answer without the extra logarithmic factors.
+
+Note: $s = 1$ means we can compute $\Pi A$ in time equal to the number of nonzero entries of $A$ .  
+
+\section{Other ways to use subspace embeddings}
+
+\subsection{Iterative algorithms}
+
+This idea is due to Tygert and Rokhlin \cite{rokhlin2008fast} and Avron et al.\ \cite{avron2010blendenpik}. The idea is to use gradient descent. The performance of the latter depends on the \emph{condition number} of the matrix:
+
+\begin{definition}
+For a matrix $A$, the \textbf{condition number} of $A$ is the ratio of its largest and smallest singular values.
+\end{definition}
+
+Let $\Pi$ be a $1/4$ subspace embedding for the column span of $A$. Then let $\Pi A = U\Sigma V^T$ (SVD of $\Pi A$). Let $R=V\Sigma^{-1}$. Then by orthonormality of $U$
+\begin{align*}
+	\forall x: \|x\| = \|\Pi ARx\|=(1\pm1/4)\|ARx\|
+\end{align*}
+which means $AR=\tilde{A}$ has a good condition number. Then our algorithm is the following
+
+\begin{enumerate}
+	\item Pick $x^{(0)}$ such that 
+	\begin{align*}
+	\|\tilde{A}x^{(0)}-b\|\leq 1.1\|\tilde{A}x^*-b\|
+\end{align*}
+(which we can get using the previously stated reduction to subspace embeddings with $\eps$ being constant).
+\item Iteratively let $x^{(i+1)} = x^{(i)} + \tilde{A}^T(b-\tilde{A}x^{(i)})$ until some $x^{(n)}$ is obtained.
+\end{enumerate}
+
+We will give an analysis following that in \cite{clarkson2013low} (though analysis of gradient descent can be found in many standard textbooks). Observe that
+\begin{align*}
+\tilde{A}(x^{(i+1)}-x^*)=\tilde{A}(x^{(i)}+\tilde{A}^T(b-\tilde{A}x^{(i)})-x^*)=(\tilde{A}-\tilde{A}\tilde{A}^T\tilde{A})(x^{(i)}-x^*),
+\end{align*}
+where the last equality follows by expanding the RHS. Indeed, all terms vanish except for $\tilde{A}\tilde{A}^Tb$ vs $\tilde{A}\tilde{A}^T\tilde{A}x^*$, which are equal because $x^*$ is the optimal vector, which means that $x^*$ is the projection of $b$ onto the column span of $\tilde{A}$.
+
+Now let $AR = U'\Sigma'V'^T$ in SVD, then
+\begin{align*}
+	\|\tilde{A}(x^{(i+1)-x^*})\|&=\|(\tilde{A}-\tilde{A}\tilde{A}^T\tilde{A})(x^{(i)}-x^*)\|
+	\\
+	&=\|U'(\Sigma'-\Sigma'^3)V'^T(x^{(i)}-x^*)\|
+	\\
+	&=\|(I-\Sigma'^2)U'\Sigma'V'^T(x^{(i)}-x^*)\|
+	\\
+	&\leq\|I-\Sigma'^2\| \cdot \|U'\Sigma'V'^T(x^{(i)}-x^*)\|
+	\\
+	&=\|I-\Sigma'^2\| \cdot \|\tilde{A}(x^{(i)}-x^*\|
+	\\
+	&\leq \frac 12 \cdot \|\tilde{A}(x^{(i)}-x^*)\|
+\end{align*}
+by the fact that $\tilde{A}$ has a good condition number. So, $O(\log 1/\eps)$ iterations suffice to bring down the error to $\eps$. In every iteration, we have to multiply by $AR$; multiplying by $A$ can be done in time proportional to the number of nonzero entries of $A$, $\|A\|_0$, and multiplication by $R$ in time proportional to $d^2$. So the dominant term in the time complexity is $\|A\|_0\log(1/\eps)$, plus the time to find the SVD.
+
+\subsection{Sarlos' Approach}
+
+This approach is due to Sarl\'{o}s \cite{sarlos2006improved}. First, a bunch of notation: let 
+\begin{align*}
+x^*&=\textup{argmin}\|Ax-b\|
+\\
+\tilde{x}^*&=\textup{argmin}\|\Pi Ax-\Pi b\|. 
+\\
+A&=U\Sigma V^T\text{ in SVD}
+\\
+Ax^*&=U\alpha \text{ for }\alpha\in\R^d 
+\\
+Ax^*-b&=-w
+\\
+A\tilde{x}^*-Ax^*&=U\beta
+\end{align*} 
+Then, $OPT = \|w\|=\|Ax^*-b\|$. We have
+\begin{align*}
+	\|A\tilde{x}^*-b\|^2&=\|A\tilde{x}^*-Ax^*+Ax^*-b\|^2
+	\\
+	&=\|A\tilde{x}^*-Ax^*\|^2+\|Ax^*-b\|^2\text{ (they are orthogonal)}
+	\\
+	&=\|A\tilde{x}^*-Ax^*\|^2+OPT^2=OPT^2+\|\beta\|^2
+\end{align*}
+We want $\|\beta\|^2\leq 2\eps OPT^2$. Since $\Pi A,\Pi U$ have same column span, 
+\begin{align*}
+	\Pi U(\alpha +\beta)&=\Pi A\tilde{x}^*=\textup{Proj}_{\Pi A}(\Pi b)=\textup{Proj}_{\Pi U}(\Pi b)
+	\\
+	&=\textup{Proj}_{\Pi U}(\Pi(U\alpha+w))=\Pi U\alpha + \textup{Proj}_{\Pi U}(\Pi w)
+\end{align*}
+so $\Pi U \beta= \text{Proj}_{\Pi U}(\Pi w)$, so $(\Pi U)^T(\Pi U)\beta = (\Pi U)^T\Pi w$. Now, let $\Pi$ be a $(1 - 1/\sqrt[4]{2})$-subspace embedding -- then $\Pi U$ has smallest singular value at least $1/\sqrt[4]{2}$. Therefore
+\begin{align*}
+	\|\beta\|^2/2\leq \|(\Pi U)^T(\Pi U)\beta\|^2=\|(\Pi U)^T\Pi w\|^2
+\end{align*}
+Now suppose $\Pi$ also approximately preserves matrix multiplication. Notice that $w$ is orthogonal to the columns of $A$, so $U^Tw=0$. Then, by the general approximate matrix multiplication property,
+\begin{align*}
+	\Pr_\Pi\left(\|(\Pi U)^T\Pi w-U^Tw\|_2^2>\eps'^2\|U\|_F^2\|w\|_2^2\right)<\delta
+\end{align*}
+We have $\|U\|_F = \sqrt{d}$, so set error parameter $\eps'=\sqrt{\eps/d}$ to get
+\begin{align*}
+	\Pr\left(\|(\Pi U)^T\Pi w\|^2>\eps\|w\|^2\right)<\delta
+\end{align*}
+so $\|\beta\|^2\leq 2\eps \|w\|^2=2\eps OPT^2$, as we wanted. 
+
+So in conclusion, we don't need $\Pi$ to be an $\eps$-subspace embedding. Rather, it suffices to simply be a $c$-subspace embedding for some fixed constant $c = 1 - 1/\sqrt{2}$, while also providing approximate matrix multiplication with error $\sqrt{\eps/d}$.  Thus for example using the Thorup-Zhang sketch, using this reduction we only need $m=O(d^2+d/\eps)$ and still $s=1$, as opposed to the first reduction in these lecture notes which needed $m = \Omega(d^2/\eps^2)$. 
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{AlonMS99}
+Noga~Alon, Yossi~Matias, Mario~Szegedy.
+\newblock The Space Complexity of Approximating the Frequency Moments.
+\newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+\bibitem{avron2010blendenpik}
+Haim Avron and Petar Maymounkov and Sivan Toledo.
+\newblock Blendenpik: Supercharging LAPACK's least-squares solver
+\newblock {\em SIAM Journal on Scientific Computing}, 32(3) 1217--1236, 2010.
+
+\bibitem{clarkson2013low}
+Kenneth L. Clarkson and David P. Woodruff.
+\newblock Low rank approximation and regression in input sparsity time
+\newblock {\em Proceedings of the 45th Annual ACM Symposium on the Theory of Computing (STOC)}, 81--90, 2013.
+
+\bibitem{DDH07}
+James Demmel, Ioana Dumitriu, and Olga Holtz.
+\newblock Fast linear algebra is stable. 
+\newblock {\em Numer. Math.}, 108(1):59–-91, 2007.
+
+\bibitem{meng2013low}
+Xiangrui Meng and Michael W. Mahoney.
+\newblock Low-distortion subspace embeddings in input-sparsity time and applications to robust linear regression
+\newblock {\em Proceedings of the 45th Annual ACM Symposium on the Theory of Computing (STOC)}, 91--100, 2013.
+
+\bibitem{nelson2013lower}
+Jelani Nelson and Huy L. Nguy$\tilde{\hat{\mbox{e}}}$n.
+\newblock OSNAP: Faster numerical linear algebra algorithms via sparser subspace embeddings.
+\newblock {\em Proceedings of the 54th Annual IEEE Symposium on Foundations of Computer Science (FOCS)}, 2013.
+
+
+\bibitem{rokhlin2008fast}
+Vladimir Rokhlin and Mark Tygert.
+\newblock A fast randomized algorithm for overdetermined linear least-squares regression.
+\newblock {\em Proceedings of the National Academy of Sciences}, 105 (36) 13212--13217, 2008.
+
+\bibitem{sarlos2006improved}
+Tamas Sarl\'{o}s.
+\newblock Improved approximation algorithms for large matrices via random projections.
+\newblock {\em 47th Annual IEEE Symposium on Foundations of Computer Science (FOCS)}, 143--152, 2006.
+
+\bibitem{TZ12}
+Mikkel Thorup, Yin Zhang.
+\newblock Tabulation-Based 5-Independent Hashing with Applications to Linear Probing and Second Moment Estimation. 
+\newblock {\em SIAM J. Comput.} 41(2): 293--331, 2012.
+
+\end{thebibliography}
+
+\end{document}

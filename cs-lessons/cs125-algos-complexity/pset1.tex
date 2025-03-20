@@ -1,0 +1,134 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{amssymb,amsfonts}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 125 Algorithms \& Complexity} --- Fall 2016}
+
+\bigskip
+
+{\Large \textsc{Problem Set 1}}
+
+\smallskip
+
+Due: 11:59pm, Friday, September 9th
+
+\bigskip
+
+{\footnotesize See homework submission instructions at \url{http://seas.harvard.edu/~cs125/fall16/schedule.htm}}
+\end{center}
+
+\textbf{Problem 5 is worth one-third of this problem set, and problems 1-4 constitute the remaining two-thirds.}
+
+\section*{Problem 1}
+Indicate for each pair of expressions $(A,B)$ in the table below
+the relationship between $A$ and $B$.  Your answer should be in the
+form of a table with a ``yes'' or ``no'' written in each box.  For
+example, if $A$ is $O(B)$, then you should put a ``yes'' in the 
+first box. If the base of a logarithm is not specified, you should assume it is base-$2$.
+
+\bigskip
+
+$$
+\begin{array}{cc|c|c|c|c|c|}
+A & B & O & o & \Omega & \omega & \Theta \\ \hline
+\log_2 n & \log_3 n & & & & & \\ \hline
+\log \log n & \sqrt{\log n} & & & & & \\ \hline
+2^{\log^7 n} & n^7 & & & & & \\ \hline
+n^2 2^n & 3^n & & & & & \\ \hline
+n! & n^n & & & & & \\ \hline
+\log (n!) & \log(n^n) & & & & & \\ \hline
+(n^2)! & n^n & & & & & \\ \hline
+(n!)^2 & n^n & & & & & \\ \hline
+\end{array}
+$$
+
+\section*{Problem 2}
+In many applications of sorting, the input is not just a list of numbers to be sorted, but rather a list of items, each of which has a {\em sort key} $k_i$ (which is a number) and a {\em data payload} $d_i$ (which comes from an arbitrary set).  The task is to sort the items according to the sort key.  (This is like sorting a spreadsheet by a particular column.)  Formally, given an input $(k_1,d_1),\ldots,(k_n,d_n)$ where each $k_i\in \mathbb{N}$, a sorting algorithm should produce a sequence $(k_1',d_1'),\ldots,(k_n',d_n')$ such that (1) $k_1'\leq k_2'\leq \cdots \leq k_n'$, and (2) there is a permutation $\pi$ of $\{1,\ldots,n\}$ such that for all $i$, $(k_i',d_i')=(k_{\pi(i)},d_{\pi(i)})$.
+\begin{enumerate}
+\item[(a)] (3 points) Show how to extend counting sort to solve the above task, sorting in time $O(n+M)$ assuming all of the sort keys are in the range $[0,M)$.  Your algorithm should work even if there are repetitions among the sort keys. You can assume that copying of data items $d_i$ can be done in unit time.
+\item[(b)] (3 points) Show how to ensure that your algorithm is {\em stable}, in the sense that it does not reorder items with the same sort key. Formally, if $k_i=k_j$ for some $i<j$, then $\pi(i)<\pi(j)$.
+\item[(c)] (4 points) Another sorting algorithm that can work in $o(n \log n)$ time is Radix Sort.
+Radix sort works as follows, on numbers represented in binary.
+\begin{enumerate}
+\item[i.] Start with the {\em last} $b$ bits of the numbers.  Use your version of counting sort from part (b) to the sort the numbers using the last $b$ bits as the sort key.
+\item[ii.] Continue from right to left looking at the next $b$ bits of the numbers, and
+sort based on those bits along using counting sort.
+\item[iii.] Continue this repeated sorting including through the first $b$ bits.
+\end{enumerate}
+
+Argue that if you use $b = \log_2 n$ and you are sorting $n$ numbers
+in the range $[0,n^j)$ for some constant $j$ that the total time taken
+by radix sort is $O(n)$.  (Here we assume, as we did in class, that
+our machine can manipulate numbers of $\log_2 n$ bits with unit cost
+operations -- so that, for example, it can cope with an array of $n$
+numbers.)  As part of your proof, explain why you need the
+intermediate sorting steps to be stable.
+\end{enumerate}
+
+
+\section*{Problem 3}
+In class we showed how to speed up integer multiplication via a divide-and-conquer approach: equipartitioning the digits of each of $x$ and $y$ into two sets, then doing three recursive multiplications followed by some insertions and subtractions (Karatsuba's algorithm). The overall runtime was $O(n^{\log_2 3})$. In this problem we will develop a similar, but faster, approach.
+
+In order to speed up integer multiplication, we will first take a slight detour. Let us first consider the problem of solving a system of $n$ linear equations with $n$ variables $x_0,\ldots,x_{n-1}$. Thus the input is $n^2+n$ numbers $\{a_{i,j}\}$ for $0\le i\le n-1$ and $0\le j\le n$. These represent the $n$ equations $a_{i,0}x_0 + \cdots + a_{i,n-1}x_{n-1} + a_{i,n} = 0$ for $0\le i\le n-1$. Consider the following pseudocode for a function \textsc{solve()}, which solves for the $n$ variables assuming that there is a unique solution. The input is a doubly-indexed array \texttt{A} with \texttt{A[i][j]} representing $a_{i,j}$ above. Below, we sometimes abuse notation and think of \texttt{A[i]} as the vector $(a_{i,0}, a_{i,1}, \ldots, a_{i,n})$.
+\begin{center}
+\fbox{                                                                                                         
+{\footnotesize                                                                                                 
+\parbox{6.375in} {                                                                                             
+\underline{Algorithm \textsc{solve}(\texttt{A[0..n-1][0..n]})}: // coefficients for $n$ equations, $n$ variables \\                                                            
+\vspace{-.23in}\begin{enumerate}                                                                               
+\addtolength{\itemsep}{-2.5mm}
+\medskip
+\item[] // base case, $n = 1$, corresponds to $a_{0,0}x_0 + a_{0,1} = 0$
+\smallskip
+\item \textbf{if} $n=1$: \textbf{return} (-\texttt{A[0][1]/A[0][0]})
+\medskip
+\item[] // make sure $x_0$ has coefficient $1$ in the $0$th equation
+\smallskip
+\item let $i$ be the first index with \texttt{A[i][0]} $\neq 0$; swap \texttt{A[i]} with \texttt{A[0]}
+\item \texttt{A[0]} $\leftarrow$ \texttt{A[0]/A[0][0]}
+\medskip
+\item[] // zero out the coefficient of $x_0$ in every equation but the $0$th one
+\smallskip
+\item \textbf{for} $i=1,\ldots, n$: \texttt{A[i]} $\leftarrow$ \texttt{A[i]}$-$\texttt{A[0]}$\cdot$\texttt{A[i][0]}
+\medskip
+\item[] // recursively solve $n-1$ equations in $n-1$ variables $x_1,\ldots,x_{n-1}$
+\item $(x_1,\ldots,x_{n-1}) \leftarrow$ \textsc{solve}(\texttt{A[1..n-1][1..n]})
+\medskip
+\item $x_0 \leftarrow -$\texttt{A[0][n]} $ - \sum_{j=1}^{n-1} x_j\cdot$\texttt{A[0][j]}
+\item \textbf{return} $(x_0,\ldots,x_{n-1})$
+\end{enumerate}                                                                                                
+}}}
+\end{center}
+\begin{itemize}
+\item[(a)] (2 points) Let $T(n)$ denote the worst case running time of \textsc{solve()} on $n$ equations over $n$ variables. Assume all basic arithmetic operations (addition, subtraction, division, and multiplication) are constant time. Write a recurrence for $T(n)$ and solve it.
+\item[(b)] (2 points) Now let us {\em not} assume arithmetic operations are unit cost. To implement \textsc{solve()}, we maintain all intermediate computations explicitly as fractions, storing numerators and denominators. Suppose $a_{i,j}$ for $0\le i,j< n$ are $L$-digit integers, and the $a_{i,n}$ are each $R$ digits. Prove that there exists a function $f:\mathbb{N}\times\mathbb{N}\rightarrow\mathbb{N}$ such that if one carried out all arithmetic operations in \textsc{solve()} {\em exactly} by storing fractions explicitly as (numerator, denominator) pairs, then no intermediate numerators or denominators of \texttt{A[i][0..n-1]} values or denominators of \texttt{A[i][n]} values would ever require more than $f(n, L)$ digits, and no intermediate numerators of \texttt{A[i][n]} values would ever require more than $f(n, L) \cdot R$ digits, for any \texttt{A} in any level of recursion. Here $\mathbb{N}$ is the set of natural numbers. Showing the existence of any such $f$ is sufficient for full credit --- you do not have to find an optimally slow-growing $f$. Conclude a bound on the running time of \textsc{solve()} in terms of $f, n, L, R$.
+\item[(c)] (4 points) In this problem part we will finally develop a method faster than Karatsuba's algorithm for integer multiplication. Suppose we want to multiply two $n$-digit positive integers $w, y$. If $n = 1$, we simply output the answer. Otherwise, we pad $w,y$ with leading zeroes to make $n$ a multiple of $3$. Then we write $w = p_w(10^{n/3})$ and $y = p_y(10^{n/3})$, where $p_w(z)$ is the polynomial $w_{hi}\cdot z^2 + w_{mid}\cdot z + w_{lo}$, and similarly for $p_y$. Here each of $w_{hi}, w_{mid}, w_{lo}$ have $n/3$ digits. For example, if $w = 140712$ then $w_{hi} = 14$, $w_{mid} = 7$, $w_{lo} = 12$. Show how to use $p_w, p_y$, and \textsc{solve()} to develop an algorithm for integer multiplication faster than Karatsuba's algorithm, and prove a bound on the running time of your method. You may use the result of part (b) even if you didn't solve it. \textbf{Not for credit:} what if you tried to break $w,y$ into $k>3$ parts each?
+
+You may take for granted the fact that for any $d\ge 1$, for any distinct reals $z_0,\ldots,z_d$, and for any (not necessarily distinct) $m_0,\ldots,m_d$, the set of $d+1$ linear equations $m_j + \sum_{i=0}^d x_i z_j^i = 0$ has a unique solution. In other words, there is a unique degree-$d$ polynomial interpolating given values $-m_j$ for any $d+1$ distinct evaluation points $z_j$.
+\end{itemize}
+
+
+\section*{Problem 4}
+It is known that every integer $n>1$ can be uniquely factored as a product of primes. For example, $4 = 2\times 2$, $6 = 2\times 3$, and $90 = 2\times 3\times 3\times 5$. Let $p(n)$ be the number of {\em distinct} prime divisors of $n$, so $p(6) = 2$ but $p(4) = 1$.
+\begin{itemize}
+\item[(a)] (2 points) Show that $p(n) = O(\log n)$.
+\item[(b)] (4 points) Show that $p(n) = O(\frac{\log n}{\log\log n})$.
+\item[(c)] (4 points) It is a fact, which you may assume without proof, that there are $\Theta(t/\log t)$ primes between $1$ and $t$. Use this fact to show that it is {\em not} true that $p(n) = o(\frac{\log n}{\log\log n})$.
+\end{itemize}
+
+
+\section*{Problem 5 (Programming Problem)}
+Solve ``ZOO'' on the programming server \url{https://cs125.seas.harvard.edu}.\\
+(under ``Problem Set 1'').
+
+\end{document}

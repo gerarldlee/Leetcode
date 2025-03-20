@@ -1,0 +1,80 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{amssymb}
+
+\newcommand{\Obj}{\mathrm{Obj}}
+\newcommand{\NP}{\mathrm{NP}}
+\newcommand{\PTIME}{\mathrm{P}}
+\newcommand{\coNP}{\mbox{co-NP}}
+\newcommand{\textprob}[1]{\textsc{#1}}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 125 Algorithms \& Complexity} --- Fall 2016}
+
+\bigskip
+
+{\Large \textsc{Problem Set 7}}
+
+\smallskip
+
+Due: 11:59pm, Friday, October 28th
+
+\bigskip
+
+{\footnotesize See homework submission instructions at \url{http://seas.harvard.edu/~cs125/fall16/schedule.htm}}
+\end{center}
+
+
+\section*{Problem 1} 
+
+\begin{itemize}
+\item[(a)] (5 points) Prove that \textsc{Vertex Cover} is $\NP$-complete even when restricted to graphs in which every vertex has degree at most 3.  \textbf{Hint:} Show how to  reduce the degree of a vertex in a graph by 1 while increasing the size of the minimum vertex cover by 1 by introducing two new vertices and adding appropriate edges.  Be sure to prove that the minimum vertex cover always increases by exactly 1 in your transformation.
+\item[(b)] (5 points) Recall that, as discovered in lecture, the \textsc{Maximum Matching} problem on graphs can be solved in polynomial time (in class we proved it, using flow, for bipartite graphs, but it's also poly-time solvable for general graphs).  That is, given a collection of ``compatible'' pairs among $n$ individuals and a number $k$, we can decide whether there exist at least $k$ disjoint compatible pairs. Show that the \textsc{Maximum 3-Way Matching} problem, where we instead want to select among compatible {\em triples}, is $\NP$-complete. \textbf{Hint:} as a warm-up, first do a reduction from \textsc{Vertex Cover} on 3-{\em regular} graphs, i.e. ones where every vertex has degree 3.
+\end{itemize}
+
+\section*{Problem 2}
+
+Let $\coNP=\{L: \bar{L} \in \NP\}$ be the class of languages whose complement is in $\NP$.
+
+\begin{itemize}
+\item[(a)] (4 points) Show that a language $L$ is complete for $\NP$ iff $\bar{L}$ is complete for $\coNP$. (Here completeness is with respect to poly-time mapping reductions, aka Karp reductions.)
+\item[(b)] (2 points) Show that if $\NP \not= \coNP$, then $\PTIME \not= \NP$.
+\item[(c)] (4 points) Let \textprob{Tautology}=\{$\phi$: $\phi$ a boolean formula s.t.\ $\forall a,\phi(a)=1$\}. Show that \textprob{Tautology} is $\coNP$-complete, even when restricted to 3-DNF formulas. 
+\end{itemize}
+
+\section*{Problem 3}
+
+Each of the following problems is either in $\PTIME$ or is $\coNP$-hard.  Determine which is the case and prove your answers.
+
+\begin{itemize}
+\item[(a)] $\mathrm{ALL_{DFA}} = \{\langle M\rangle : \mbox{$M$ a DFA such that $L(M)=\Sigma^*$}\}$.
+\item[(b)] $\mathrm{EMPTY_{DFA}} = \{\langle M\rangle : \mbox{$M$ a DFA such that $L(M)=\emptyset$}\}$.
+\item[(c)] $\mathrm{ALL_{NFA}} = \{\langle M\rangle : \mbox{$M$ an NFA such that $L(M)=\Sigma^*$}\}$.
+\item[(d)] $\mathrm{EMPTY_{NFA}} = \{\langle M\rangle : \mbox{$M$ an NFA such that $L(M)=\emptyset$}\}$.
+\end{itemize}
+
+\section*{Problem 4}
+
+A \emph{search problem} is a mapping $S$ from strings (``instances") to sets of strings (``valid solutions''). An algorithm $M$ {\em solves} a search problem $S$ if for every input $x$ such that $S(x) \neq \emptyset$, $M(x)$ outputs some solution in $S(x)$. An {\em $\NP$ search problem} is a search problem $S$ such that there exists a polynomial $p$ and a polynomial-time algorithm $V$ such that for every $x,y$:
+\begin{itemize}
+\item $y \in S(x) \Rightarrow |y| \leq p(|x|)$ and
+\item $y \in S(x) \iff$ $V$ accepts $\langle x,y \rangle$
+\end{itemize}
+
+An {\em $\NP$ optimization problem} is given by a polynomial-time computable {\em objective function} $\Obj : \Sigma^*\times \Sigma^*\rightarrow \mathbb{N}$, and $\Obj(x,y)=0$ if $|y|>p(|x|)$ for some polynomial $p$.  The problem is: given an input $x$, find $y$ maximizing $\Obj(x,y)$.  An example is the problem of finding the shortest tour in an instance of the \textprob{Traveling Salesman Problem}.
+
+Prove that the following are equivalent:
+\begin{itemize}
+\item $\PTIME=\NP$
+\item Every $\NP$ search problem can be solved in polynomial time.
+\item Every $\NP$ optimization problem can be solved in polynomial
+time.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,79 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{amssymb,amsfonts,amsmath}
+\usepackage{graphicx}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ceil}[1]{\lceil #1 \rceil}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 125 Algorithms \& Complexity} --- Fall 2016}
+
+\bigskip
+
+{\Large \textsc{Problem Set 5}}
+
+\smallskip
+
+Due: 11:59pm, Friday, October 7th
+
+\bigskip
+
+{\footnotesize See homework submission instructions at \url{http://seas.harvard.edu/~cs125/fall16/schedule.htm}}
+\end{center}
+
+\textbf{Problem 5 is worth one-third of this problem set, and problems 1-4 constitute the remaining two-thirds.}
+
+\bigskip
+
+\section*{Problem 1} 
+
+Consider the single source shortest paths problem in the special case where all edge costs are non-negative integers in $\{0,\ldots,L\}$.  Describe an algorithm for this problem that works in time $O(m + nL)$, where $|E|=m$ and $|V|=n$. Recall the goal is to find the length of the shortest path from some source vertex $s$ to all other vertices in the graph.
+
+\section*{Problem 2}
+
+You are a merchant, and you want to walk from your home to your shop. You figure that you might as well get a good workout while doing so. Your city contains various roads and intersections, with various lengths of road between each intersection. Each intersection is also elevated at some height above sea level. Your primary goal is to get to your shop using the shortest route possible. However, you want a path in which all road segments you take are initially all inclined upward (the exercise) followed by road segments which are all inclined downward (to cool down). The number of road segments you take inclined upward before you switch to going downward is up to you (you could also choose a route that is entirely upward or downward). Give efficient algorithms to find the shortest such paths in the following two cases:
+
+\begin{itemize}
+\item[(a)] (5 points) All elevations are distinct.
+\item[(b)] (5 points) Some elevations may be the same. You may walk on flat roads during both the uphill and downhill portions of your walk.
+\end{itemize}
+
+\section*{Problem 3}
+
+Let us set up a problem as an ``integer linear program''.  Given a graph $G =(V,E)$, we want to find a {\em minimum vertex cover}.  A vertex cover is a set of vertices such that every edge in the graph is ``covered'' by at least one vertex;  that is, for every edge $(u,v)$, at least one of $u$ or $v$ must be in the set.
+\begin{itemize}
+\item[(a)] (6 points) If we assume that all our variables will end up being integers, there is natural linear program for vertex cover.  Write down such an integer linear program.
+\item[(b)] (4 points) A problem is that all our variables may not end up being integers when we solve the linear program.  Find an example graph (hint:  a very small graph should suffice) where your linear program for vertex cover, when non restricted to integer solutions, has a non-integral optimal solution that is better than the optimal integer solution.
+\end{itemize}
+
+\section*{Problem 4}
+
+Consider the two-player zero-sum game given by the following matrix.  (The entries are the payment from the column player to the row player.)
+
+$$\left[\begin{array}{cccc}
+3 & 1 & 0 & -4  \\
+6 & -2 & -2 & 0 \\
+-3 & -2 & 3 & -3 \\
+-7 & 4 & -5 & 7 \\
+\end{array}
+\right]
+$$
+\begin{itemize}
+\item[(a)] (4 points) Write down the linear program to determine the row player strategy that maximizes the value of the game to the row player. Do the same for the column player.
+\item[(b)] (4 points) Find an LP solver.  Use the solver to solve these linear programs, and give the proper optimal strategies for both players.
+\item[(c)] (2 points) What is the value of the game?  Should the column player pay the row player to play, or vice versa, and how much should one player pay the other to make the game fair?
+\end{itemize}
+
+\section*{Problem 5 (Programming Problem)}
+Solve ``VIDEOGAME'' on the programming server \url{https://cs125.seas.harvard.edu}.\\
+(under ``Problem Set 5'').
+
+\end{document}

@@ -1,0 +1,239 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,tikz}
+\usetikzlibrary{trees}
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+%\DeclareMathOperator{\lg}{lg}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{07 --- September 21, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{James Yang}
+
+\section{Overview}
+
+Today: Point query/Heavy hitter
+\begin{enumerate}
+\item $l_1$ point query: $query(i) = x_i\pm \frac{1}{k}\Vert x_{tail(k)}\Vert_1$
+\item $l_1$ heavy hitters: $heavy()$ outputs $L\in [n]$ such that\\
+(1) $|x_i|>\frac{1}{k}\Vert x_{tail(k)}\Vert_1\implies i\in L$ ,``i is a $\frac{1}{k}$-heavy hitter"\\
+(2) $|L|=O(k)$
+\end{enumerate}
+
+In this lecture we are going to cover few algorithms on point query and heavy hitters.
+
+\section{$l_1$ point query}
+
+
+\subsection*{CountMin sketch \cite{Graham} (See Figure 1)}
+\begin{enumerate}
+\item Hashing $h_1,...,h_r: [n]\rightarrow[t]$, drawn independently from 2-wise family 
+\item Each grid cell is a counter we store in memory 
+\item $update(i,\triangle)$, $C_{j, h_j(i)}\leftarrow C_{j, h_j(i)}+\triangle$ 
+\item For now, assume $\forall i, x_i \geq 0$, (strict turnstile assumption)
+\item $query(i):$ output $\tilde{x_i} = \min_{1\leq j\leq r} C_{j, h_j(i)}$
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{Scribe_First_img.png}
+  \caption{CountMin Sketch}
+  \label{fig:CountMin Sketch}
+\end{figure}
+
+\end{enumerate}
+
+
+\subsection*{Analysis}
+\begin{enumerate}
+\item Want to show\\
+\[ \mathbb{P}(|\tilde{x_i}-x_i| > \frac{1}{k}\cdot\Vert x_{tail(k)}\Vert_1)< \eta\]
+
+\item Suffices to show for fixed: $j \in [r]$ \\
+\[ \mathbb{P}(|C_{j, h_j(i)}-x_i| > \frac{1}{k}\cdot\Vert x_{tail(k)}\Vert_1) \leq \frac{1}{2} \]
+
+\item Define event:
+\[ E_i = \text{event that none of the top k entries in } x \text{ collide with } i \text{ under } h_j\]
+
+\[ F_i = \text{event that the total tail(k) mass colliding with } i \text{ under } h_j \text{ is } \leq \frac{1}{k} \Vert x_{tail(k)}\Vert_1\]\\
+\end{enumerate}
+
+\begin{claim} 
+If $ E_i \cap F_i$ \text{ holds, then }$|C_j, h_j(i) - x_i| \leq \frac{1}{k} \Vert x_{tail(k)}\Vert_1$
+\end{claim}
+
+\begin{claim} 
+If $\mathbb{P}( \bar{E_i} \cup \bar{F_i}) \leq \frac{1}{2}$ , where $\mathbb{P}( \bar{E_i} \cup \bar{F_i}) \leq \mathbb{P}(\bar{E_i}) + \mathbb{P}(\bar{F_i})$
+\end{claim}
+\begin{proof} Note that t=4k
+\text{ }\\
+\text{ }\\
+For $\bar{E_i}:$ \\
+$ \text{Let } \beta_q = \begin{cases} 1\text{ , if } h_j(q) = h_j(i)\\
+                                           0\text{ , otherwise}
+                             \end{cases}$\\
+\[\mathbb{P}{h_j}(\bar{E_i}) = \mathbb{P}_{h_j}(\sum\limits_{q \neq i, q \in head(k)}{\beta_q} \geq 1) \leq \frac{\mathbb{E}(\sum{\beta_q})}{1} \leq \frac{1}{4}\] \\
+
+\text{ }\\
+\text{ }\\
+\text{ }\\
+\text{ }\\
+\text{ }\\
+For $\bar{F_i}:$ \\
+
+\begin{align*}
+\mathbb{P}_{h_j}(\bar{F_i}) & = \mathbb{P}_{h_j}(\text{Total tail mass colliding with i} > \frac{\Vert x_{tail(k)}\Vert_1}{k}) \\ &\leq 
+\frac{\mathbb{E}(\text{Total tail mass colliding with i})}{\frac{\Vert x_{tail(k)}\Vert_1}{k}} \\&=
+\frac{\mathbb{E}(\sum\limits_{q \neq i, q \in tail(k)} x_q \cdot \beta_q)}{\frac{\Vert x_{tail(k)}\Vert_1}{k}} \\ &\leq 
+\frac{\frac{\Vert x_{tail(k)}\Vert_1 }{t}}{\frac{\Vert x_{tail(k)}\Vert_1}{k}} \\& = \frac{k}{t} = \frac{1}{4}
+\end{align*}
+
+\end{proof}
+
+\subsection*{Point Query}
+\begin{enumerate}
+\item Idea: $query(i)$ for each $i$ then return the $i$ with top k $|\tilde{x_i}|$ values.
+\text{  }\\
+\item One issue: (Let's define $Err(k) = \frac{1}{k}\Vert x_{tail(k)}\Vert_1$) \\
+We have $x_i = Err(k)$ , maybe $\tilde{x_i} = x_i$ (no error). And there is a  $x_{i^\prime} = \frac{1}{1.9} \cdot Err(k)$ , and may have error $\tilde{x_i} = x_i + Err(k)$.Therefore, we are going to think that $x_{i^{\prime}} > x_i$, although it is not true. So, below we are going to show how to fix this issue.
+\end{enumerate}
+\subsubsection*{Fix} 
+
+\begin{enumerate}
+\item Run Point Query structure with $k^\prime = 4k$.
+\item Return $L = \text{top } 3k \text{ indices}$.
+\item Set $\eta = \frac{\delta}{n}$ , n is the length of vector x
+\end{enumerate}
+
+\begin{claim}
+$\mathbb{P}(\text{L satisfies the true top 3k indices}) \geq 1 - \delta$
+\end{claim}
+
+\begin{proof}
+$\mathbb{P}(\exists \text{ i such that } query(i) \text{ fails}) < \eta \cdot n = \delta \text{ , where n is union bound}$
+
+\subsection*{Remark}
+\begin{enumerate}
+    \item A true $\frac{1}{k}$-Heavy Hitter appears as $\geq true value - \frac{1}{4k} \geq \frac{3}{4} \cdot \frac{1}{k}$
+    \item For $i^\prime$ to look bigger, $|x_{i^\prime}|$ hard to be $\geq \frac{1}{2k}$, so $\frac{1}{2k} + \frac{1}{4k} \geq \frac{3}{4} \cdot \frac{1}{k}$
+    \item $\text{\# indices }\geq \frac{1}{2k} \cdot \Vert x_{tail(k)}\Vert_1 \text{ is } \leq 3k$
+\end{enumerate}
+
+\end{proof}
+
+\subsection*{Comparison Chart}
+\begin{figure}[h]
+  \includegraphics[width=\linewidth]{Scribe_Sec_img.png}
+  \caption{Comparison Chart}
+  \label{fig:Comparison Chart}
+\end{figure}
+
+
+\section{$l_2$ - Heavy Hitter / Point Query}
+Solved by Count Sketch \cite{CCF02}. Structure similar to Figure 1.
+\begin{enumerate}
+    \item $\sigma_1 , \cdots  , \sigma_r$ (2-wise) , $[n]\rightarrow \{-1,1\}$
+    \item $update(i,\triangle)$, $C_{j, h_j(i)}\leftarrow C_{j, h_j(i)}+\triangle \text{, where } \triangle = \sigma_j(i) \cdot \hat{\triangle}$ 
+    \item $query(i):$ output $\tilde{x_i} = \underset{L\leq j\leq r}{\mathrm{median}} \text{ } \sigma_j(i) \cdot C_{j, h_j(i)}$
+\end{enumerate}
+
+\begin{claim}
+$\mathbb{P}(|\tilde{x_i}(j)-x_i| > \frac{1}{\sqrt{k}}\cdot\Vert x_{tail(k)}\Vert_2)< \frac{1}{3}$ , where $Err_x(k) = \frac{1}{\sqrt{k}}\cdot\Vert x_{tail(k)}\Vert_2$
+\end{claim}
+
+\begin{proof}
+\text{ }\\
+\[ \mathbb{P}(|\tilde{x_i}(j)-x_i|^2 > Err_2^2(k)) < \frac{\mathbb{E}(\sigma_j(i) \cdot C_{j, h_j(i)} - x_i)^2}{\frac{1}{k}\Vert x_{tail(k)}\Vert_2^2} < \frac{1}{3} \]
+
+\end{proof}
+
+\section{Insertion only}
+\subsection*{$l_1 \text{ } \frac{1}{k}-$Heavy Hitter}
+For more details, you can look at paper [3].  We use the following example to illustrate the idea of identifying a heavy hitter.  Suppose that we have one counter associated with the candidate HH index.  If $x_i$ of the stream comes, then the counter is incremented when the “i” matches with HH.  Otherwise, the counter associated with HH is decremented. If the counter is zero, we reset the candidate HH with the incoming element. \\
+\text{ }\\
+For example, suppose that the input stream is \{2, 1, 1\}.  So 2 comes first and 2 will become the candidate HH which sets the counter to 1.  The next element decreases the counter back to 0 (since 1 does not equal to 2). Finally, when the second 1 comes in, the candidate HH is reset to 1 (with counter value 1).
+
+\subsection*{$l_2-$Heavy Hitter in insertion only}
+Refer to the paper [5], the algorithm BPTree for l2 heavy hitters in insertion-only streams can achieves $O(\epsilon^{-2}\log\epsilon^{-1})$ words of memory and $O(\log\epsilon^{-1})$ update time, which is the optimal dependence on n and m.\\
+
+The BPTree algorithm runs a series of $\theta$(log n) rounds where the goal of each round is to learn one bit of the identity of Heavy Hitter. Let us use the case of the super heavy hitter for illustrating how BPTree works.  \\
+
+C-super heavy: $x_H^2 > C \cdot \sum\limits_{j \neq i}{x_j^2}$ \\
+
+We have C0 and C1, are used for keeping the tracks.  Learning the super heavy item (H) is done bit-by-bit. When an item comes, the first bit of the item is checked.  If it is a 0, then it is send to C0 to do a dot product with random $\pm$1 vector. Run this for a while, what we are going to expect is that the C corresponding to the super heavy item is bigger, because the item is super heavy.  So we shall assume the first bit is 1 if C1 is big.  Based on this, bit by bit identification can be done.
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Graham}
+Graham~Cormode, S.~Muthukrishnan.
+\newblock An improved data stream summary: the count-min sketch and its applications.
+\newblock {\em Journal of Algorithms}, 55(1):58--75 , 2005.
+
+\bibitem{CCF02}
+Moses~Charikar, Kevin C.~Chen, Martin~Farach-Colton.
+\newblock Finding Frequent Items in Data Streams.
+\newblock ICALP 2002: 693--703.
+
+\bibitem{insertion}
+J.~Misra, David~Gries.
+\newblock Finding Repeated Elements.
+\newblock {\em Science of Computer Programming2}, 143--152 , 1982.
+
+\bibitem{stateofart}
+K.~Larsen, J.~Nelson, Huy~L.Nguyen, M.~Thorup. 
+\newblock Heavy hitters via cluster-preserving clustering.
+\newblock {\em  IEEE 57th Annual Symposium on Foundations of Computer Science}, 2016.
+
+\bibitem{fifthone}
+V.~Braverman, S.~Chestnut, N.~Ivkin, J.~Nelson, Z.~Wang, D.~Woodruff. 
+\newblock BPTree: an l2 Heavy Hitters Algorithm Using ConstantMemory.
+\newblock {\em 36th ACM SIGMOD-SIGACT-SIGAI Symposium}, 2017.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,338 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\tn}{\textnormal}
+\newcommand{\Ab}{A_{\overline{k}}}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator{\tr}{tr}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{22 --- November 16, 2017}{Fall 2017}{Guest Lecture by Cameron Musco}{Jacob Klegar}
+
+\section{Low-Rank Approximation and Clustering Via Sketching}
+
+We approach solving the problems of low-rank approximation and clustering via a generalization of subspace embeddings called "Projection-Cost Preserving Sketches", or PCP's for short. The material for this lecture comes from a paper by Cohen et al. \cite{CohenEMMP15}.
+
+\subsection{Low-Rank Approximation}
+
+\begin{definition}[Low-Rank Approximation]
+Given $A \in \R^{n \times d}$, find $\argmin\limits_{\tn{rank } k \tn{ matrix }B} \Vert A - B \Vert_F^2$. Or equivalently, find $\argmin\limits_{\tn{rank }k\tn{ projection matrix }P} \Vert A - PA \Vert_F^2$.
+\end{definition}
+
+The output $P^*$ of Low-Rank Approximation is a projection onto $A$'s top $k$ singular vectors, i.e.,
+
+\[
+P^* A = U_k U_k^T A = A_k
+\]
+
+where $U_k$ is the matrix with the top $k$ singular vectors of $A$.
+
+This takes $O(nd^2)$ time, and approximate iterative methods take $\tilde{O}(nnz(A)k)$ time, where $nnz(A)$ is the number of nonzero values of $A$. We want to do better.
+
+\begin{definition}[PCP]
+$\tilde{A} \in \R^{n \times m}$ is an $(\eps,k)$-PCP for $A$ if $\forall$ rank $k$ projections $P$:
+$$
+(1-\eps) \Vert A - PA \Vert_F^2 \leq \Vert \tilde{A} - P \tilde{A}\Vert_F^2 \leq (1 + \eps) \Vert A - PA \Vert_F^2
+$$
+\end{definition}
+
+Ideally we have $m \ll d$.
+
+Now assuming we have $\tilde{A}$ an $(\eps,k)$-PCP for $A$, let $\tilde{P}^* = \argmin\limits_{\tn{rank }k\tn{ projections }P} \Vert \tilde{A} - P\tilde{A} \Vert_F^2$. Then
+
+\begin{align*}
+\Vert A - \tilde{P}^* A \Vert_F^2 &\leq \frac{1}{1-\eps} \Vert \tilde{A} - \tilde{P}^* \tilde{A} \Vert_F^2 \\
+&\leq \frac{1}{1-\eps} \Vert \tilde{A} - P^* \tilde{A} \Vert_F^2 \\
+&\leq \frac{1+\eps}{1-\eps} \Vert A - P^* A\Vert_F^2
+\end{align*}
+
+For small $\eps$ we have $\frac{1+\eps}{1-\eps} = 1+O(\eps)$.
+
+The run time using PCP is now $O(nm^2)$.
+
+\begin{theorem}
+We can compute an $(\eps,k)$-PCP for $A$ in $nnz(A) + \tilde{O}(nk^2/\eps^2)$ time with $m \approx k/\eps^2$.
+\end{theorem}
+
+This would make the total run time $O(nnz(A)) + \tilde{O}(nk^2/\eps^4)$. Before proving this theorem, we show another application of PCPs.
+
+\subsection{Constrained Low-Rank Approximation Problem}
+
+\begin{definition}[Constrained Low-Rank Approximation Problem]
+Let $T \subseteq$ all rank $k$ projection matrices. Then find $\argmin\limits_{P \in T} \Vert A - PA \Vert_F^2$.
+\end{definition}
+
+\begin{claim}
+If  $\tilde{A}$ is an $(\eps,k)$-PCP for $A$, and $\tilde{P} \leq \gamma \min\limits_{P \in T} \Vert \tilde{A} - P\tilde{A} \Vert_F^2$, then
+$$
+\Vert A - \tilde{P} A \Vert_F^2 \leq (1 + O(\eps)) \gamma \min\limits_{P \in T} \Vert A - PA \Vert_F^2
+$$
+\end{claim}
+
+This follows from the same reasoning as before.
+
+\begin{definition}[$k$-means clustering]
+Given $a_1,...,a_n \in \R^d$, which we can represent as the rows of $A \in \R^{n \times d}$,
+$$
+\min\limits_{\tn{partitions into }k\tn{ sets }C = \{C_1,...,C_k\}} \sum\limits_{i=1}^k \sum\limits_{j \in C_i} \Vert a_j - \mu(C_i)\Vert_2^2
+$$
+where $\mu(C_i) = \frac{1}{|C_i|} \sum\limits_{j \in C_i} a_j$ is the centroid.
+\end{definition}
+
+We now show that $k$-means is constrained low-rank approximation. Let
+
+\[
+f(C,A) = \sum\limits_{j \in C_i} \Vert a_j - \mu(C_i)\Vert_2^2.
+\]
+
+Then we will show
+
+\[
+f(C,A) = \Vert A - P_C A \Vert_F^2
+\]
+
+for some rank $k$ projection matrix $P_C$.
+
+We have $P_C = Z_C^T Z_C$, where $Z_C$ is a cluster indicator matrix, i.e., $Z_C \in \R^{k \times n}$ and
+\[(Z_C)_{ij} = \begin{cases}
+\frac{1}{\sqrt{|C_i|}} & \textnormal{if } a_j \in C_i \\
+0 & \textnormal{otherwise}.
+\end{cases}\]
+
+Note $Z_C$ is an orthogonal matrix and $Z_C Z_C^T = I$, which implies $P_C$ is a projection.
+
+So we get $\Vert A - Z_C^T Z_C A \Vert_F^2$.
+
+After showing these applications, we now show how to get a PCP sketch.
+
+\section{Projection-Cost Preserving Sketches}
+
+\subsection{Subspace Embeddings}
+
+\begin{definition}[Subspace Embedding]
+Given $A \in \R^{n \times d}$, $S$ is an $\eps$-subspace embedding if $\forall x \in \R^n, \Vert x^T AS \Vert_2^2 \in (1 \pm \eps) \Vert x^T A \Vert_2^2$.
+\end{definition}
+
+\begin{observation}
+If $S$ is a subspace embedding, it is an $(\eps,k)$-PCP for any $k$.
+\end{observation}
+
+Let $Y \in \R^{n \times n}, Y = I - P$.
+
+Then PCP is equivalent to
+
+\[
+\Vert Y \tilde{A} \Vert_F^2 = \sum\limits_{i=1}^n \Vert y_i^T \tilde{A} \Vert_2^2 \in (1 \pm \eps) \Vert YA \Vert_F^2.
+\]
+
+Then set $\tilde{A} = AS$. We get
+
+\[
+\Vert Y A S \Vert_F^2 = \sum\limits_{i=1}^n \Vert y_i^T AS \Vert_2^2 \in (1 \pm \eps) \sum\limits_{i=1}^n \Vert y_i^T A \Vert_2^2 = (1 \pm \eps) \Vert YA \Vert_F^2
+\]
+
+$S$ works but is too expensive. Typically $S \in \R^{d \times m}$ where $m = \Theta(d/\eps^2)$. We want $m = \Theta(k/\eps^2)$.
+
+\subsection{Smaller $m$}
+
+\begin{theorem}
+$S \in \R^{d \times m}$, where $S_{ij} = \pm \frac{1}{\sqrt{m}}$ independently at random. Then if $m = O(k\log (1/\delta)\eps^{-2})$, then $\tilde{A} = AS$ is $(\eps,k)$-PCP with probability $1-\delta$.
+\end{theorem}
+
+That is, letting $Y = I - P$ for any rank $k$ projection $P$, we want the PCP guarantee:
+
+\[
+|\Vert YA \Vert_F^2 - \Vert YAS \Vert_F^2 | \leq \eps \Vert YA \Vert_F^2
+\]
+
+Write $A = A_k + \Ab$, where $A_k$ is $A$ projected onto its top $k$ singular vectors (what we care about) and $\Ab$ is the rest (noise).
+
+Then our expression becomes
+
+\[
+| \Vert Y (A_k + \Ab) \Vert_F^2 - \Vert Y (A_k + \Ab)S \Vert_F^2 |
+\]
+
+Now using the fact that $\Vert M \Vert_F^2 = \tr(MM^T)$:
+
+\[
+\tr(Y A_k A_k^T Y) + \tr(Y \Ab \Ab^T Y) + 2\tr(Y A_k \Ab^T Y) - \tr(Y A_k SS^T A_k^T Y) - \tr(Y\Ab SS^T \Ab^T Y) - 2\tr(YA_k SS^T \Ab^T Y)
+\]
+
+Note that $\tr(Y A_k \Ab^T Y) = 0$ since $A_k,\Ab$ are orthogonal.
+
+\subsection{Head Terms (Subspace Embedding)}
+
+We show
+
+\[
+| \tr(Y A_k A_k^T Y) - \tr(Y A_k SS^T A_k^T Y) | \leq \eps \Vert Y A \Vert_F^2
+\]
+
+Note the left hand side is
+
+\[
+| \Vert Y A_k \Vert_F^2 - \Vert Y A_k S \Vert_F^2 | \leq \eps \Vert Y A \Vert_F^2
+\]
+
+$A_k$ is rank $k$, so since $m \approx k/\eps^2$, $S$ is an $\eps$-subspace embedding for $A_k$, i.e., $\forall x, \Vert x^T A_k S \Vert_2^2 \in (1 \pm \eps) \Vert x^T A_k \Vert_2^2$.
+
+\subsection{Tail Term (Approximate Matrix Multiplication)}
+
+We bound
+
+\[
+| \tr(Y \Ab \Ab^T Y) - \tr(Y \Ab SS^T \Ab^T Y) |
+\]
+
+Recall $Y = I - P$.
+
+\[
+\Vert (I - P) \Ab \Vert_F^2 = \Vert \Ab \Vert_F^2 - \Vert P \Ab \Vert_F^2
+\]
+
+So we get
+
+\[
+\Vert \Ab \Vert_F^2 - \Vert P \Ab \Vert_F^2 - \Vert \Ab S \Vert_F^2 + \Vert P \Ab S \Vert_F^2
+\]
+
+If $m > \log (1/\delta) \eps^{-2}$, then $| \Vert \Ab \Vert_F^2 - \Vert \Ab S \Vert_F^2 | \leq \eps \Vert \Ab \Vert_F^2 \leq \eps \Vert (I - P) A \Vert_F^2$ for any $P$.
+
+Now
+
+\begin{align*}
+&| \Vert P \Ab \Vert_F^2 - \Vert P \Ab S \Vert_F^2 | \\
+&= | \tr(P[\Ab \Ab^T - \Ab SS^T \Ab^T]P)| \\
+\end{align*}
+
+Let $M = \Ab \Ab^T - \Ab SS^T \Ab^T$ and let $\lambda_1 > ... > \lambda_k > 0$ be its first $k$ eigenvalues. Then we get
+
+\begin{align*}
+&= \sum\limits_{i=1}^k \lambda_i (M) | \\
+&\leq \sum\limits_{i=1}^k | \lambda_i(M) | \\
+&\leq \sqrt{k} \sqrt{\sum\limits_{i=1}^k \lambda_i^2(M)} \\
+&\leq \sqrt{k} \Vert PMP \Vert_F \\
+&\leq \sqrt{k} \Vert M \Vert_F
+\end{align*}
+
+Recall (Approximate Matrix Multiplication) that for any $C,D$,
+
+\[
+\Vert CD - CSS^T D \Vert \leq \frac{1}{\sqrt{m}} \Vert C \Vert_F \Vert D \Vert_F
+\]
+
+where $m$ is the number of columns in $S$.
+
+Here, we take $C = D = \Ab$. Then we get
+
+\begin{align*}
+&\leq \sqrt{k} \frac{\eps}{\sqrt{k}} \Vert \Ab \Vert_F^2 \\
+&\leq \eps \Vert \Ab \Vert_F^2 \\
+&\leq \eps \Vert (I - P) A \Vert_F^2
+\end{align*}
+
+for any $P$.
+
+\subsection{Cross Term}
+
+We show
+
+\[
+| \tr(Y A_k SS^T \Ab^T Y) |
+\]
+
+is small. Set $C = AA^T$ and let $C^+$ be the pseudoinverse of $C$. Then this becomes
+
+\begin{align*}
+&| \tr(Y CC^+ A_k SS^T \Ab^T Y)| \\
+&= |\tr(Y^2 CC^+ A_k SS^T \Ab^T)| \\
+&= |\tr(Y CC^+ A_k SS^T \Ab^T)| \\
+&= |\tr((Y CC^{+/2})(C^{+/2} A_k SS^T \Ab^T)| \\
+&\leq \sqrt{\tr(YCC^{+/2} C^{+/2}C Y)} \sqrt{\tr(\Ab SS^T A_k^T C^{+/2}C^{+/2} A_k SS^T \Ab^T)}
+\end{align*}
+
+where the last inequality comes from Cauchy-Schwarz. Then the first part can be bounded by
+
+\begin{align*}
+&\sqrt{\tr(YCC^{+/2} C^{+/2}C Y)} \\
+&= \sqrt{\tr(YCY)} \\
+&= \sqrt{\tr(YAA^T Y)} \\
+&= \Vert YA \Vert_F
+\end{align*}
+
+Using SVD, we get $A_k = V_k \Sigma_k V_k^T$, so
+
+\begin{align*}
+&\sqrt{\tr(\Ab SS^T A_k^T C^{+/2}C^{+/2} A_k SS^T \Ab^T)} \\
+&= \sqrt{\tr(\Ab SS^T V_k \Sigma_k U_k^T U \Sigma^{-2} U^T U_k \Sigma_k V_k^T SS^T \Ab^T)} \\
+&= \sqrt{\tr(\Ab SS^T V_k V_k^T SS^T \Ab^T)} \\
+&= \Vert \Ab SS^T V_k \Vert_F \\
+&\leq \frac{1}{\sqrt{m}} \Vert \Ab \Vert_F \Vert V_k \Vert_F \\
+&\leq \frac{\eps}{\sqrt{k}} \Vert (I - P) A \Vert_F \sqrt{k} \\
+&= \eps \Vert (I - P) A \Vert_F
+\end{align*}
+
+again for any $P$.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{CohenEMMP15}
+Michael~Cohen, Sam~Elder, Cameron~Musco, Christopher~Musco, Madalina~Persu.
+\newblock Dimensionality Reduction for k-Means Clustering and Low Rank Approximation.
+\newblock In {\em Proceedings of the Forty-Seventh Annual {ACM} on Symposium on Theory of Computing}, pages 163--172. ACM, 2015.
+
+\end{thebibliography}
+
+\end{document}

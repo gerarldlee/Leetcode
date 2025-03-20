@@ -1,0 +1,287 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{16 --- Tuesday, Oct 27 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Jefferson Lee}
+
+\section{Overview}
+
+Last class, we looked at methods for approximate matrix multiplication, one based on sampling and another based on JL. The problem was to find a $C$ such that for two matrices $A \in \R^{n \times d}$ and $B \in \R^{n \times p}$:
+\begin{align*}
+	\|A^TB - C\| \leq \epsilon \|A\| \|B\|
+\end{align*}
+Where the norms here were Frobenius norms. Then, by analyzing the matrix $M$ that is the horizontal concatenation of $A$ and $B$, we showed that it is sufficient to be able to find a $C$ such that:
+\begin{align*}
+	\|A^TA - C\| \leq \epsilon \|A\|^2
+\end{align*}
+Today, we'll look at operating norms rather than Frobenius norms, and achieve an even stronger bound. In particular, we will be looking at subspace embeddings, and how to use them to get fast algorithms for least squares regression.
+
+\section{Subspace embeddings}
+\begin{definition}
+	Given $E \subset\R^n$ a linear subspace, $\Pi\in\R^{m\times n}$ is an $\eps$-\textbf{subspace embedding} for $E$ if 
+	\begin{align*}
+	\forall z\in E: (1-\eps)\|z\|_2^2\leq \|\Pi z\|_2^2\leq (1+\eps)\|z\|_2^2
+	\end{align*}
+\end{definition}
+
+For us, we can frame these subspace embeddings in a similar light to the approximate matrix multiplication methods:
+\begin{itemize}
+ \item $E = \text{colspace}(A) \implies \forall x \in R^d : (1 - \epsilon)||Ax||_2^2 \leq ||\Pi Ax||_2^2 \leq (1 + \epsilon)||Ax||_2^2$
+\item $C = D^TD = (\Pi A)^T(\Pi A)$. The previous statement $\implies \forall x \in R^d : |x^T [A^TA - (\Pi A)^T(\Pi A)]x| \leq \epsilon ||Ax||_2^2$. Note that this is a stronger bound than our last - it preserves $x$.
+\end{itemize}
+
+Note that any linear subspace is the column space of some matrix. From now on, we will represent them as these matrices.
+
+\begin{claim}
+	For any $A$ of rank $d$, there exists a $0$-subspace embedding $\Pi\in\R^{d\times n}$ with $m=d$, but no $\eps$-subspace embedding $\Pi\in\R^{m\times n}$ with $\eps<1$ if $m<d$.
+\end{claim}
+\begin{proof}
+	Now, assume there is an $\eps$-subspace embedding $\Pi\in\R^{m\times n}$ for $m<d$. Then, the map $\Pi:E\to\R^m$ has a nontrivial kernel. In particular there is some $x\neq 0$ such that $\Pi x = 0$. But $\|\Pi x\|_2 \geq (1-\eps)\|x\|_2 >0$, which is a contradiction.
+	For the $m \leq d$ case, first rotate the subspace $E$ to become $\textup{span}(e_1,\ldots,e_d) $ (via multiplication by an orthogonal matrix), and then project to the first $d$ coordinates.
+\end{proof}
+
+How can we find the orthogonal matrix used in the proof efficiently?
+\begin{theorem}[Singular value decomposition]
+	\label{thm:svd}
+	Every $A\in\R^{n\times d}$ of rank r has a ``singular value decomposition"
+	\begin{align*}
+	A=U\Sigma V^T
+\end{align*}
+where $U\in\R^{n\times r}$ has orthonormal columns, $r=\textup{rank}(A)$, $\Sigma\in\R^{r\times r}$ is diagonal with strictly positive entries $\sigma_i$ (referred to as the singular values) on the diagonal, and $V\in\R^{d\times r}$ has orthonormal columns so $U^TU = I$ and $V^TV = I$
+\end{theorem}
+
+Note that once we have $U \Sigma V^T$, we can set $\Pi = U^T$ ($U$ does not have an influence on the norm). There are algorithms to compute $U, \Sigma, V^T$ in $O(nd^2)$ time, or the following:
+\begin{theorem}[Demmel, Dumitru, Holtz {\cite{DDH07}}]
+In the setting of the previous theorem, we can approximate SVD well in time $\tilde{O}(nd^{\omega-1})$ where $\omega$ is the constant in the exponent of the complexity of matrix multiplication. Here the tilde hides logarithmic factors in $n$.
+\end{theorem}
+
+This is still relatively slow. Before considering find subspace embeddings more quickly, let us first consider a potential application.
+
+\section{Least squares regression}
+
+\subsection{Definition and motivation}
+
+\begin{definition}
+	\label{prob:}
+	Suppose we're given $A\in\R^{n\times d}$, $b\in\R^n$ where $n\gg d$. We want to solve $Ax=b$; however, since the system is over-constrained, an exact solution does not exist in general. In the \textbf{least squares regression} problem,  we instead want to solve the equation in a specific approximate sense: we want to compute
+	\begin{align*}
+	x^{LS} = \textup{argmin}_{x \in \R^d} \|Ax-b\|_2^2
+	\end{align*}
+\end{definition}
+
+The choice of the function to be optimized is not arbitrary. For example, assume that we have some system, and one of its parameters is a linear function of $d$ other parameters. How can we find the coefficients of that linear function? In reality, we experimentally observe a linear function + some random error. Under certain assumptions - errors have mean 0, same variance, and are independent, then least squares regression is provably the best estimator out of a certain class of estimators (see the Gauss-Markov theorem).
+
+\subsection{How do we solve least squares in general?}
+
+What's the best $x$ to choose? Notice that $\{Ax: x\in \R^d\}$
+is the column span of $A$. Part of $b$ lives in this column space, and part of it lives orthogonally. Then, the $x^{LS}$ we need is the projection of $b$ on that column span. Let $A=U\Sigma V^T$ be the SVD of $A$. Then the projection of $b$ satisfies
+\begin{align*}
+	\text{Proj}_{\textup{Col}(A)}b=UU^Tb
+\end{align*}
+hence we can set $x^{LS}=V\Sigma^{-1}U^Tb = (A^TA)^{-1}A^Tb$ (Assuming $A$ has full column rank - otherwise we need to use the pseudo-inverse). Then we have $Ax^{LS}=U\Sigma V^TV\Sigma^{-1}U^Tb=UU^Tb$. Thus, we can solve LSR in $O(nd^2)$ time.
+
+\subsection{Using subspace embeddings}
+\begin{claim} If $||Dx||^2 = (1 + \epsilon)||A'x||^2$ for all x $A' = [A | b]$ then if $\tilde{x}^{LS} = argmin_{x' = [x| -1]} ||Dx||_2^2$, then:
+\begin{align*}
+	||Ax - b||_2^2 \leq \frac{1 + \epsilon}{1 - \epsilon} ||Ax^{LS} - b||_2^2
+\end{align*}
+\end{claim}
+
+We're going to replace $A$ with $\Pi A$. Then we just need the $SVD$ of $\Pi A$, which only takes us $O(md^2)$ time. If $m$ is like $d$ then this is faster. However, we still need to find $\Pi$ and apply it. If you find it using SVD, what's the point? - we already spent a lot of time calculating $\Pi$ itself.
+
+\begin{claim} (Restatement of last claim) If $\Pi$ is $\eps$-s.e. for $\text{span}(\text{cols}(A, b))$ then if $\tilde{x}^{LS} = \textup{argmin}_ ||\Pi Ax -\Pi b||_2^2$, then:
+\begin{align*}
+	||A\tilde{x}^{LS} - b||_2^2\leq  \frac{1 + \epsilon}{1 - \epsilon} ||Ax^{LS} - b||_2^2
+\end{align*}
+\end{claim}
+\begin{proof} $|| \Pi A \tilde{x}^{LS} - \Pi b||_2^2 \leq ||\Pi A \tilde{x}^{LS} - \Pi b||_2^2 \leq (1 + \epsilon) ||Ax^{LS} - b_2^2||$. Similarly for the left side of the inequality.
+\end{proof}
+
+The total time to find $\tilde{x}^{LS}$ includes the time to find $\Pi$, the time to compute $\Pi A, \Pi b$, and $O(m d^2)$ (the time to find the SVD for $\Pi A$). But still, how do we find these $\Pi$ quickly?
+ 
+\section{Getting Subspace Embeddings}
+As with approximate matrix multiplication, there are two possible methods we will examine: sampling, and a JL method.
+ 
+\subsection{The Sampling Approach - Leverage Scores}
+Let  $\Pi \in \R^{n \times n}$ be a diagonal matrix with diagonal elements $\eta_i$. $\eta_i$ is 1. if we sample the $i$th row $i$ of $A$ $(which can be written as a_i^T)$, 0 otherwise. $\E[\eta_i] = p_i$.
+
+\begin{align*}
+	A^TA = \sum_{k=1}^n a_k a_k^T
+	\\ (\Pi A)^T(\Pi A) = \sum_{k=1}^n \frac{\eta_{k}}{p_k}a_ka_k^T
+	\\ \E(\Pi A)^T(\Pi A) = \sum_{k=1}^n \frac{\E[\eta_{k}]}{p_k}a_ka_k^T = A^TA
+\end{align*}
+
+ In the last class, when we used the sampling approach for approximate matrix multiplication, we chose proportional to the $l_2$ norm for each row. We need to decide what $p_k$ should be here. Note that the number of rows you get is non-deterministic. You could set that number, but this approach is easier to numerically analyze.
+//
+	Before analyzing, some intuition for the probabilities $p_k$:
+\begin{itemize}
+\item I don't want any $p_k$'s to be 0 - then we just miss a row.
+\item Define $R_i = \textup{sup}_{x \in R^d} \frac{|a_i^Tx|^2}{||Ax||_2^2}$. If we don't set $p_k \geq R_k$, it doesn't make sense. Why?
+\item Look at the event that we did sample row $i$. Then 
+\begin{align*} (\Pi A)^T(\Pi A) = \frac{1}{p_i}a_ia_i^T + \sum_{k \not =i}^n \frac{\eta_{k}}{p_k}a_ka_k^T
+\end{align*}
+\item Pick the $x$ which achieves the sup in the definition of $R_i$. Then $x^T(\Pi A)^T(\Pi A)x = \frac{|a_i^Tx|^2}{p_i} + \sum (\text{non-negative terms}) \geq \frac{|a_i^Tx|^2}{p_i} = ||Ax||_2^2 \frac{R_i}{p_i} $
+\item If $p_i < R_i / 2$, the previous expression evaluates to $2 ||Ax||_2^2$ - therefore, we are guaranteed to mess up because there is some $x$ which makes our error too big. Therefore, we need some $p_i > R_i / 2$.
+\end{itemize}
+
+
+\begin{definition} Given $A$, the $i$th \textbf{leverage score} $l_i$ is $l_i = a_i^T(A^TA)^{-1}a_i$, (once again if $A$ has full column rank, otherwise use the pseudo-inverse instead).
+\end{definition}
+
+\begin{claim} $l_i = R_i$
+\end{claim}
+\begin{proof} Note that both $R_i$ and $l_i$ are both basis independent i.e. if M is square/invertible, then:
+\begin{itemize}
+\item $l_i(A) = l_i(AM)$ and $R_i(A) = R_i(AM)$
+\item $R_i(AM) = \textup{sup}_x\frac{|a_i^TMx|^2}{\|AMx\|_2^2} = \textup{sup}_y \frac{|a_iyt|}{\|Ay\|_2^2} = R_i(A)$
+\end{itemize}
+Choose $M$ s.t. $\tilde{A} = AM$ has orthonormal columns: $M = V \Sigma^{-1}$ (from SVD). Then, wlog $A = \tilde{A} = AM$ and:
+\begin{itemize}
+\item $R_i = \text{sup}_x \frac{|a_i^Tx|^2}{\|x\|_2^2}$
+\item Which $x$ achieves the sup in $R_i$? The vector $\|a_i\|$ itself. Thus $R_i = \|a_i\|_2^2$
+\item $l_i = a_i^T(A^TA)^{-1}a_i = \|a_i\|_2^2$.
+
+\end{itemize}
+\end{proof}
+
+How do we calculate the leverage scores? Notice that $AM = U$. We sample according to the $||u_i||_2^2$, where $U$ is the matrix of orthonormal columns forming the basis of $A$. We need the SVD again to actually calculate these probabilities then. But it's actually okay if we sample based on the approximation of the leverage scores. This will be a pset problem - it can be done using JL approach seen next (there are other algorithms as well, such as iterative row sampling).
+\\
+\\
+How do we know it actually works? If we sample according to $||u_i||_2^2$ then:
+\begin{align*}
+	\E[(\text{number of rows sampled})] = \sum_i(p_i) = \sum_i||u_i||_2^2 =||U||_F^2 = d
+\end{align*}
+
+\begin{theorem}[Drineas, Mahoney, Muthukrishnan {\cite{DMM06}}]
+If we choose $p_i \geq~ \textup{min}\{1, \frac{\textup{lg } (d/\delta)||u_i||_2^2} {\eps^2}\}$, then $\mathbb{P}(\Pi \text{ is not }\eps -\text{ s.e. for }A) < \delta$.
+\end{theorem}
+
+\begin{itemize}
+\item Note $||u_i||_2^2 = ||UU^Te_i||_2^2 = ||\text{Proj}_A e_i||_2^2 \leq ||e_i||_2^2 = 1$. Thus none of the leverage scores can be bigger than 1, and they sum up to $d$. The minimum with 1 is needed to the multiplicative factor times the legepave score.
+\item We can analyze this using Matrix Chernoff (or non-commutative khintchine)
+\end{itemize}
+
+Let's look at the analysis by non-commutative khintchine.
+\begin {definition}: The \textbf{Schatten-p norm} of $A$ for $1 \leq p \leq \infty$ is $||A||_{S_p} = l_p$-norm of singular values of $A$.
+\end {definition}
+If $A$ has rank $\leq d$, note that $||A||_{S_p} = \Theta(||A||) = ||A||_{S_\infty}$ for $p \geq \text{lg } d$ (by Holder's inequality).
+
+\begin{theorem}[Lust-Piquard and Pisier {\cite{PP91}}] 
+\begin{align*}
+\E(|| \sum_{i}\sigma_iA_i||_{S_p}^p)^{1/p}) \leq \sqrt{p} \textup{ max}\{||\sum_{i}A_i^TA_i||_{S_{p/2}}^{1/2}, ||\sum_{i}A_iA_i^T||_{S_{p/2}}^{1/2}|| \}
+\end{align*}
+\end{theorem}
+
+The total samples we'll need is at most $\frac{d \textup{lg }(d / \delta)}{\eps^2}$.
+Note:
+\begin{itemize}
+\item Wanting $||\Pi Ax||_2^2 = ||Ax||_2^2(1 \pm \eps)$ for all $x$ is the same as wanting $||\Pi U \Sigma V^T y ||_2^2(1 \pm \eps)$ for all $y$. Call $\Sigma V^Ty = x$.
+\item thus we want $\forall x, ||\Pi U||_2^2 = (1 \pm \epsilon)||Ux||_2^2 = (1 \pm \eps)||x||_2^2$
+\item therefore, want $\textup{sup}_{||x||_2 = 1}x^T[(\Pi U)^T (\Pi U) - I]x < \epsilon$, i.e. $||(\Pi U)^T (\Pi U) - I|| < \eps$
+\end{itemize}
+ 
+\subsection{The Oblivious Subspace Embedding Approach}
+Notice that the columns of $U$ form an orthonormal basis for $E$. 
+
+\begin{itemize}
+\item We want $\forall x \in E$, $||\Pi x||_2^2 = (1 + \epsilon)||x||_2^2 $ i.e. $\textup{sup}_{x \in E \cap S^{n - 1}} |||\Pi x||_2^2 - 1| < \epsilon$. This should look familiar, from Gordon's theorem.
+\item Gordon: If $\Pi_{i, j} = \pm1 / \sqrt{m}$ then suffices to have $m >~ g^2(T) + 1 / \epsilon^2$.\
+\end{itemize}
+\begin{align*}
+g(E\cap S^{n - 1}) = \E_{g \in \R^n} \textup{sup}_{||x||_2 = 1} \langle g, Ux \rangle 
+\\ = \E_{g \in \R^n} \textup{sup}_{||x|_2 = 1} \langle U^Tg, x\rangle
+\\ = \E_{g' \in \R^d} \textup{sup}_{||x|_2 = 1} \langle g', x \rangle
+\\= ||g'||_2
+\\ \leq \E(||g'||_2^2)^{1/2} = \sum_{i}(\E (g'_i)^2)^{1/2} = \sqrt{d}
+\end{align*}
+Thus, if we take a random Gaussian matrix, by Gordon's theorem, it will preserve the subspace as long as it has at least $\frac{d}{\eps^2}$ rows.
+
+\begin{itemize}
+\item We want our $\Pi$ to have few rows. We should be able to find $\Pi$ quickly. Multiplication with $A$ should be fast.
+\item Trouble: $\Pi A$ takes time $O(mnd)$ using for loops, which takes time $> nd^2$.
+\item want to use "fast $\Pi$" - fast JL or sparse JL.
+\end{itemize}
+
+Possible: (Sarl\'{o}s {\cite{sarlos2006improved}})
+\begin{definition}: An $(\epsilon, \delta, d)$ \textbf{oblivious subspace embedding} is a distribution $D$ over $\R^{m \times n}$ s.t. $\forall U \in \R^{n \times d}$, $U^TU = I$:
+$\mathbb{P}_{\Pi \thicksim D}(||(\Pi U)^T(\Pi U) - I|| > \epsilon) < \delta$
+\end{definition}
+Note that this distribution doesn't depend on $A$ or $U$. The Gaussian matrix provides an oblivious subspace embedding, but Sarl\'{o}s showed that other, faster methods, like a fast JL matrix, work as well.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{DDH07}
+James Demmel, Ioana Dumitriu, Olga Holtz, Robert Kleinberg.
+\newblock Fast Matrix Multiplication is Stable. 
+\newblock {\em Numerische Mathematik}, 106 (2) (2007), 199-224
+
+\bibitem{DMM06}
+Petros Drineas, Michael W. Mahoney, S. Muthukrishnan.
+  \newblock Sampling algorithms for \emph{l}\({}_{\mbox{2}}\) regression and applications.
+  \newblock {\em SODA 2006}: 1127--1136
+               
+\bibitem{PP91}
+Françoise Lust-Piquard and Gilles Pisier.
+\newblock Non commutative Khintchine and Paley inequalities.
+\newblock {\em Arkiv för Matematik}, 1991, Volume 29, Issue 1, pp 241-260
+
+\bibitem{sarlos2006improved}
+Tamas Sarl\'{o}s.
+\newblock Improved approximation algorithms for large matrices via random projections.
+\newblock {\em FOCS 2006}, 143--152
+
+\end{thebibliography}
+
+\end{document}

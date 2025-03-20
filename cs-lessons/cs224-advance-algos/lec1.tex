@@ -1,0 +1,309 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,hyperref,verbatim}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\def\<{\langle}
+\def\>{\rangle}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{1 --- 24 January 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Jerry Ma}
+
+\section{Overview}
+We introduce the word RAM model of computation, which features fixed-size storage blocks (``words'') similar to modern integer data types. We also introduce the predecessor problem and demonstrate solutions to the problem that are faster than optimal comparison-based methods.
+
+\section{Administrivia}
+\begin{itemize}
+\item Personnel: Jelani Nelson (instructor) and Tom Morgan (TF)
+\item Course site: \url{people.seas.harvard.edu/~cs224}
+\item Course staff email: \url{cs224-s17-staff@seas.harvard.edu}
+\item Prerequisites: CS 124/125 and probability.
+\item Coursework: lecture scribing, problem sets, and a final project. Students will also assist in grading problem sets. \textbf{No coding}.
+\item Topics will include those from CS 124/125 at a deeper level of exposition, as well as entirely new topics.
+\end{itemize}
+
+\section{The Predecessor Problem}
+In the predecessor, we wish to maintain a ordered set $S = \{X_1, X_2, ..., X_n \}$ subject to the predecessor query:
+\begin{equation*}
+pred(z) = \max \{x \in S | x < z\}
+\end{equation*}
+
+Usually, we do this by representing $S$ in a data structure. In the 
+\textbf{static predecessor problem}, $S$ does not change between $pred$ queries. In the \textbf{dynamic predecessor problem}, $S$ may change through the operations:
+\begin{equation*}
+insert(z): S \leftarrow S \cup \{z\}
+\end{equation*}
+\begin{equation*}
+del(z): S \leftarrow S \setminus \{z\}
+\end{equation*}
+
+For the static predecessor problem, a good solution is to store $S$ as a \textbf{sorted array}. $pred$ can then be implemented via binary search. This requires $\Theta(n)$ space, $\Theta(\log n)$ runtime for $pred$, and $\Theta(n \log n)$ preprocessing time.
+
+For the dynamic predecessor problem, we can maintain $S$ in a \textbf{balanced binary search tree}, or BBST (e.g. AVL tree, red-black tree). This also requires $\Theta(n)$ space, and $\Theta(\log n)$ runtime for $pred$, $insert$, and $del$.
+
+Note that query and insert runtime is asymptotically optimal in a comparison-based model (where the only available operations on element values are comparisons such as $\leq, =, \geq$. This is because a set may be sorted by inserting all $n$ elements and calling predecessor $n$ times, passing in each time the result of the previous call. If query and insert were sub-logarithmic, the $\Omega(n \log n)$ lower bound on comparison-based sorting would be broken. Thus, to optimize beyond BBSTs, we will require a new model of computation: the word RAM model.
+
+\section{Word RAM Model}
+In the \textbf{word RAM} model, all elements are integers that fit in a machine word of $w$ bits. So the universe of possible values is $\{0, 1, \dots, u - 1\}$ where $u = 2^w$. Basic C operations  (comparison, arithmetic, bitwise) on such words take $\Theta(1)$ time.~\footnote{\url{https://www.tutorialspoint.com/cprogramming/c_operators.htm} (up to ``Bitwise Operators'') lists such word operations}
+
+Note that we already assume the word RAM model for things like merge sort, since array indices occupy at least $\log n$ bits and thus are not constant size. This is not a radical departure from the word RAM model with $w \geq \log_2 n$.
+
+\section{Word RAM Solutions to the Predecessor Problem}
+Today, we introduce two solutions to the predecessor problem in the word RAM model. The first is the \textbf{van Emde Boas (vEB) tree}~\cite{vebFOCS75}, a data structure with $\Theta(u)$ space requirements and $\Theta(\log w)$ runtime for $pred$, $insert$, and $del$. The second is Willard's \textbf{y-fast trie}~\cite{willardIPL83}, which has $\Theta(n)$ space requirements and (expected) $\Theta(\log w)$ runtime for $pred$, $insert$, and $del$.
+
+On Thursday, we will introduce Fredman and Willard's \textbf{fusion tree}~\cite{fwJCS93}, which has $\Theta(n)$ space requirements and $\Theta(\log_w n)$ operation runtime.
+
+With vEB and fusion trees, we can always achieve $O(\min\{\log w, \log_w n\})$ operation runtime for the static predecessor problem. The data structures are asymptotically equal in runtime when $\log w = \log n / \log w$, or $\log w = \sqrt{\log n}$. Patrascu and Thorup~\cite{ptSTOC06, ptSODA07} have shown that using the better of (slightly tweaked) vEB trees and static fusion trees is essentially optimal for near-linear space.
+
+These results for the static predecessor problem do not necessarily imply faster sorting, since preprocessing can be arbitrarily expensive. However, dynamic fusion trees also exist and suggest an $O(n \sqrt{\log n})$ sorting algorithm. In fact, we can do better with Han's $O(n \log \log n)$ algorithm~\cite{hanSTOC02} or Han and Thorup's (expected) $O(n \sqrt{\log \log n})$ algorithm~\cite{htFOCS02}. Can we do even better than this? Who knows.
+
+\subsection{vEB Tree Details}
+At the heart of the vEB tree is the division of the universe into $\sqrt{u}$ clusters. A word's \textbf{cluster} is the half-size word formed by leftmost $\frac{w}{2}$ bits, and a word's \textbf{id} is the half-size word formed by the rightmost $\frac{w}{2}$ bits. Our notation for decomposing a word $x$ into cluster index and id is $x = \<c, i\>$.
+
+A $vEB_u$ tree $V$ can operate on values in the universe $[0, 1, ..., u - 1]$ (i.e. $\log_2 u$ size words) and has the following members:
+\begin{itemize}
+\item $V.min$: type word. The element stored by this tree itself.
+\item $V.clusters$: type size-$\sqrt{u}$ array of $vEB_{\sqrt{u}}$. $V.clusters[c]$ stores the ids of all elements in cluster $c$ (except for $V.min$).
+\item $V.summary$: type $vEB_{\sqrt{u}}$. Stores all non-empty cluster indices (except that of $V.min$).
+\item $V.max$: type word. The maximum element stored by this tree itself or any of its subtrees.
+\end{itemize}
+
+Of course, a $vEB_u$ tree for $u \leq \text{some small constant } T$ can be almost anything (e.g. a dumb old array) -- since operations will be $O(T)$ time and $T$ is a constant, we can treat operations on such ``trees'' as constant time.
+
+\subsubsection{Pseudocode}
+\small
+\begin{verbatim}
+def pred(V, x = <c, i>):
+    if x <= V.min:
+        return null
+    if notempty(V.cluster[c]) and i > V.cluster[c].min:
+        return <c, pred(V.cluster[c], i)>
+    else:
+        c' = pred(V.summary, c)
+        return <c', V.cluster[c'].max>
+        
+def insert(V, x = <c, i>):
+    if V.min = null:
+        V.min = x
+        V.max = x
+        return
+    if x < V.min:
+        swap(x, V.min)
+    if x > V.max:
+        V.max = x
+    if v.cluster[c].min = null:
+        insert(V.summary, c)
+    insert(V.cluster[c], i)
+    
+// del can be implemented in a similar manner
+\end{verbatim}
+\normalsize
+
+\subsubsection{Analysis: Runtime}
+$pred$ on a $vEB_u$ tree makes at most 1 recursive call on a $vEB_{\sqrt{u}}$ tree and has constant non-recursive operations. So the runtime recurrence is:
+\begin{equation}
+T(u) \leq T(\sqrt{u}) + O(1) \label{eqn:logwrec}
+\end{equation}
+
+This solves to $T(u) = O(\log \log u) = O(\log w)$.
+
+$insert$ on a $vEB_u$ tree appears to make up to two recursive calls. However, if the first recursive call is made, then the second recursive call will be $O(1)$ because $V.cluster[c]$ is empty. So we can analyze it as if it had a single recursive call, and the Equation \eqref{eqn:logwrec} recurrence applies, giving an insertion time of $O(\log \log u) = O(\log w)$.
+
+\subsubsection{Analysis: Space}
+Each $vEB_u$ tree has $\sqrt{u} + 1$ subtrees of type $vEB_{\sqrt{u}}$, and other members comprising constant space. So the space recurrence is:
+\begin{equation*}
+S(u) = (\sqrt{u} + 1) S(\sqrt{u}) + \Theta(1)
+\end{equation*}
+
+This solves to $S(u) = \Theta(u)$ -- the same space as a lookup table! To improve, we can avoid storing empty subtrees entirely by making $V.clusters$ a hashtable instead of an array and constructing new subtrees lazily. The Equation \eqref{eqn:logwrec} recurrence also applies for the depth of the tree, and we create at most one new subtree at each level upon insertion. Thus each insert creates at most $\log w$ subtrees, and the total space requirement is $O(n \log w)$. 
+
+This optimization slightly changes the runtime analysis -- since accesses to $V.cluster$ are now \emph{expected} constant time rather than worst-case constant time, operations are now \emph{expected} $O(\log w)$ time. Consult~\cite{dietzfelbingerSICOMP94} for an example of a word-RAM hashtable.~\footnote{Hashtable is used loosely as ``any solution to the dynamic dictionary problem'', which comprises the $find$, $insert$, and $delete$ operations.}
+
+\subsection{x-fast Trie Details}
+The x-fast trie serves as an intermediate step in developing the y-fast trie. We build a ``flat tree'' array $A$ with $2 u - 1$ elements (similar to a binary heap structure). $A[0]$ is the root node, $A[\left \lfloor{\frac{i}{2}}\right \rfloor]$ is the parent node of $A[i]$, and $\{ A[2 i + 1], A[2 i + 2] \}$ are the child nodes of $A[i]$. The leaf nodes are thus $A[u] \dots A[2 u - 1]$ and leaf node $A[i]$ is 1 iff $i - u$ is in the tree. Leaf nodes with value 1 are connected in order via a doubly linked list. Finally, the value of inner node $A[i]$ is recursively defined as the OR of the children.
+
+Insertion and deletion both involve an $O(\log u) = O(w)$ time traversal down the tree.
+
+The $pred$ query involves accessing the corresponding leaf node: if it's a 1, just follow the linked list to the predecessor. Otherwise, we can go up the tree until we find the lowest 1-value ancestor, then traverse the tree back down to a neighboring node and follow the linked list if needed.
+
+Naively, this is an $O(\log u) = O(w)$ operation due to the depth of the tree. However, note that the node values are monotone between a leaf and the root. Thus, we can binary search for the smallest 1-value ancestor in $O(\log w)$ time. To traverse the tree back down, we can make the optimization that if a node has a 0-value left child, it will store the lowest 1-value leaf node of the right subtree (and vice-versa for a 0-value right child). Thus, we have optimized $pred$ to $O(\log w)$ runtime.
+
+However, the x-fast trie still occupies $O(u)$ space. To correct this, we can again replace the array $A$ with a giant hashtable containing only the 1-value nodes. Since each insert adds $O(w)$ additional 1-values to the trie, the total space requirement becomes $O(n w)$. And as with vEB trees, the operation runtime becomes expected rather than worst-case.
+
+\subsection{y-fast Trie Nondetails}
+The y-fast trie is essentially an x-fast trie that stores BBSTs of words instead of words themselves. Each BBST stores consecutive stored words (in comparison order, not insertion order) of the y-fast trie. The BBSTs have $\Theta(w)$ elements, so the x-fast trie has $\Theta(\frac{n}{w})$ elements. Thus, the space requirement for the x-fast trie is $O(n)$. The extra BBST queries are $O(\log w)$, which does not worsen the query and insertion asymptotics. The full details of the y-fast trie will be presented on Thursday.
+
+\begin{comment}
+\section{Extra}
+
+Here's the same equation but that can be referenced:
+\begin{equation}
+a^2 + b^2 + c^2 \label{eqn:pythagoras}
+\end{equation}
+Equation~\ref{eqn:pythagoras} has been known for a long time. Sometimes you might want to align equations:
+\begin{align*}
+(x+y)^2 - (x-y)^2 &= (x^2 + 2xy + y^2) - (x^2 - 2xy - y^2) \\
+{}&= 4xy
+\end{align*}
+or align them with numbers to be referenced:
+\begin{align}
+(x+y)^2 - (x-y)^2 &= (x^2 + 2xy + y^2) - (x^2 - 2xy - y^2) \label{eqn:1}\\
+{}&= 4xy \label{eqn:2}
+\end{align}
+or where only some of them can be easily referenced:
+\begin{align}
+\nonumber (x+y)^2 - (x-y)^2 &= (x^2 + 2xy + y^2) - (x^2 - 2xy - y^2) \\
+{}&= 4xy \label{eqn:3}
+\end{align}
+
+Here are some other math goodies: $\binom{n}{k}$, $\frac{n}{k}$, $x\gg y$, $x\ll y$, $x\lesssim y$, $x\gtrsim y$, $\inprod{x,y}$, $x\in\R^n$, $x\in S$, $S\ni x$, $x\notin S$, $x\neq y$, $x\oplus y$, $x\pm y$, $\sqrt{x}$, $x\equiv y$, $S\cap T$, $\S\cup T$, $S\subset T$, $S\subseteq T$, $S\supset T$, $\gamma$,  $\Gamma$, $\R$, $\mathbb{F}$
+$$\sum_{i=1}^n i,\ \sum_{\substack{i=1\\i\ odd}}^n i, \prod_{i=1}^n i$$
+
+\section{Main Section}
+
+We begin by describing the problem \ldots.
+Make sure to use sections and subsections.
+
+\subsection{Blah blah blah}
+Here is a subsection.
+
+\subsubsection{Blah blah blah}
+Here is a subsubsection. You can use these as well.
+
+\subsection{Using Boldface}
+Make sure to use \textbf{lots} of {\bf boldface}.
+
+\paragraph{Question:}
+How would you use boldface?
+
+\paragraph{Example:}
+This is an example showing how to use boldface to 
+help organize your lectures.
+
+
+\paragraph{Some Formatting.}
+Here is some formatting that you can use in your notes:
+\begin{itemize}
+\item {\em Item One} -- This is the first item.
+\item {\em Item Two} -- This is the second item.
+\item \dots and here are other items.
+\end{itemize}
+
+If you need to number things, you can use this style:
+\begin{enumerate}
+\item {\em Item One} -- Again, this is the first item.
+\item {\em Item Two} -- Again, this is the second item.
+\item \dots and here are other items.
+\end{enumerate}
+
+\paragraph{Bibliography.}
+Please give real bibliographical citations for the papers that we
+mention in class. See below for how to include a bibliography section.
+If you use BibTeX, integrate the .bbl file into your .tex
+source. You should reference papers like this: ``The tug of war sketch
+originates in a paper by Alon, Matias and Szegedy \cite{AlonMS99}.''
+In general, the name of the authors should appear in text at most once 
+(for the first citation); further citations look like: ``Our proof follows 
+that of \cite{AlonMS99}''.
+
+Take a look at previous lectures (TeX files are available) to see the
+details. A excellent source for bibliographical citations is
+DBLP. Just Google DBLP and an author's name.
+
+\end{comment}
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{vebFOCS75}
+Peter van Emde Boas.
+\newblock Preserving Order in a Forest in less than Logarithmic Time.
+\newblock {\em 16th Annual Symposium on Foundations of Computer Science}, 75--84, 1975.
+
+\bibitem{willardIPL83}
+Dan Willard.
+\newblock Log-Logarithmic Worst-Case Range Queries are Possible in Space $\Theta(n)$.
+\newblock {\em Inf. Process. Lett.}, 17(2):81--84, 1983.
+
+\bibitem{fwJCS93}
+Michael Fredman, Dan Willard.
+\newblock Surpassing the Information Theoretic Bound with Fusion Trees.
+\newblock {\em J. Comput. Syst. Sci.}, 47(3):424--436, 1993.
+
+\bibitem{ptSTOC06}
+Mihai Patrascu, Mikkel Thorup.
+\newblock Time-space trade-offs for predecessor search.
+\newblock {\em 38th Annual Symposium on Theory of Computing}, 232--240, 2006.
+
+\bibitem{ptSODA07}
+Mihai Patrascu, Mikkel Thorup.
+\newblock Randomization does not help searching predecessors.
+\newblock {\em 18th Annual Symposium on Discrete Algorithms}, 555--564, 2007.
+
+\bibitem{hanSTOC02}
+Yijie Han.
+\newblock Deterministic sorting in O(nlog log n) time and linear space.
+\newblock {\em 34th Annual Symposium on Theory of Computing}, 602--608, 2002.
+
+\bibitem{htFOCS02}
+Yijie Han, Mikkel Thorup.
+\newblock Integer Sorting in O(n sqrt (log log n)) Expected Time and Linear Space.
+\newblock {\em 43rd Symposium on Foundations of Computer Science}, 135--144, 2002.
+
+\bibitem{dietzfelbingerSICOMP94}
+Martin Dietzfelbinger, Anna Karlin, Kurt Mehlhorn, Friedhelm Meyer auf der Heide, Hans Rohnert, Robert Tarjan.
+\newblock Dynamic Perfect Hashing: Upper and Lower Bounds.
+\newblock {\em SIAM J. Comput.}, 23(4):738--761, 1994.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,400 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,enumerate}
+\usepackage{color} 
+\usepackage{xcolor}
+
+\newcount\Comments  % 0 suppresses notes to selves in text
+\Comments = 0
+\newcommand{\kibitz}[2]{\ifnum\Comments=1{\color{#1}{#2}}\fi}
+\newcommand{\hma}[1]{\kibitz{blue}{[HONGYAO: #1]}}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\sse}{\subseteq}
+\newcommand{\ep}{\epsilon}
+\newcommand{\lqq}{``}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\txtst}{\text{ s.t. }}
+\newcommand{\opt}{\mathrm{OPT}}
+
+\newcommand{\tr}{\mathrm{tr}}
+
+\newcommand{\fractional}{\mathrm{frac}}
+\newcommand{\integral}{\mathrm{int}}
+
+\providecommand{\pwfun}[1]{\left\lbrace \begin{array}{ll} #1 \end{array} \right.}
+
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{observation}[theorem]{Observation}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{13 --- March 7, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Hongyao Ma}
+
+
+\paragraph{Today}
+\begin{itemize}
+	\item PTAS/FPTAS/FPRAS examples
+	\begin{itemize}
+		\item PTAS: knapsack
+		\item FPTAS: knapsack
+		\item FPRAS: DNF counting
+	\end{itemize}
+	\item Approximation algorithms via Semidefinite Programming (SDP)
+\end{itemize}
+
+\section{PTAS Knapsack}
+
+\paragraph{The Knapsack Problem}
+\begin{itemize}
+	\item Given weight $W$ of knapsack and weights/values of $n$ items: $w_1, \dots, w_m$, $v_1, \dots, v_n$.
+	\item Assume that the capacity $W$, $w_i$'s and $v_i$'s are integers.
+	\item Assume $w_i \leq W$, w.l.o.g., since we can ignore all items with weights larger than the capacity.
+\end{itemize}
+\begin{align*}
+	\max~& \sum_{i=1}^n x_i v_i \\
+	\txtst & \sum_{i=1}^n x_i w_i \leq W\\
+	& x_i \in \{0,~1\}, ~\forall i
+\end{align*}
+%
+For PTAS, we want to achieve $\geq (1-\epsilon) \opt$ in time $O(f(\epsilon) n^{g(\epsilon)})$. 
+
+
+\subsection{Greedy Algorithms}
+
+\paragraph{Greedy Algorithm} Sort items in the order: $v_1/w_1 \geq v_2 / w_2 \dots \geq v_n/w_n$. 
+\begin{itemize}
+	\item Can prove that this is optimal for fractional knapsack problem, but:
+	\item Let $v_1 = 1.001$, $w_1 = 1$, $v_2 = W$, $w_2 = W$, we can see that for this instance, this is no better than a $W$-approximation.
+\end{itemize}
+%
+How can we improve the performance of the greedy algorithm?
+
+\paragraph{Modified Greedy} (ModGreedy)
+\begin{enumerate}[1.]
+	\item Run greedy to get solution $S_1$
+	\item Let $S_2 = \{$item with the largest value$\}$
+	\item Return whichever of $S_1$, $S_2$ that has more value
+\end{enumerate}
+
+\begin{claim} \label{clm:modGreedy2approx} ModGreedy achieves value $\geq \opt/2$, i.e. it's a ``2-approximation"
+\end{claim}
+
+\begin{lemma} If greedy takes items $1, 2, \dots, k-1$ in the fractional solution, we know 
+\begin{align*}
+	\sum_{i=1}^k v_i \geq \opt,
+\end{align*}
+\end{lemma}
+
+\begin{proof} Since the  $k$th item might not be taken in full in the optimal fractional solution, and that 
+%
+the optimal solution of the integral solution is no better tha the optimal solution of the LP relaxation,
+\begin{align*}
+	\sum_{i = 1}^k v_i \geq \opt_{\fractional} (LP) \geq \opt
+\end{align*}
+\end{proof}
+
+\begin{proof}[Proof of Claim~\ref{clm:modGreedy2approx}] We know from the lemma,
+\begin{align*}
+	(v_1 + \dots + v_{k-1}) + v_k \geq \opt
+\end{align*}
+We know that one of $\sum_{i=1}^{k-1} v_i $ and $v_{k}$ is at least $\opt/2$, therefore ModGreedy achieves at least maximum of the two ($v(S_1) \geq \sum_{i=1}^{k-1} v_i$, and $v(S_2) \geq v_{\max} \geq v_k$), which is at least $\opt/2$.
+\end{proof}
+
+\subsection{PTAS for Knapsack}
+
+ModGreedy gives us a 2-approximation. Now we try to improve the approximation ratio. First, observe that Greedy achieves at least $\opt$  - $v_{\max}$, since
+\begin{align*}
+	\sum_{i=1}^{k-1} v_i  \geq \opt -  v_k \geq \opt - v_{\max}.
+\end{align*}
+%
+If no item has value larger than $\epsilon \cdot \opt$, we know that the Greedy algorithm is a $(1-\epsilon)$ approximation.
+
+Also observe that the optimal set contains at most $ 1 / \epsilon$ items with value $\geq \epsilon \opt$ --- otherwise the value of the optimal solution would exceed OPT. Denote  $S \subseteq [n]$ as the set taken by the optimal solution, and let $H \subseteq S$ be the set of items with value $\geq \epsilon \cdot \opt$. We now from the above argument that $|H| \leq 1/\epsilon$.
+
+
+\paragraph{Known OPT} Assume that we know $\opt$, we can run the following algorithm:
+\begin{enumerate}
+	\item Try all possibilities for sets $H$ s.t. $|H| \leq 1 /\epsilon$
+	\item While trying some particular $H$:
+	\begin{itemize}
+		\item throw out any item with value $\geq \epsilon \opt$
+		\item run greed to get set $G$
+	\end{itemize}
+	\item return the $H\cup G$ with best value ever found
+\end{enumerate}
+
+When the guessed $H$ correctly, we know that the loss from running greedy to get set $G$ is at most $\epsilon\cdot \opt$, since the size of the  elements that are not thrown away is bounded by $\epsilon\cdot \opt$. Therefore we get $v(H \cup G) \geq \opt - \epsilon \opt = (1-\epsilon) \opt$.
+
+
+\paragraph{Without OPT} How to get around not knowing OPT?
+\begin{enumerate}
+	\item Guess OPT up to a factor of 2. There are at most $\log (\sum_{1}^n v_i)$ possibilities, or
+	\item Use ModGreedy to get a 2-approximation of OPT first, or
+	\item Try all $\leq n$ thresholds
+\end{enumerate}
+
+
+\paragraph{Runtime} The run time of the algorithms proposed above is $(n+1)^{1/\epsilon} \cdot \mathrm{poly}(n)$, since the number of sets with size at most $k$ is at most $(n+1)^k$ ($k$ times I can either pick one of the $n$ elements or pick an $(n+1)$st ``null'' element, which does enumerate all size at most $k$ sets, with overcounting), and the cost of trying different thresholds and to run the greedy on the rest is $\mathrm{poly}(n)$.
+
+
+\section{FPTAS Knapsack}
+
+
+\paragraph{FPTAS} achieves $\geq (1-\epsilon) \opt $ in time $\mathrm{poly}(n, 1/\epsilon)$. The FPTAS dominates the PTAS for the knapsack problem, but there exists problems for which PTAS exists but no FPTAS exists.
+
+\paragraph{Existence of FPTAS} Why can't we always hope for a FPTAS? Consider vertex cover as an example, where the goal is to cover all edges using fewest number of vertices. For vertex cover, even the decision problem is hard. If we have an FPTAS, take $\epsilon < 1/2n$, we would get an objective at most $(1 + \epsilon) \opt \leq \opt + 1/2$ --- since OPT is an integer, this would give us what $\opt$ is. This means that if we have an FPTAS, we will be able to solve the vertex cover problem optimally, which would imply P = NP.
+
+
+\paragraph{Dynamic Programming for Kanpsack} We know that we can already solve knapsack exactly in time $O(nV)$ using dynamic programming. Let
+	\begin{align*}
+		f(i,v) = \min \{ \text{ total weight of items, using only items } 1, \dots, i \text{ to achieve value } b \},
+	\end{align*}
+	and if value $v$ is not possible using items from $\{1,\dots, i\}$, set $f(i,v)$ to be infinity. We then take the set that achieves maximum $b$ s.t. $f(n,b) \leq W$. This is pseudo polynomial time since describing $V$ needs only $\log V$ bits.
+	
+\paragraph{FPTAS for Knapsack} 
+We will achieve $O(n^3/\epsilon) $ time today, and the best known is $O(n \lg 1/\epsilon + 1/\epsilon^4)$ by Lawler in Math. Oper. Res. '79\cite{Lawler79}. The idea is that the DP solution is not too bad if $V$ is small, so let us transform the problem into one with a smaller $V$, hoping not to lose too much during the process. 
+
+Approach:
+\begin{enumerate}[1.]
+	\item Set $\alpha = n / (\epsilon \cdot v_{\max})$, and for all  $i$, set $v_i' = \lfloor \alpha v_i \rfloor $.
+	\item Solve the problem with $v_i'$ using the $O(nV')$ algorithm.
+\end{enumerate}
+
+\paragraph{Runtime and Approximation Ratio}
+
+Since the new total value $V' = \sum_{i=1}^n v_i' \leq n \cdot \max\{  v_i' \} \leq n^2$, we know that the total run time is $ O(nV') = O \left( n^3 / \epsilon \right)$.
+%
+What is left to prove is that the solution to the transformed problem is a $(1-\epsilon)$ approximation to the original problem. 
+
+
+First, we know that the $\opt' \geq v'_{\max}$ since the optimal solution of the transformed problem can take at least the most valuable item. Moreover, since the $v_i$'s are upper bounded by $n/\epsilon$ and the total number of items is $n$, we get:
+%
+\begin{align*}
+	\frac{n}{\epsilon} \leq \opt' \leq \frac{n^2}{\epsilon}.
+\end{align*}
+Note we can assume $1/\epsilon$ is an integer so that indeed $\lceil\frac n{\epsilon}\rceil = \frac n{\epsilon}$ (if not, round $\eps$ down so that $1/\eps$ is an integer, which changes $\eps$ by at most a factor of $2$ and thus changes our final runtime by a constant factor)
+
+Now observe that the error comes from the floors, o.w. the solution would have been accurate. The amount of $val(S)$ lost due to rounding is at most the size of $S$: $|S| \leq n \leq \epsilon \opt'$. We have the following lemma:
+
+%
+% Why does this give us at least $(1-\epsilon)\opt$ of the original problem? 
+
+\begin{lemma} 
+Let  $v(S) = \sum_{i \in S} v_i$ and $v'(S) = \sum_{i \in S} v_i'$, we have
+\begin{align*}
+	\alpha v(S) - |S| \leq v_i'(S) \leq \alpha v(S).
+\end{align*}
+\end{lemma}
+
+Now we will show that if $A$ is the optimal set for the ransformed problem, and $A^\ast$ is the actual optimal solution for the original problem, 
+\begin{align*}
+	v(A) \geq (1-\epsilon) v(A^\ast).
+\end{align*}
+How do we prove this? Since $A$ is the optimal solution of the transformed problem, its value is at least as much as $A^\ast$ in the transformed problem. Also consider $|A^\ast|\leq n$, we get
+\begin{align*}
+	v(A) \geq \frac{1}{\alpha} v'(A) \geq \frac{1}{\alpha}v'(A^\ast) \geq \frac{1}{\alpha}(\alpha v(A^\ast) - |A^\ast|) \geq v(A^\ast) - \epsilon \cdot v_{\max} \geq \opt - \epsilon \opt.
+\end{align*}
+
+\section{FPRAS DNF Counting}
+
+\paragraph{FPRAS} Recall that a FPRAS achieves a $(1 \pm \epsilon) $ approximation in time  $\mathrm{poly} (n, 1/\epsilon)$ with probability at least $2/3$. As we have seen in the problem sets, we can repeatedly do this for multiple times, and then take the median. The median only fails only if more than half of the trails fails.
+
+
+Here, we are going to do a counting problem instead of an optimization problem: counting solutions to DNF \cite{KarpJA89}.
+
+\paragraph{Counting Problems} Approximate DNF Counting is known to be \#P-Complete.\footnote{The name came from counting, thus \lqq\#"}. In a counting problem, we would like to know ``how many sets that satisfy this or not". This class of problems is harder than NP-hard problems, since if we can count, we are able to be able to solve the original problem like SAT. Sometimes the counting problem is hard, but the original problem is still easy.
+
+\paragraph{DNF Formula} (Disjunctive Normal Form) 
+\begin{itemize}
+	\item $C_1 \vee C_2 \vee \dots \vee C_m$
+	\item $C = (x_{i_1} \wedge x_{i_2} \wedge \dots)$
+	\item $x \in \{0, 1\}^n$
+\end{itemize}
+
+\paragraph{Approximate DNF counting}
+%
+would like to count the number of $x$ out of the $2^n$ possible assignments s.t. a DNF formula is satisfied. The decision problem is easy--- as long as there doesn't exits a little $x$ and its negation, the clause is satisfiable. The counting problem, however, is hard. Recall that a CNF formula is of the form $(\vee~\vee \dots ) \wedge (\vee ~\vee \dots) \wedge \dots$. Let a CNF formula be
+\begin{align*}
+	\phi = C_1 \wedge C_2 \wedge \dots \wedge C_m,
+\end{align*}
+we know that the negation of $\phi$ is a DNF:
+\begin{align*}
+	\bar{\phi} = \bar{C}_1 \vee \bar{C}_2 \vee \dots \vee \bar{C}_m
+\end{align*}
+
+Knowing CNF is hard implies DNF is hard, since if we can count the number of solutions to $\bar{\phi}$ (say $N$), we are able to count the number of solutions to $\phi$ would be $2^n - N$, thus this implies a solution to counting of CNF.\footnote{For those who believe BPP (the randomized version of P)=P, they may also believe that there exists a deterministic algorithm for DNF counting. However, algorithms that are known so far are randomized.}
+
+\subsection{Karp, Luby, Madras, J. Alg. '89 \cite{KarpLM89}}
+
+Let $n$ be the number of variables and $m$ be the number of clauses. First, observe that randomly sample from the $2^n$ possible assignments to estimate the fraction $p$ of satisfying assignments is not a good idea. This is because $p$ can be very small, for which case we would need too many samples (thus won't be fast!) to get an good estimate of $p$. One such example is  $\phi = x_1 \wedge x_2 \wedge \dots \wedge x_n$, for which $p = 1/2^n$.
+
+\paragraph{Approach} The idea is to reduce the size of the set from which we are sampling, in which case the fraction would not be too small.
+
+\begin{itemize}
+	\item Let $S_i$ be the set of satisfying assignments to $C_i$. The size of each such set is 
+	\begin{align*}
+		|S_i| = 2^{n - \text{\# of literals in }C_i}
+	\end{align*}
+	\item Let $B  = \cup_{i=1}^m S_i$. We would like to estimate the size of $|B|$.
+	\item Let $B'$ be the set of pairs $\{(i,x): x \in S_i \}$, we know $|B'| = \sum_{i} |S_i|$.
+	\item We want to estimate $p' = |B| / |B'|$ up to $1 \pm \epsilon$, then output $p' \cdot |B'|$. 
+\end{itemize}
+
+\hma{I was a bit confused about how accurate do we need to estimate $p'$, and think we may need a bit more of comment here? Is the objective of the DNF counting problem to estimate $p$ up to $1 \pm \epsilon$? If we estimate $p'$ up to $1\pm \epsilon$, the estimation of $p = p'|B'|/2^n$ can be off by at most $\epsilon |B'|/2^n$--- does this mean in the following bound, we can use $\epsilon 2^n/|B'|$ instead of $\epsilon$? 
+
+Another issue is that for the case when $|B'|> 2^n$ where this $B'$ trick is useless, the estimation for $p$ would be off by more than $\epsilon$...}
+
+
+
+\paragraph{Bijection between subset of $B'$ to $B$} Note that the elements in $B$ and the elements in $B'$ are different stuff (assignments vs. pairs.) What to do?
+
+\begin{itemize}
+	\item Treat $b \in B'$ as being in $B$ if $b = (i,x)$ and $C_i$ is the first clause $x$ satisfies. This gives a natural bijection, and each satisfying assignment is only counted once.
+	\item Now, $p'$ cannot be so small:
+	\begin{align*}
+		p' \geq 1/m,
+	\end{align*}
+	since each satisfying assignment appears at most $m$ times. We just need to argue that the empirical estimation of $p'$ is close to the true probability.
+\end{itemize}	
+	
+\paragraph{Analysis}
+\begin{itemize}	
+	\item Sample $T$ times from $B'$, and estimate $p'$ as the fraction of samples that were in $B$ (the subset that we put in correspondence with $B$.)
+	\item Let $X_i$ be the indicator random variable
+	\begin{align*}
+		X_i = \pwfun{1, &  \text{if the ith smaple belongs to B} \\
+			0, & \text{otherwise}}
+	\end{align*}
+	We bound the probability by Chernoff bound:
+	\begin{align*}
+		\mathbb{P}\left[ \left| \sum_{i = 1}^T X_i - \mu \right| > \epsilon \mu  \right] \leq e^{-c \epsilon^2 p'T}
+	\end{align*}
+	which is smaller than $\delta$ if we  pick $T \geq C \lg (1/\delta) m / \epsilon^2$. 
+\end{itemize}
+
+
+\paragraph{Sampling from $B'$}
+
+How do we randomly draw an element from $B'$? Note that $|B'|  = \sum |S_i|$.
+
+\begin{enumerate}[{Step} 1.]
+	\item Pick $i$ with probability $|S_i| / (\sum_j |S_j|)$
+	\item Pick random $x \in S_i$ --- the variables that appear in the clause has to be fixed, and those that do not appear in the clause can be picked uniformly at random.
+\end{enumerate}
+
+\section{Semidefinite Programming}
+
+We are going to design approximation algorithm for MaxCut via SDP in the next lecture.
+
+
+\paragraph{MaxCut} given an undirected graph $G = (V,E)$, find a cut with the maximum of edges crossing it: find $S \subset V$, $S \neq \emptyset$ s.t. $E(S, V \backslash S)$ is maximized.  MaxCut is known to be an NP-hard problem, but have a trivial 2-approximation: 
+%
+pick a random set $S \subset V$. Since each edge is cut with probability half, and $\opt$ cannot be larger than $|E|$,
+\begin{align*}
+	\mathbb{E}(\# \text{ edges cut}) = \sum_{e \in E} \mathbb{P}[ e \text{ is cut}] = \frac{|E|}{2} \geq \frac{\opt}{2}.
+\end{align*}
+
+\paragraph{0.878-approx for MaxCut} Goemans, Williamson '95 \cite{GoemansW95} propose algorithm achieving $\geq 0.878 \opt$ in polynomial time, where  $0.878  = \inf_{\theta \in [0, \pi]} \left\lbrace \frac{2}{\pi} \frac{\theta}{1-\cos \theta} \right\rbrace$. Somehow this number is the \emph{truth}.
+
+
+\paragraph{Semidefinite Programming (SDP)} In linear programming, $x$ is a vector. In SDP, $x$ is a matrix:
+\begin{align*}
+	\min~& \tr(C^\intercal X) \\
+	\txtst & \tr(A_i^\intercal X = b_i), ~\forall i = 1, \dots, m,\\
+	& X \succeq 0.
+\end{align*}
+
+The trace of a matrix is defined as:  $\tr(A^\intercal B) = \sum_{i,j}A_{i,j} B_{i,j}$--- the objective doesn't look too much different from that in LP, so how is this more ``matrixy"? 
+
+What's more important is the constraint $X \succeq 0$, i.e. $X$ is \emph{positive semi-definite} (PSD). A matrix $X$ is PSD means
+\begin{align*}
+	\forall z \in \mathbb{R}^n, ~z^\intercal X z \geq 0
+\end{align*}
+We will see next time that LP is a special case of this (when everything is diagonal). We can also express the PSD constraints as
+\begin{align*}
+	\forall z,~\tr(X^\intercal (zz^\intercal)) \geq 0
+\end{align*}
+i.e. infinitely many linear constraints. Just as we can relax ILP to LP, we can relax quadratic programs to SDPs, solve them, then round to get solutions to the quadratic program with provably good approximation ratios.
+
+
+\bibliographystyle{alpha}  
+
+\begin{thebibliography}{42}
+
+
+\bibitem{KarpJA89}
+    Richard~Karp, Michael~Luby, Neal~Madras.
+\newblock Monte-carlo approximation algorithms for enumeration problems.
+\newblock {\em J. Algorithms}, 10(3):429--448, 1989.
+
+
+\bibitem{Lawler79}
+Eugene~Lawler.
+\newblock Fast Approximation Algorithms for Knapsack Problems.
+\newblock {\em Math. Oper. Res.}, 4(4):339--356, 1979.
+
+
+\bibitem{KarpLM89}
+Richard~Karp, Michael~Luby, and Neal~Madras.
+\newblock Monte-Carlo Approximation Algorithms for Enumeration Problems.
+\newblock {\em J. Algorithms}, 10(3):429--448, 1989.
+
+
+\bibitem{GoemansW95}
+Michel X. Goemans and David P. Williamson
+\newblock Improved Approximation Algorithms for Maximum Cut and Satisfiability Problems Using Semidefinite Programming
+\newblock {\em J. ACM}, 42(6):1115--1145, 1995.
+
+\end{thebibliography}
+
+\end{document}

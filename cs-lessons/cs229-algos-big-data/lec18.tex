@@ -1,0 +1,302 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{18 --- Nov 3rd, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Jefferson Lee}
+
+\section{Overview}
+
+\begin{itemize}
+\item Low-rank approximation,
+\item Compression Sensing
+\end{itemize}
+
+\section{Last Time}
+We looked at three different regression methods. The first was based on $\eps$-subspace embeddings. The second was an iterative approach, building a well-conditioned matrix good for stochastic gradient descent. The third was formulated as follows:
+
+For the least square problem $\min_x \|Sx - b\|_2$, which has optimal solution $x^* = S^+ b$, and approximate solution $\tilde{x}^* = \mathrm{argmin}_x \|\Pi Sx - \Pi x\|_2$, we let $x^* = U\alpha$, $w = Sx^* - b$, $U\beta = S\tilde{x}^* - Sx^*$ where $S = U\Sigma V^T$. We proved that $(\Pi U)^T (\Pi U) \beta = (\Pi U)^T \Pi w$ last time.
+
+These results from regression will appear in our work for low-rank approximation.
+
+\section{Low-rank approximation}
+The basic idea is a huge matrix $A \in \R^{n \times d}$ with $n, d$ both very large - say, $n$ users rating $d$ movies. We might believe that the users are linear combinations of a few $(k)$ basic types. We want to discover this low-rank structure. More formally:
+
+Given a matrix $A \in \R^{n\times d}$, we want to compute $A_k := \mathrm{argmin}_{\mathrm{rank}(B)\leq k} \|A - B\|_X$. 
+
+Some now argue that we should look for a non-negative matrix factorization; nevertheless, this version is still used.
+
+\begin{theorem}[Eckart-Young]
+Let $A = U\Sigma V^T$ be a singular-value decomposition of $A$ where $\mathrm{rank}(A) = r$ and $\Sigma$ is diagonal with entries $\sigma_1 \geq \sigma_2 \geq \dotsc \geq \sigma_r > 0$, then under $\|\cdot\|_X = \|\cdot\|_F$, $A_k = U_k \Sigma_k V_k^T$ is the minimizer where $U_k$ and $V_k$ are the first $k$ columns of $U$ and $V$ and $\Sigma_k = \mathrm{diag}(\sigma_1, \dotsc, \sigma_k)$.
+\end{theorem}
+
+Our output is then $U_k, \Sigma_k, V_k$. We can calculate $A_k$ in $O(nd^2)$ time, by calculating the SVD of $A$. We would like to do better. First, a few definitions:
+
+\begin{definition}
+$\textup{Proj}_A B$ is the projection of the columns of $B$ onto the $\textup{colspace}(A)$.
+\end{definition}
+
+\begin{definition}
+Let $A = U\Sigma V^T$ be a singular decomposition. $A^{+} = V\Sigma^{-1} U^T$ is called \emph{Moore-Penrose pseudoinverse} of $A$. 
+\end{definition}
+
+\subsection{Algorithm}
+
+Today we are going to use a sketch which is used both in subspace embedding and approximate matrix multiplication to compute $\tilde{A_k}$ with rank at most $k$ such that $\|A - \tilde{A_k}\|_F \leq (1+\epsilon) \|A - A_k\|_F$, following Sarl\'{o}s' approach \cite{Sar06}. The first works which got some decent error (like $\eps \|A\|_F$) was due to Papadimitriou \cite{Papa00} and Frieze, Kanna and Vempala \cite{FKV04}.
+
+\begin{theorem}\label{thm:main}
+Define $\tilde{A}_k = \mathrm{Proj}_{A\Pi^T, k}(A)$. As long as $\Pi \in \R^{m\times n}$ is an $1/2$ subspace embedding for a certain $k$-dimensional subspace $V_k$ and satisfies approximate matrix multiplication with error $\sqrt{\eps/k}$, then 
+$$
+\| A - \tilde{A}_k\|_F \leq (1+ O(\eps)) \|A - A_k\|_F,
+$$
+where $\mathrm{Proj}_{V, k}(A)$ is the best rank $k$ approximation to $\mathrm{Proj}_V(A)$, i.e., projecting the columns of $A$ to $V$. 
+\end{theorem}
+
+Before we prove this theorem, let us first convince ourselves that this algorithm is fast, and that we can compute $\mathrm{Proj}_{A\Pi^T, k}(A)$ quickly. To satisfy the conditions in the above theorem, we know that $\Pi \in \R^{m \times d}$ can be chosen with $m = O(k / \eps)$ e.g.\ using a random sign matrix (or slightly larger $m$ using a faster subspace embedding). We need to multiply $A \Pi^T$. We can use a fast subspace embedding to compute $A\Pi^T$ quickly, then we can compute the SVD of $A \Pi^T = U'\Sigma ' V'^T$ in $O(nm^2)$ time. Let $[\cdot]_k$ denote the best rank-$k$ approximation under Frobenius norm. We then want to compute $[U'U'^TA]_k = U'[U'^TA]_k$. Computing $U'^T A$ takes $O(mnd)$ time, then computing the SVD of $U'^T A$ takes $O(dm^2)$ time. Note that this is already better than the $O(nd^2)$ time to compute the SVD of $A$, but we can do better if we approximate. In particular, by using the right combination of subspace embeddings, for constant $\eps$ the scheme described here can be made to take $O(\mathop{nnz}(A)) + \tilde{O}(ndk)$ time (where $\tilde{O}$ hides $\log n$ factors). We will shoot instead for $O(\mathop{nnz}(A)) + \tilde{O}(nk^2)$.
+
+Consider that:
+
+\begin{itemize}
+\item We want to compute $\tilde{A}_k = \mathop{argmin}_{X : \mathop{rank}(X) \le k} \|U'X - A\|_F^2$. If $X^+$ is the argmin without the rank constraint, then the argmin with the rank constraint is $[U'X^+]_k = U'[X^+]_k$, where $[\cdot]_k$ denotes the best rank-$k$ approximation under Frobenius error.
+\item Rather than find $X^+$, we use {\em approximate regression} to find an approximately optimal $\tilde{X}$. That is, we compute $\tilde{X} = \mathop{argmin}_X \|\Pi' U' X - \Pi' A\|_F^2$ where $\Pi'$ is an $\alpha$-subspace embedding for the column space of $U'$ (note $U'$ has rank $m$). Then our final output is $U'[\tilde{X}]_k$.
+\end{itemize}
+
+Why does the above work? (Thanks to Michael Cohen for describing the following simple argument.) First note
+\begin{align*}
+\left(\frac{1+\alpha}{1-\alpha}\right)\cdot \|U'X^+ - A\|_F^2 &\ge \|U'\tilde{X} - A\|_F^2\\
+{} &= \|(U'X^+ - A) + U'(\tilde{X} - X^+)\|_F^2\\
+{}&=\|U'X^+ - A\|_F^2 + \|U'(\tilde{X} - X^+)\|_F^2\\
+{}&=\|U'X^+ - A\|_F^2 + \|\tilde{X} - X^+\|_F^2\\
+\end{align*}
+and thus $\|\tilde{X} - X^+\|_F^2 \le O(\alpha)\cdot\|U'X^+ - A\|_F^2$. The second equality above holds since the matrix $U'$ preserves Frobenius norms, and the first equality since $U'X^+ - A$ has a column space orthogonal to the column space of $U'$. Next, suppose $f, \tilde{f}$ are two functions mapping the same domain to $\R$ such that $|f(x) - \tilde{f}(x)| \le \eta$ for all $x$ in the domain. Then clearly $f(\mathop{argmin}_x \tilde{f}(x)) \le \min_x f(x) + 2\eta$. Now, let the domain be the set of all rank-$k$ matrices, and let $f(Z) = \|U'X^+ - Z\|_F$ and $\tilde{f}(Z) = \|U'\tilde{X} - Z\|_F$. Then $\eta = \|U'X^+ - U'\tilde{X}\|_F = \|X^+ - \tilde{X}\|_F$. Thus
+\begin{align}
+\nonumber \|U' [\tilde{X}]_k - A\|_F^2 &= \|U'[\tilde{X}]_k - U'X^+\|_F + \|(I - U'U'^T)A\|_F^2\\
+\nonumber {}&\le (\|U'[X^+]_k - U'X^+\|_F + 2\cdot \|X^+ - \tilde{X}\|_F)^2 + \|(I - U'U'^T)A\|_F^2\\
+\nonumber    {}&\le (\|U'[X^+]_k - U'X^+\|_F + O(\sqrt{\alpha})\cdot \|U'X^+ - A\|_F)^2 + \|(I - U'U'^T)A\|_F^2\\
+\nonumber {}&= (\|U'[X^+]_k - U'X^+\|_F + O(\sqrt{\alpha})\cdot \|U'X^+ - A\|_F)^2 + \|U'X^+ - A\|_F^2\\
+\nonumber {}&= \|U'[X^+]_k - U'X^+\|_F^2 + O(\sqrt{\alpha})\cdot \|U'[X^+]_k - U'X^+\|_F\cdot \|U'X^+ - A\|_F \\
+\nonumber {}&\hspace{.5in}+   O(\alpha)\cdot \|U'X^+ - A\|_F^2 + \|U'X^+ - A\|_F^2\\
+\nonumber {}&= \|U'[X^+]_k - A\|_F^2 + O(\sqrt{\alpha})\cdot \|U'[X^+]_k - U'X^+\|_F\cdot \|U'X^+ - A\|_F \\
+{}&\hspace{.5in}+   O(\alpha)\cdot \|U'X^+ - A\|_F^2\label{eqn:pythagoras}\\
+{}&\le (1+O(\alpha))\cdot\|U'[X^+]_k - A\|_F^2 + O(\sqrt{\alpha})\cdot \|U'[X^+]_k - U'X^+\|_F\cdot \|U'X^+ - A\|_F\label{eqn:better}\\
+{}&\le (1+O(\alpha))\cdot\|U'[X^+]_k - A\|_F^2 + O(\sqrt{\alpha})\cdot \|U'[X^+]_k - A\|_F^2\label{eqn:better2}\\
+\nonumber {}&= (1+O(\sqrt{\alpha}))\cdot\|U'[X^+]_k - A\|_F^2 
+\end{align}
+where \eqref{eqn:pythagoras} used that $\|U'[X^+]_k - U'X^+ + U'X^+ - A\|_F^2 = \|U'[X^+]_k - A\|_F^2 + \|U'[X^+]_k - U'X^+\|_F^2$ since $U'X^+ - A$ has columns orthogonal to the column space of $U'$. Also, \eqref{eqn:better} used that 
+$$\|U'X^+ - A\|_F \le \|U'[X^+]_k - A\|_F ,$$
+since $U'X^+$ is the best Frobenius approximation to $A$ in the column space of $U'$. Finally, \eqref{eqn:better2} again used 
+$$\|U'X^+ - A\|_F \le \|U'[X^+]_k - A\|_F ,$$
+and also used the triangle inequality 
+$$\|U'[X^+]_k - U'X^+\|_F \le \|U'[X^+]_k - A\|_F + \|U'X^+ - A\|_F \le 2\cdot \|U'[X^+]_k - A\|_F .$$
+
+Thus we have established the following theorem, which follows from the above calculations and Theorem~\ref{thm:main}.
+\begin{theorem}
+Let $\Pi_1 \in \R^{m_1\times n}$ be a $1/2$ subspace embedding for a certain $k$-dimensional subspace $V_k$, and suppose $\Pi_1$ also satisfies approximate matrix multiplication with error $\sqrt{\eps/k}$. Let $\Pi_2\in\R^{m_2\times n}$ be an $\alpha$-subspace embedding for the column space of $U'$, where $A\Pi_1^T = U'\Sigma'V'^T$ is the SVD (and hence $U'$ has rank at most $m_1$). Let $\tilde{A}_k' = U'[\tilde{X}]_k$ where
+$$
+\tilde{X} = \mathop{argmin}_X \|\Pi_2 U' X - \Pi_2 A\|_F^2 .
+$$
+Then $\tilde{A}_k'$ has rank $k$ and
+$$
+\|A - \tilde{A}_k'\|_F \le (1 + O(\eps) + O(\sqrt{\alpha}))\|A - A_k\|_F .
+$$
+In particular, the error is $(1 + O(\eps))\|A - A_k\|_F$ for $\alpha = \eps$.
+\end{theorem}
+
+In the remaining part of these lecture notes, we show that $\mathrm{Proj}_{A\Pi^T, k}(A)$ actually is a good rank-$k$ approximation to $A$ (i.e.\ we prove Theorem~\ref{thm:main}). In the following proof, we will denote the first $k$ columns of $U$ and $V$ as $U_k$ and $V_k$ and the remaining columns by $U_{\bar{k}}$ and $V_{\bar{k}}$.
+
+\begin{proof}
+Let $Y$ be the column span of $\mathrm{Proj}_{A\Pi^T}(A_k)$ and the orthogonal projection operator onto $Y$ as $P$. Then,
+$$
+\|A - \mathrm{Proj}_{A\Pi^T, k}(A) \|_F^2 \leq \|A - PA\|_F^2 = \|A_k - PA_k\|_F^2 + \|A_{\bar{k}} -PA_{\bar{k}}\|_F^2
+$$
+Then we can bound the second term in that sum:
+$$
+\|A_{\bar{k}}\| = \|(I - P)A_{\bar{k}}\|_{F}^2 \leq \|A_{\bar{k}}\|_F^1
+$$
+
+Now we just need to show that $\|A_k - PA_k\|_F^2 \leq \eps \|A_{\bar{k}}\|_F^2$:
+$$
+\|A - PA\|_F^2 = \|A_k - (A\Pi^T)(A\Pi^T)^+ A_k)\|_F^2 \leq \|A_k - (A\Pi^T)(A\Pi^T)^+ A_k\|_F^2
+$$
+$$
+= \|A_k^T - A_k^T(\Pi A^T)^+(\Pi A^T)\|_F^2
+$$
+$$
+= \sum_{i=1}^n \|{A_k^T}^{(i)} - A_k^T(\Pi A^T)^+(\Pi A^T)^{(i)}\|_2^2
+$$
+
+Here superscript $(i)$ means the $i$th column. Now we have a bunch of different approximate regression problems which have the following form:
+$$
+\min_{x} \|\Pi A_k^T x - \Pi(A^T)^{(i)}\|_2,
+$$
+which has optimal value $\tilde{x}^* = (\Pi A_k^T)^+(\Pi A^T)^{(i)}$. Consider the problem $\min_x \|\Pi A_k^T x - (A^T)^{(i)}\|_2$ as original regression problem. In this case optimal $x^*$ gives $A_k^T x^* = \mathrm{Proj}_{A_k^T} ((A^T)^{(i)}) = (A_k^T)^{(i)}$. Now we can use the analysis on the approximate least square from last week.
+
+In our problem, we have a bunch of $w_i$, $\beta_i$, $\alpha_i$ with $S = A_k^T = V_k \Sigma_k U_k^T$ and $b_i = (A^T)^{(i)}$. Here, $\|w_i\|^2 = \|Sx^* - b\|^2 = \|(A_k^T)^{(i)} - (A^T)^{(i)}\|^2$. Hence $\sum_i \|w_i\|^2 = \|A - A_k\|_F^2$. On the other hand, $\sum_i \|\beta_i\|^2 = \|A_k^T - A_k^T(\Pi A_k^T)^+ (\Pi A^T)\|_F^2$. Since $(\Pi V_k)^T(\Pi V_k) \beta_i = (\Pi V_k)^T \Pi w_i$, if all singlar values of $\Pi V_k$ are at least $1/2^{1/4}$, we have
+$$
+\frac{\sum_i \|\beta_i\|^2}{2} \leq \sum_i \|(\Pi V_k)^T(\Pi V_k) \beta_i\|^2
+= \sum_i \| (\Pi V_k)^T \Pi w_i\|^2 = \|(\Pi V_k)^T \Pi W\|_F^T
+$$
+where $W$ has $w_i$ as $i$th column. What does it look like? $(\Pi V_k)^T \Pi W$ exactly look like approximate matrix multiplication of $V_k$ and $W$. Since columns of $W$ and $V_k$ are orthogonal, we have $V_k^T W = 0$, hence if $\Pi$ is a sketch for approximate matrix multiplication of error $\eps' = \sqrt{\eps/k}$, then
+$$
+\Pr_{\Pi}(\| (\Pi V_k)^T (\Pi W) \|_F^2 > \eps \|W\|_F^2) < \delta
+$$
+since $\|V_k\|_F^2 = k$. Clearly $\|W\|_F^2 = \sum_i \|w_i\|^2 = \|A - A_k\|_F^2$, we get the desired result.
+\end{proof}
+
+\subsection{Further results}
+
+What we just talked about gives a good low-rank approximation but every column of $\tilde{A_k}$ is a linear combination of potentially all columns of $A$. In applications (e.g. information retrieval), we want a few number of columns be spanning our low dimensional subspace. There has been work on finding fewer columns of $A$ (call them $C$) such that $\|A - (CC^+ A)_k\|_F^2$ is small, but we will not talk about it deeply.
+
+\begin{itemize}
+\item Boutsidis et al. \cite{BDM11} showed that we can take $C$ with $\approx 2k/\eps$ columns and error $\leq \epsilon\|A - A_k\|_F$. 
+
+\item Guruswami and Sinop got $C$ with $\leq \frac{k}{\eps} + k - 1$ columns such that $\|A - CC^+ A\|_F \leq (1+\epsilon)\|A - A_k\|_F$. 
+\end{itemize}
+
+\subsection{K-Means as a Low-Rank Approximation Problem}
+The k-means problem, which was stated on the problem set, involved a set of points $( x_1, ..., x_n) \in \R^d$. Let $A$ be the matrix with the $i$th row equal to $x_i^T$. Given a partition $\mathcal{P}(P_1, ..., P_k)$ of points into $k$ clusters, then the best centroids are averages of the clusters. Define the matrix $X_p \in \R^{n \times k}$ such that:
+$$
+\left(X_p\right)_{i, j} = \begin{cases} 
+      \frac{1}{\sqrt{|P_j|}} & \textup{if} i \in P_j \\
+      0 & \textup{otherwise}
+   \end{cases}
+$$
+
+Note that $X_p^TX_p = I$. It can e shown that the $i$th row of $X_pX_p^T A$ is the centroid of the cluster that $X_i$ belongs to. Thus, solving k-means is equivalent to finding some $\mathcal{P}^* = \textup{argmin} \| A - X_pX_p^T A\|$ - this is a constrained rank-k approximation problem. Cohen et. al\cite{CEMMP15} show that $\Pi$ can have $m = O(k/\eps^2)$ for a $(1 + \eps)$ approximation, or a $m = O(\textup{lg }k / \eps^2)$ for a $(9 + \eps)$ approximation (the second bound is specifically for the k-means problem). It is an open problem whether this second bon can get a better approximation.
+
+\section{Compressed Sensing}
+
+\subsection{Basic Idea}
+Consider $x \in \R^n$. If $x$ is a $k$ sparse vector, we could represent it in a far more compressed manner. Thus, we define a measure of how "compressible" a vector is as a measure of how close it is to being $k$ sparse.
+
+\begin{definition}
+Let $x_{head(k)}$ be the $k$ elements of largest magnitude in $x$. Let $x_{tail(k)}$ be the rest of $x$.
+\end{definition}
+
+Therefore, we call $x$ compressible if $\| x_{tail(k)} \|$ is small.
+
+The goal here is to approximately recover $x$ from few linear measurements. Consider we have a matrix $\Pi x$ such that each the $i$th row is equal to $\langle \alpha_i, x\rangle$ for some $\alpha_1, ..., \alpha_m \in \R^n$. We want to recover a $\tilde{x}$ from $\Pi X$ such that $\|x - \tilde{x}\|_p \leq C_{\eps, p, q} \|x_{tail(k)}\|_q$, where $C_{\eps, p, q}$ is some constant dependent on $\eps, p$ and $q$. Depending on the problem formulation, I may or may not get to choose this matrix $\Pi$.
+
+\subsection{Approximate Sparsity}
+There are many practical applications in which approximately sparse vectors appear. Pixelated images, for example, are usually approximately sparse in some basis $U$. For example, consider an $n$ by $n$ image $x \in \R^{n^2}$. then $x = Uy$ for some basis $U$, and $y$ is approximately sparse. Thus we can get measurements from $\Pi Uy$.
+
+Images are typically sparse in the wavelet basis. We will describe how to transform to the Haar wavelet basis here. Assume that $n$ is a power of two. Then:
+
+\begin{enumerate}
+\item Break the image $x$ into squares of size four pixels.
+\item Initialize a new image, with four regions $R_1, R_2, R_3, R_4$.
+\item Each block of four pixels, $b$, in $x$ has a corresponding single pixel in each of ${R_1}_b, {R_2}_b, {R_3}_b$, and ${R_4}_b$ based on its location. For each block of four $b$:
+\begin{itemize}
+\item Let the $b$ have pixel values $p_1, p_2, p_3,$ and $p_4$.
+\item ${R_1}_b \leftarrow \frac{1}{4}(p_1 + p_2 + p_3 + p_4)$ 
+\item ${R_2}_b \leftarrow \frac{1}{4}(p_1 - p_2 + p_3 - p_4)$ 
+\item ${R_3}_b \leftarrow \frac{1}{4}(p_1 - p_2 - p_3 + p_4)$ 
+\item ${R_4}_b \leftarrow \frac{1}{4}(p_1 - p_2 + p_3 - p_4)$
+\end{itemize}
+\item Recurse on $R_1, R_2, R_3$, and $R_4$.
+\end{enumerate}
+
+The general idea is this: usually, pixels are relatively constant in certain regions. Thus, the values in all regions except for the first are usually relatively small. If you view images after this transform, the upper left hand regions will often be closer to white, while the rest will be relatively sparse.
+
+\begin{theorem}[Cand{\`{e}}s, Romberg, Tao \cite{CRT06}, Donoho \cite{D06}]
+There exists a $\Pi \in \R^{m \times n}$ with $m = O(k \textup{lg}(n / k))$ and a poly-time algorithm $Alg$ s.t. if $\tilde{x} = Alg(\Pi x)$ then $\|x - \tilde{x}\|_2 \leq O(k^{-1/2}) \|x_{tail(k)}\|_1$
+\end{theorem}
+
+If $x$ is actually k-spares, 2$k$ measurements are necessary and sufficient. We will see this by examining Prony's method in one of our problem sets, and investigate compressed sensing further next class.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{BDM11}
+Christos Boutsidis, Petros Drineas, Malik Magdon-Ismail.
+\newblock Near Optimal Column-based Matrix Reconstruction.
+\newblock {\em FOCS}, 305-314, 2011.
+
+\bibitem{CRT06}
+Emmanuel J. Cand{\`{e}}s, Justin K. Romberg, Terence Tao.
+\newblock  Robust uncertainty principles: exact signal reconstruction from highly incomplete frequency information.
+\newblock {\em IEEE Transactions on Information Theory}, 52(2):489-509, 2006.
+
+\bibitem{CEMMP15}
+Michael B. Cohen, Sam Elder, Cameron Musco, Christopher Musco, Madalina Persu.
+\newblock Dimensionality Reduction for k-Means Clustering and Low Rank Approximation.
+\newblock {\em STOC}, 163-172, 2015.
+
+\bibitem{D06}
+David L. Donoho.
+\newblock Compressed sensing,
+\newblock {\em IEEE Transactions on Information Theory}, 52(4):1289-1306, 2006.
+
+\bibitem{FKV04}
+Alan M. Frieze, Ravi Kannan, Santosh Vempala.
+\newblock Fast Monte-carlo Algorithms for Finding Low-rank Approximations.
+\newblock {\em J. ACM}, 51(6):1025-1041, 2004.
+
+\bibitem{GS12}
+Venkatesan Guruswami, Ali Kemal Sinop.
+\newblock Optimal Column-based Low-rank Matrix Reconstruction.
+\newblock {\em SODA}, 1207-1214, 2012.
+
+\bibitem{Papa00}
+Christos H. Papadimitriou, Prabhakar Raghavan, Hisao Tamaki, Santosh Vempala.
+\newblock Latent Semantic Indexing: A Probabilistic Analysis.
+\newblock {\em J. Comput. Syst. Sci.}, 61(2):217-235, 2000.
+
+\bibitem{Sar06}
+Tam\'{a}s Sarl\'{o}s.
+\newblock Improved Approximation Algorithms for Large Matrices via Random Projections.
+\newblock {\em FOCS}, 143-152, 2006.
+
+\end{thebibliography}
+
+\end{document}

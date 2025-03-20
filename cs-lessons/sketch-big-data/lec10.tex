@@ -1,0 +1,420 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newtheorem{remark}{Remark}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{10 --- Oct. 3, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Zhun Deng}
+
+\section{Overview}
+
+In the last lecture we mentioned about fast JL transform (FJLT). We said that the time complexity is $O(d\log d+m^3)$, where $d$ is the dimension of the vector $x$ and $m$ is the number of rows of the transform matrix $\Pi$. However, in practice, the vector $x$ is often a sparse vector, and we would expect that the time complexity for the transform $x\rightarrow\Pi x$ is $O(m\|x\|_0)$, where $\|x\|_0 = |\{i : x_i \neq 0\}|$, and the time complexity of FJLT is terrible if $\|x\|_0$ is small relative to $d$. 
+
+In this lecture, we suggest methods to  to speed up JL by making $\Pi$ sparse. 
+
+
+\section{History of various of methods }
+
+\subsection{The method by \cite{achlioptas2001database}}
+Here, we first introduce a method purposed by \cite{achlioptas2001database}. 
+
+\begin{itemize}
+\item Make $\Pi$ sparse, each column of $\Pi$ has less or equal than $s$ non-zero entries in expectation. The expected time is $O(s\|x\|_0)$ to compute $\Pi x$.
+\item The specific construction is that $\Pi_{ij}$ 's are independent random variables that 
+\begin{align*}
+\Pi_{ij} = \quad
+\begin{cases}
+0, ~ \text{w.p.} ~1-q\\
+\frac{\pm 1}{\sqrt{qm}}, ~\text{w.p.} ~q
+\end{cases}
+\end{align*}
+where w.p. is the shorthand for with probability.  
+\end{itemize}
+and \cite{achlioptas2001database} proved that to get ``$\forall \|x\|_2=1,P(\big|\|\Pi x\|^2_2-1\big|<\varepsilon)<\delta$'', it is sufficient to take $$m\geq(1+o(1))\frac{4\ln(\frac{2}{\delta})}{\varepsilon^2},~q=\frac{1}{3}~(\text{so},~ s=\frac{m}{3})$$
+
+
+\subsection{The method by  \cite{matouvsek2008variants}}
+
+In \cite{matouvsek2008variants}, it mentions that if the approach is to take i.i.d. sub-gaussian entries, then one must have  $$q=\Omega(1)~\text{for}~m=O(\frac{1}{\varepsilon^2}\lg(\frac{1}{\delta})).$$
+
+\subsection{The method by  \cite{dasgupta2010sparse}}
+In \cite{dasgupta2010sparse}, it mentions that it is possible to achieve ``$\forall \|x\|_2=1,P(\big|\|\Pi x\|^2_2-1\big|<\varepsilon)<\delta$'' by 
+$$m=O(\frac{1}{\varepsilon^2}\lg(\frac{1}{\delta})),~s=\tilde{O}(\frac{1}{\varepsilon}\lg^3(\frac{1}{\delta}))$$
+where $\tilde{O}(f):=f\cdot \text{poly}(\log(f))$. 
+
+Specifically, their matrix is constructed in the following way:
+$$\Pi=AB$$
+where 
+$$A=\begin{bmatrix}
+&&&& &  &  0&  &  & \\ 
+&&&& &  &  0&  &  & \\ 
+ &&&&&  &  \vdots&  &  &\\
+ &&&&&  &  \pm 1  &  &\\
+&&&& &  &  0&  &  & \\ 
+  &&&& &  &  0&  &  & \\ 
+   &&&&&  &  \vdots&  &  &\\
+\end{bmatrix}_{m\times ds}
+$$
+is a matrix with each column has one non-zeros entry with value $1$ or $-1$
+and 
+$$
+B=\begin{bmatrix}
+1& &&&&&&\\
+1&&&&&&&\\
+\vdots &&&&&&&\\
+1 &&&&&&&\\
+&1&&&&&&\\
+&1&&&&&&\\
+&\vdots &&&&&&\\
+&1&&&&&&\\
+&&\ddots &&&&&\\
+&&\ddots &&&&&1\\
+&&\ddots &&&&&1\\
+&&\ddots &&&&&\vdots\\
+&&\ddots &&&&&1\\
+\end{bmatrix}_{ds\times d}
+$$
+
+where each column has $s$ $1$'s and it can duplicate each element $s$ times for the vector $x$.
+\begin{remark}
+Also it is worth mentioning that there were other methods improve $s$ to $\tilde{O}(\varepsilon^{-1} \lg^2(1/\delta))$ by \cite{kane2010derandomized} and \cite{braverman2010rademacher}.
+\end{remark}
+
+
+
+
+
+\subsection{The method by \cite{kane2014sparser}}
+
+Based on the method of \cite{kane2014sparser}, by noticing the error coming from collision of elements, Prof. Nelson purposed another approach and  proved that it is possible to achieve ``$\forall \|x\|_2=1,P(\big|\|\Pi x\|^2_2-1\big|<\varepsilon)<\delta$'' by 
+$$m=O(\frac{1}{\varepsilon^2}\lg\frac{1}{\delta}),~s=O(\frac{1}{\varepsilon}\lg\frac{1}{\delta}).$$
+
+The construction of $\Pi$ can be in the following two forms, both the analysis we will show works.
+
+$$\Pi=\frac{1}{\sqrt{s}}\begin{bmatrix}
+ &  & \pm 1 &  & \\ 
+ &  & 0 &  & \\ 
+ &  &\vdots  &  & \\ 
+ &  & \pm 1 &  & \\ 
+ &  & \pm 1 &  & 
+\end{bmatrix}$$
+where in each column there are $s$ non-zero entries, being $1$ or $-1$.
+
+Another construction which is easier to implement is:
+\[
+\Pi=\frac{1}{\sqrt{s}}
+\left[
+\begin{array}{c|c|c}
+
+\cdots & B_1& \\\hline
+ \cdots & B_2&\\
+\hline
+\cdots & \vdots&\\
+\hline
+
+\cdots & B_{s}&
+\end{array}
+\right]
+\]
+
+where each block $B_i$ is a $m/s$ column vector with only one entry non-zero, being $1$ or $-1$.
+
+The corresponding countsketch: 
+$$h:[d]\times[s]\rightarrow[\frac{m}{s}]$$
+$$\sigma:[d]\times[s]\rightarrow\{-1,1\}$$
+
+\section{Analysis}
+
+Now, we analysis the method by section 2.4.
+Our goal is to prove that for any $\varepsilon>0$
+$$P_{\Pi}(\big|\|\Pi_x\|^2_2-1\big|>\varepsilon)<\delta$$
+
+Before that, we make clear of some notations.
+$$\Pi_{r,i}:=\frac{\eta_{r,i}\sigma_{r,i}}{\sqrt{s}},~\sigma_{r,i}\in\{-1,1\},~\eta_{r,i}\in\{0,1\}.$$
+Also we should notice that $$E\eta_{r,i}=\frac{s}{m}.$$
+
+Now, we begin the analysis.
+
+First, notice that 
+$$(\Pi x)_r=\sum_{r=1}^d\Pi_{r,i}x_i=\frac{1}{\sqrt{s}}\sum_{i=1}^d\eta_{r,i}\sigma_{r,i}x_i,$$
+
+then, we can obtain that
+$$\|\Pi x\|_2^2=\sum_{r=1}^m(\Pi x)^2_r=\frac{1}{s}\sum_{r=1}^m\sum_{i,j=1}^d\eta_{r,i}\eta_{r,j}\sigma_{r,i}\sigma_{r,j}x_ix_j. $$
+
+The last term can be conquered in two parts, 
+$$\frac{1}{s}\sum_{r=1}^m\sum_{i,j=1}^d\eta_{r,i}\eta_{r,j}\sigma_{r,i}\sigma_{r,j}x_ix_j=\frac{1}{s}\sum_{r=1}^m\big[\sum_{i=1}^d x_i^2\eta_{r,i}+\sum_{i\neq j}\eta_{r,i}\eta_{r,j}\sigma_{r,i}\sigma_{r,j}x_ix_j\big]$$
+
+Notice the first part $\frac{1}{s}\sum_{r=1}^m\sum_{i=1}^d x_i^2\eta_{r,i}$ is exactly $\|x\|^2_2$ since $\sum_{r}\eta_{r,i}=s$, then we only need to analyze the second part.
+
+We denote 
+$$Z=\frac{1}{s}\sum_{r=1}^m\sum_{i\neq j}^d\eta_{r,i}\eta_{r,j}\sigma_{r,i}\sigma_{r,j}x_ix_j$$
+
+In order to analyze $Z$, we need some inequalities.
+
+
+\subsection{Some Inequalities We Need}
+Throughout, for a random variable $X$, $\|X\|_p$ denotes $(\E|X|^p)^{1/p}$. It is known that $\|\cdot\|_p$ is a norm for any $p\ge 1$ (Minkowski's inequality). It is also known $\|X\|_p \le \|X\|_q$ whenever $p\le q$. Henceforth, whenever we discuss $\|\cdot\|_p$, we will assume $p\ge 1$.
+
+\begin{lemma}[Khintchine Inequality]
+For any $p\ge 1$, $x\in\R^n$, and $(\sigma_i)$ independent Rademachers,
+$$
+\|\sum_i \sigma_i x_i\|_p \lesssim \sqrt{p}\cdot \|x\|_2
+$$
+\end{lemma}
+
+
+\begin{lemma}[Jensen Inequality]
+For $F$ convex, $F(\E X) \le \E F(X)$.
+\end{lemma}
+
+
+
+\begin{lemma}[Markov Inequality ]
+$$
+\Pr(Z > \lambda) \le \lambda^{-p} \cdot \E|Z|^p.
+$$
+\end{lemma}
+
+
+
+\begin{lemma}[Decoupling {\cite{de2012decoupling}}]
+Let $x_1,\ldots,x_n$ be independent and mean zero, and $x_1',\ldots,x_n'$ identically distributed as the $x_i$ and independent of them. Then for any $(a_{i,j})$ and for all $p\ge 1$
+$$
+\|\sum_{i\neq j} a_{i,j} x_i x_j\|_p \le 4 \|\sum_{i,j} a_{i ,j} x_i x_j'\|_p
+$$
+\end{lemma}
+
+
+\begin{theorem}[Hanson-Wright inequality ]\label{hw}
+For $\sigma_1,\ldots,\sigma_n$ independent Rademachers and $A\in\R^{n\times n}$ real and symmetric, for all $p\ge 1$
+$$
+\|\sigma^T A \sigma - \E \sigma^T A \sigma\|_p \lesssim \sqrt{p} \cdot \|A\|_F + p\cdot \|A\| .
+$$
+\end{theorem}
+\begin{proof}
+Without loss of generality we assume in this proof that $p\ge 2$ (so that $p/2 \ge 1$). Then
+%\allowdisplaybreaks
+\begin{align}
+\|\sigma^T A \sigma &- \E \sigma^T A \sigma\|_p \lesssim \|\sigma^T A \sigma'\|_p\text{ (by decoupling)} \label{hwstart}\\
+{}&\lesssim \sqrt{p} \cdot \| \|Ax\|_2 \|_p \text{ (Khintchine)} \label{esquared}\\
+{}& = \sqrt{p} \cdot \| \|Ax\|_2^2 \|_{p/2}^{1/2} \label{induction}\\
+\nonumber {}& \le \sqrt{p} \cdot \| \|Ax\|_2^2 \|_p^{1/2} \\
+\nonumber {}& \le \sqrt{p} \cdot (\|A\|_F^2 + \|\|Ax\|_2^2 - \E \|Ax\|_2^2 \|_p)^{1/2} \text{ (triangle inequality)}\\
+\nonumber {}& \le \sqrt{p} \cdot \|A\|_F + \sqrt{p}\cdot \|\|Ax\|_2^2 - \E \|Ax\|_2^2 \|_p^{1/2}\\
+\nonumber {}& \lesssim \sqrt{p} \cdot \|A\|_F + \sqrt{p}\cdot \|x^T A^T A x'\|_p^{1/2}\text{ (by decoupling)}\\
+\nonumber {}& \lesssim \sqrt{p} \cdot \|A\|_F + p^{3/4}\cdot \|\|A^T Ax\|_2\|_p^{1/2}\text{ (Khintchine)}\\
+{}& \lesssim \sqrt{p} \cdot \|A\|_F + p^{3/4}\cdot\|A\|^{1/2} \cdot\|\|Ax\|_2\|_p^{1/2} \label{eagain}
+\end{align}
+
+Writing $E = \|\|Ax\|_2\|_p^{1/2}$ and comparing \ref{esquared} and \ref{eagain}, we see that for some constant $C > 0$,
+$$
+E^2 - Cp^{1/4}\|A\|^{1/2} E - C\|A\|_F \le 0 .
+$$
+Thus $E$ must be smaller than the larger root of the above quadratic equation, implying our desired upper bound on $E^2$.
+\end{proof}
+
+\begin{theorem}[Bernstein's inequality]\label{bernstein}
+Let $X_1,\ldots,X_n$ be independent random variables that are each at most $K$ almost surely, and where
+$$
+\sum_{i=1}^n \E(X_i - \E X_i)^2 = \sigma^2 .
+$$
+Then for all $p\ge 1$
+$$
+\|\sum_{i=1}^n X_i - \E\sum_i X_i\|_p \lesssim \sigma\sqrt{p} + Kp .
+$$
+\end{theorem}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Analysis of $Z$}
+
+\begin{theorem}
+As long as $m \simeq \eps^{-2}\log(1/\delta)$ and $s\simeq \eps m$,
+\begin{equation}
+\forall x : \|x\|_2 = 1,\ \Pr_{\Pi}(| \|\Pi x\|_2^2 - 1 | > \eps) < \delta .
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Abusing notation and treating $\sigma$ as an $mn$-dimensional vector,
+$$
+Z = \|\Pi x\|_2^2 - 1 = \frac 1s \sum_{r=1}^m\sum_{i\neq j} \eta_{r,i}\eta_{r,j} \sigma_{r,i}\sigma_{r,j} x_i x_j := \sigma^T A_{x,\eta} \sigma ,
+$$
+Thus by Hanson-Wright
+$$\|Z\|_p \le \|\sqrt{p}\cdot\|A_{x,\eta}\|_F + p\cdot\|A_{x,\eta}\|\|_p \le \sqrt{p}\cdot\|\|A_{x,\eta}\|_F\|_p + p\cdot\|\|A_{x,\eta}\|\|_p .$$
+
+$A_{x,\eta}$ is a block diagonal matrix with $m$ blocks, where the $r$th block is $(1/s) x^{(r)} (x^{(r)})^T$ but with the diagonal zeroed out. Here $x^{(r)}$ is the vector with $(x^{(r)})_i = \eta_{r,i} x_i$. Now we just need to bound $\|\|A_{x,\eta}\|_F\|\|_p$ and $\|\|A_{x,\eta}\|\|_p$.
+
+
+Since $A_{x,\eta}$ is block-diagonal, its operator norm is the largest operator norm of any block. The eigenvalue of the $r$th block is at most $(1/s)\cdot \max\{ \|x^{(r)}\|_2^2, \|x^{(r)}\|_\infty^2\} \le 1/s$, and thus $\|A_{x,\eta}\| \le 1/s$ with probability $1$.
+
+Next, define $Q_{i,j} = \sum_{r=1}^m \eta_{r,i} \eta_{r,j}$ so that
+$$
+\|A_{x,\eta}\|_F^2 = \frac 1{s^2} \sum_{i\neq j} x_i^2 x_j^2 \cdot Q_{i,j} .
+$$
+We will show for $p \simeq s^2/m$ that for all $i, j$, $\|Q_{i,j}\|_p \lesssim p$, where we take the $p$-norm over $\eta$. Therefore for this $p$,
+
+\begin{align*}
+\|\|A_{x,\eta}\|_F\|_p &= \|\|A_{x,\eta}\|_F^2\|_{p/2}^{1/2}\\
+{}&\le\|\frac 1{s^2} \sum_{i\neq j} x_i^2 x_j^2\cdot Q_{i,j}\|_p^{1/2}\\
+{}&\le \frac 1{s} \left(\sum_{i\neq j} x_i^2 x_j^2\cdot \|Q_{i,j}\|_p\right)^{1/2}\text{ (triangle inequality)}\\
+{}&\le \frac 1{\sqrt{m}}
+\end{align*}
+Then by Markov's inequality and the settings of $p, s, m$,
+$$
+\Pr(|\|\Pi x\|_2^2 - 1| > \eps) = \Pr(|\sigma^T A_{x,\eta}\sigma| > \eps) < \eps^{-p}\cdot C^p(m^{-p/2} + s^{-p}) < \delta .
+$$
+
+
+
+We now show $\|Q_{i,j}\|_p \lesssim p$, for which we use Bernstein's inequality.
+
+Suppose $\eta_{a_1,i}, \ldots, \eta_{a_s, i}$ are all $1$, where $a_1 < a_2 < \ldots < a_s$. Now, note $Q_{i,j}$ can be written as $\sum_{t=1}^s Y_t$, where $Y_t$ is an indicator random variable for the event that $\eta_{a_t, j} = 1$. The $Y_t$ are not independent, but for any integer $p\ge 1$ their $p$th moment is upper bounded by the case that the $Y_t$ are independent Bernoulli each of expectation $s/m$ (this can be seen by simply expanding $(\sum_t Y_t)^p$ then comparing with the independent Bernoulli case monomial by monomial in the expansion). Thus Bernstein applies, and as desired we have
+$$
+\|Q_{i,j}\|_p = \|\sum_t Y_t\|_p \lesssim \sqrt{s^2/m}\cdot \sqrt{p} + p \simeq p .
+$$
+
+
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%=======================================================================
+
+
+\bibliographystyle{alpha}
+\begin{thebibliography}{DlPG12}
+
+\bibitem[Ach01]{achlioptas2001database}
+Dimitris Achlioptas.
+\newblock Database-friendly random projections.
+\newblock In {\em Proceedings of the twentieth ACM SIGMOD-SIGACT-SIGART
+  symposium on Principles of database systems}, pages 274--281. ACM, 2001.
+
+\bibitem[BOR10]{braverman2010rademacher}
+Vladimir Braverman, Rafail Ostrovsky, and Yuval Rabani.
+\newblock Rademacher chaos, random eulerian graphs and the sparse
+  johnson-lindenstrauss transform.
+\newblock {\em arXiv preprint arXiv:1011.2590}, 2010.
+
+\bibitem[DKS10]{dasgupta2010sparse}
+Anirban Dasgupta, Ravi Kumar, and Tam{\'a}s Sarl{\'o}s.
+\newblock A sparse johnson: Lindenstrauss transform.
+\newblock In {\em Proceedings of the forty-second ACM symposium on Theory of
+  computing}, pages 341--350. ACM, 2010.
+
+\bibitem[DlPG12]{de2012decoupling}
+Victor De~la Pena and Evarist Gin{\'e}.
+\newblock {\em Decoupling: from dependence to independence}.
+\newblock Springer Science \& Business Media, 2012.
+
+\bibitem[KN10]{kane2010derandomized}
+Daniel~M Kane and Jelani Nelson.
+\newblock A derandomized sparse johnson-lindenstrauss transform.
+\newblock {\em arXiv preprint arXiv:1006.3585}, 2010.
+
+\bibitem[KN14]{kane2014sparser}
+Daniel~M Kane and Jelani Nelson.
+\newblock Sparser johnson-lindenstrauss transforms.
+\newblock {\em Journal of the ACM (JACM)}, 61(1):4, 2014.
+
+\bibitem[Mat08]{matouvsek2008variants}
+Ji{\v{r}}{\'\i} Matou{\v{s}}ek.
+\newblock On variants of the johnson--lindenstrauss lemma.
+\newblock {\em Random Structures \& Algorithms}, 33(2):142--156, 2008.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,213 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\makeatletter
+\def\resetMathstrut@{%
+  \setbox\z@\hbox{%
+    \mathchardef\@tempa\mathcode`\[\relax
+    \def\@tempb##1"##2##3{\the\textfont"##3\char"}%
+    \expandafter\@tempb\meaning\@tempa \relax
+  }%
+  \ht\Mathstrutbox@\ht\z@ \dp\Mathstrutbox@\dp\z@}
+\makeatother
+\begingroup
+  \catcode`(\active \xdef({\left\string(}
+  \catcode`)\active \xdef){\right\string)}
+\endgroup
+\mathcode`(="8000 \mathcode`)="8000
+
+\newcommand{\R}{\mathbb R}
+\newcommand{\C}{\mathbb C}
+\newcommand{\F}{\mathbb F}
+\newcommand{\Q}{\mathbb Q}
+\newcommand{\Z}{\mathbb Z}
+\newcommand{\e}{\epsilon}
+\newcommand{\OO}{\mathcal{O}}
+\newcommand{\M}{\mathbf M}
+\newcommand{\x}{\mathbf x}
+\newcommand{\sg}{\text{sgn }}
+\newcommand{\ord}{\text{ord}}
+\newcommand{\I}{\mathbf I}
+\newcommand{\Aut}{\text{Aut}}
+\newcommand{\m}{\mathfrak{m}}
+\newcommand{\p}{\mathfrak{p}}
+\newcommand{\adj}{\text{adj}}
+\newcommand{\z}{\mathbf z}
+\newcommand{\ov}{\overline}
+\newcommand{\y}{\mathbf y}
+\newcommand{\rb}{\rbrace}
+\newcommand{\ssm}{\smallsetminus}
+\newcommand{\lb}{\lbrace}
+\newcommand{\D}{\partial}
+\newcommand{\hra}{\hookrightarrow}
+\newcommand{\A}{\mathbf A}
+\newcommand{\aaa}{\mathfrak{a}}
+\newcommand{\tr}{\text{tr}}
+\newcommand{\q}{\mathfrak{q}}
+\newcommand{\g}{\gamma}
+\newcommand{\s}{\mathbf S}
+\newcommand{\B}{\mathfrak{P}}
+\newcommand{\RP}{\mathbb{RP}}
+\newcommand{\id}{\text{id}}
+\newcommand{\dv}{\text{div }}
+\newcommand{\End}{\text{End}}
+\newcommand{\Ker}{\text{Ker}}
+\newcommand{\im}{\text{Im}}
+\newcommand{\Hom}{\text{Hom}}
+\newcommand{\rin}{\text{ring}}
+\newcommand{\vp}{\varphi}
+\newcommand{\Id}{\text{Id}}
+\newcommand{\curl}{\text{curl }}
+\newcommand{\bb}{\mathbf b}
+\newcommand{\Mor}{\text{Mor}}
+\newcommand{\X}{\mathbf X}
+\newcommand{\Y}{\mathbf Y}
+\newcommand{\V}{\mathbf v}
+\newcommand{\vo}{{\rm vol}}
+\newcommand{\T}{\tilde{\Lambda}}
+
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{6 --- February 14, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{David Stoner}
+
+\section{Binomial Heap Review}
+Recall that Binomial heaps are forests (groups of trees) which maintain the following conditions:
+\begin{itemize}
+\item The roots are connected in a doubly linked list.
+\item At most one tree has rank $k$ for each nonnegative integer $k$, where a tree's rank is the number of children of its root.
+\item The children of the root of a rank $k$ tree are roots of rank $j$ trees for $j=0, 1, \ldots, k-1$. At a consequence, a rank $k$ tree has $2^k$ nodes. 
+\end{itemize}
+Additionally, values always are nonincreasing from parent to child.
+
+\textbf{Insert()} in binomial heaps works like binary addition, taking time $O(\log n)$ per insert since at most $\log n$ ``carries'' are necessary.
+
+\textbf{Deletemin()} only requires the roots to be checked; once a root is removed, the newly added trees are consolidated if necessary. This also takes $O(\log n)$ time.
+
+\section{Fibonacci Heaps}
+One source of inefficiency for Binary heaps stems from the fact that Insert() consolidates the heaps constantly, despite this consolidation only being necessary for Deletemin(). Fibonacci heaps attempt to resolve this issue by making Insert() very lazy, with DeleteMin() doing the consolidation work. We still wish to maintain the same basic structural properties as the binomial heaps. That is, wish for rank $k$ trees to have some number of nodes exponential in $k$, and for the children of the root to be $j$ trees for $j\in\{0, \ldots, k-1\}$. Also, there should be at most one rank $k$ tree at all times; we end up relaxing this second condition a bit. The Insert() and Deletemin() functions work as follows:
+\begin{itemize}
+\item $Insert(x):$ Put $x$ by itself as a rank $0$ tree in the top level structure.
+\item $DeleteMin():$ Search the roots for the min, and delete it as with binomial heaps. Afterwards, consolidate all of the trees as with Binomial heaps so that there is at most $1$ tree of each rank.
+\end{itemize}
+One idea for the $decKey()$ function would be to cut the queried element out from its tree. However, this is undesirable since we may end up with trees of small size and large rank. Instead, we come up with a coloring scheme which prevents trees with large rank from becoming too sparse. 
+
+$Deckey(x)$: each node stores a mark bit $mark(x)$ which is equal to $1$ if $x$ has lost a child to a previous Deckey and $0$ otherwise. In order to $Deckey(x)$, we check to see if its parent is marked. If not, then we cut the subtree at $x$ out as usual and mark $y$. If $y$ is marked, we instead cut out $y$'s subtree and unmark $y$. This is removing a child from $y$'s parent, so the process will continue to recurse until an unmarked node is reached. 
+
+One can show that a rank $k$ tree has at least $F_k\ge c\sqrt{2}^{k}$ nodes. With this in mind, we analyze the amortized times for Insert, Deletemin, and Deckey via a potential function. Let $\tilde{t}=t_{act}+\Delta\Phi$, with
+\[\Phi(H)=T(H)+2M(H)\]
+where $H$ is the current heap, $T(H)$ is the current number of trees, and $M(H)$ is the current number of marked nodes. An insertion takes constant time and increases $\Phi(H)$ by $1$, so $\tilde{t}_{Insert}=O(1)$. For $\tilde{t}_{Deletemin}$, let $H'$ denote the heap after the deletion and consolidation. We have:
+\begin{align*}
+\tilde{t}_{Deletemin}&= t_{actual}+\Delta\Phi 
+\\ &=O(\log n)+T(H)+[T(H')-T(H)]
+\\ &=O(\log n)
+\end{align*}
+Here $T(H')=O(\log n)$ since the heap $H'$ is after consolidation. Finally, suppose $c$ is the number of cascaded cuts required for a Deckey operation. Then:
+\begin{align*}
+\tilde{t}_{Deckey}&= t_{actual}+\Delta\Phi 
+\\ &=c+\Delta T+2\Delta M
+\\ &=c+c+2(1-c)=O(1)
+\end{align*}
+\section*{Splay Trees}
+Splay trees are self-adjusting data structures introduced by \cite{Tarj85}. They support $O(\log n)$ time per insertion, find, and delete functions. Below are some of the milestones achieved by splay trees:
+\paragraph{Static Optimality:}
+Consider the static optimality problem, letting $C_T(\sigma)$ be the number of accesses in the tree $T$. Then: 
+\[C_{splay}(\sigma)=O(n\log n+\min_TC_T(\sigma))\]
+\paragraph{Working Set:} Let $t_j$ be the number of operations since the last query. Splat trees achieve:
+\[C_{splay}(\sigma)=O(\sum_{j=1}^m\log(t_j+1)+n\log n)\]
+\paragraph{Static Finger:}
+For the static finger problem, one of the elements, the finger, is taken to be fixed. The $n\log n$ in both the static and dynamic finger problems  accounts for the drop in the potential function. Here, splay trees get the bound:
+\[C_{splay}(\sigma)=O(\min_f\sum_{j=1}^m\log(|f-\text{rank order of jth key}|+2)+n\log n)\]
+\paragraph{Dynamic Finger:}
+In the dynamic finger problem, there i a sequence $\{x_i\}$ of accessed elements, and the finger for each step is the element accessed in the previous step. For this, splay trees ahcieve:
+\[C_{splay}(\sigma)=O(n\log n+\sum_{j=1}^m(|x_j-x_{j-1}|+2))\]
+\paragraph{Dynamic Optimality Conjecture:} There exists a constant $c$ such that $\forall\sigma$, $C_{splay}(\sigma)=c*OPT$, where $OPT$ is the least time achieved by any algorithm which accesses elements by following the path from the root, and which may make rotations for unit cost. Any balanced BST achieves this for $c = O(\log n).$ This is due to the fact that any balanced BST requires $O(\log n)$ per operation. Tango trees showed $C=O(\log \log n)$ \cite{Demai04}
+
+\section{Splay Tree Details}
+
+Splay Trees make use of the BST rotate() function, which reverses the direction of some parent-child relation, making a vertex the parent of its original parent. The functions of splay trees work as follows:
+
+$insert(x):$ Follow the root to leaf path to find where $x$ should go, and place it there. Then $splay(x)$.
+
+$find(x)$: Follow pointers down to $x$, then $splay(x)$.
+
+$delete(x)$: First $splay(x)$, then $splay(z)$ where $z$ is the node inheriting $x$'s position when $x$ is deleted.
+
+$splay(x)$: Bring $x$ to the root via a series of rotations. Rotating $x$ over and over again will accomplish this, but it will not balance the tree (consider splaying the lowest vertex in a binary tree which is a path). Instead, $splay(x)$ takes  three cases:
+
+Let $y$ be the parent of $x$, and $z$ the parent of $y$. 
+\begin{itemize}
+\item Case 1: $z$ is null. Then $rotate(x)$.
+\item Case 2: $x=y.left, y=z.left$ or $x=y.right, y=z.right$. Then rotate $y$ first, then rotate $x$. 
+\item Case 3: All else. $rotate(x)$ twice.
+\end{itemize}
+When splay is defined in this way, $splay(x)$ balances the tree as it sends $x$ to the root. Assign each item  weight $w$, and define $S(x)$ to be the sum over $y$ in $x$'s subtree of $w(y)$. The potential function we will use to analyze the splay trees is of the form:
+\[\Phi(T)=\sum_{x\in T}\log (S(x))\]
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Tarj85}
+Sleator, Daniel Dominic and Tarjan, Robert Endre. 
+\newblock Self-Adjusting Binary Search Trees.
+\newblock {\em JACM}, 1985.
+
+\bibitem{Demai04}
+Demaine, Erik D. et al.
+\newblock Dynamic Optimality - Almost.
+\newblock {\em FOCS}, 2004.
+
+\end{thebibliography}
+
+\end{document}

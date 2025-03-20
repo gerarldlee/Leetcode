@@ -1,0 +1,60 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\inprod}[1]{\langle #1 \rangle}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\begin{document}
+
+\thispagestyle{empty}
+
+\begin{center}
+{\Large \textsc{CS 294-165 Sketching Algorithms} --- Fall 2020}
+
+\bigskip
+
+{\Large \textsc{Problem Set 3}}
+
+\smallskip
+
+Due: 11:59pm, Friday November 20th
+
+\bigskip
+
+{\footnotesize See homework policy at \url{http://www.sketchingbigdata.org/fall20/syllabus/}}
+
+{\footnotesize Each problem is worth the same number of points (except Problem 3).}
+\end{center}
+
+\paragraph{Problem 1: Michael's counter-example.}
+A matrix $\Pi$ is said to satisfy the {\it $(C,k)$-restricted nullspace property} if for any $\eta\in\ker(\Pi)\setminus\{0\}$ (i.e.\ $\Pi \eta = 0$), it holds that $\|\eta\|_1 \le C \|\eta_{\bar S}\|_1$, where $S\subset[n]$ has size $k$, $\bar S$ is the complement of $S$, and $\eta_{\bar S}$ is the projection of $\eta$ onto the coordinates in $\bar S$. It is known that if $\Pi$ satisfies the restricted nullspace property for small enough $C$, then performing measurements according to such a $\Pi$ is sufficient to recover $\tilde x$ satisfying $\|x - \tilde x\|_1 \le O(1)\cdot\|x_{tail(k)}\|_1$ (in fact via solving basis pursuit).
+
+Now, it is known that if $\Pi$ is the (normalized) adjacency matrix of a left-regular bipartite expander with appropriate parameters, then $\Pi$ satisfies $(\eps,k)$-RIP$_1$: i.e.\ $\|\Pi x\|_1 = (1\pm\eps)\|x\|_1$ for all $k$-sparse $x$. It is also known that if $\Pi$ is such an adjacency matrix, it satisfies the $(1+\eps,k)$-restricted nullspace property, though known proofs of this fact use the expander properties directly rather than going through the RIP$_1$ abstraction. Show that this is necessary, and that the abstraction cannot be used: show that for any pair of constants $k > 1$ and $\eps > 0$, there is an $m\times n$ matrix $\Pi$ which satisfies $(\eps, k)$-RIP$_1$, but not the null space property with $C < 2$. You may assume in your construction that $n$ is sufficiently large in terms of $k$ and $1/\eps$ if you wish.
+
+\paragraph{Problem 2: Reductions between recovery guarantees}
+
+An {\it $\ell_2/\ell_1$ recovery scheme} is a measurement matrix $\Pi$ together with an algorithm $R$ such that for any $x\in\R^n$,
+$$
+\|x - R(\Pi x)\|_2 \le O(1/\sqrt{k}) \cdot \|x_{tail(k)}\|_1 .
+$$
+Show that if $(\Pi,R)$ is an $\ell_2/\ell_1$ recovery scheme, then there exists an $\ell_1/\ell_1$ recovery scheme $(\Pi, R')$ satisfying
+$$
+\|x - R'(\Pi x)\|_1 \le O(1) \cdot \|x_{tail(k)}\|_1 
+$$
+s.t.\ the running time to compute $R'(\Pi x)$ is at most $O(n)$ plus the time to compute $R(\Pi x)$. That is to say, achieving the $\ell_2/\ell_1$ recovery guarantee is stronger than $\ell_1/\ell_1$.
+
+
+\paragraph{Problem 3:} (1 point) How much time did you spend on this problem set? If you can remember the breakdown, please report this per problem. (sum of time spent solving problem and typing up your solution)
+
+\end{document}
+
+

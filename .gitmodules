@@ -1,0 +1,6 @@
+[submodule "Leecode_company_freq"]
+	path = Leecode_company_freq
+	url = https://github.com/xizhang20181005/Leetcode_company_frequency.git
+[submodule "leetcode-go"]
+	path = leetcode-go
+	url = https://github.com/awesee/leetcode.git

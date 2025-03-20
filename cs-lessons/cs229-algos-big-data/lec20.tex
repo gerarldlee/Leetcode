@@ -1,0 +1,247 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,tikz}
+\usepackage{url}
+\usetikzlibrary{trees}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{claim}{Claim}
+\newtheorem{lemma}{Lemma}
+
+
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\teps}{\tilde \varepsilon}
+\newcommand{\ep}{\varepsilon}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\var}{\text{var}}
+\global\long\def\pp#1{\left(#1\right)}
+\global\long\def\ppp#1{\left[#1\right]}
+
+\newcommand{\EquationName}[1]{\label{eq:#1}}
+\newcommand{\ClaimName}[1]{\label{clm:#1}}
+\newcommand{\LemmaName}[1]{\label{lem:#1}}
+\newcommand{\CorollaryName}[1]{\label{cor:#1}}
+\newcommand{\SectionName}[1]{\label{sec:#1}}
+\newcommand{\TheoremName}[1]{\label{thm:#1}}
+\newcommand{\RemarkName}[1]{\label{rem:#1}}
+\newcommand{\FigureName}[1]{\label{fig:#1}}
+\newcommand{\QuestionName}[1]{\label{que:#1}}
+
+\newcommand{\Equation}[1]{Eq.\:\eqref{eq:#1}}
+\newcommand{\Claim}[1]{Claim~\ref{clm:#1}}
+\newcommand{\Lemma}[1]{Lemma~\ref{lem:#1}}
+\newcommand{\Corollary}[1]{Corollary~\ref{cor:#1}}
+\newcommand{\Section}[1]{Section~\ref{sec:#1}}
+\newcommand{\Theorem}[1]{Theorem~\ref{thm:#1}}
+\newcommand{\Remark}[1]{Remark~\ref{rem:#1}}
+\newcommand{\Question}[1]{Question~\ref{que:#1}}
+
+\newcommand{\Eqsub}[1]{\eqref{eq:#1}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+\newcommand{\bs}[1]{\boldsymbol{#1}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+
+\begin{document}
+
+\lecture{20 --- November 10, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Yakir Reshef}
+
+\section{Recap and overview}
+Last time we stated a converse to the fact that JL implies RIP, i.e., that RIP implies JL. This is the Krahmer-Ward theorem \cite{KW11}. Specifically, it says that if $\Pi$ satisfies $(\ep,2k)$-RIP and $D_\sigma$ has random signs on the diagonal then $\Pi D_\sigma$ satisfies $(c\ep, 2^{-c'k})$-DJL.
+
+We started the proof by showing that for any vector $x$, $\| \Pi D_\sigma x\|_2^2 = \|\Pi D_x \sigma\|^2$, which equals $\sigma^T X \sigma$ where $X = D_x \Pi^T \Pi D_x$. That is where we left off. Today we'll use Hanson-Wright to obtain the final result.
+
+\section{Continuing}
+Without loss of generality $|x_1| \geq \cdots |x_n|$. Let $x_{(i)}$ denote the vector with the $k$ coordinates from $i$-th block of size $k$. Finally, let $\Pi_{(i)}$ denote the $k$ columns of $\Pi$ corresponding to the $i$-th block of size $k$.
+
+We'll now partition the $n$-by-$n$ matrix $X$ into several pieces. First, break $X$ into $k$-by-$k$ blocks. Let $A$ be the matrix containing just the diagonal blocks. Let $B$ be the matrix containing just the $k-1$ right-most blocks in the top row of blocks. Let $B^T$ denote the transpose of $B$. And let $C$ denote the rest, i.e., $X - (A + B + B^T) $. Putting all this notation together, we can say, for example, that $A_{(i),(i)} = D_{x(i)} \Pi_{(i)}^T \Pi_{(i)} D_{x(i)}$.
+
+Our proof strategy will be to show that w.p. $1-2^{c'k}$ the following hold.
+\begin{enumerate}
+\item
+$\sigma^T A \sigma \in 1 \pm \ep$
+\item
+$|\sigma^T B \sigma| \leq O(\ep)$
+\item
+$\sigma^T B^T \sigma| \leq O(\ep)$
+\item
+$|\sigma^T C \sigma| \leq O(\ep)$
+\end{enumerate}
+
+We begin with $\sigma^T A \sigma$.
+\begin{align*}
+\sigma^T A \sigma &= \sum_{i=1}^{n/k} \sigma_{(i)} D_{x(i)} \Pi_{(i)}^T \Pi_{(i)} D_{x(i)} \sigma_{(i)} \\
+	&= \sum_i x_{(i)}^T D_{\sigma(i)} \Pi_{(i)}^T \Pi_{(i)} D_{\sigma(i)} x_{(i)} \tag{swapping $x$ and $\sigma$ as before} \\
+	&= \sum_i \| \Pi_{(i)} D_{\sigma(i)} x_{(i)} \|^2 \\
+	&= (1\pm\ep) \sum_i \| D_{\sigma(i)} x_{(i)}\|_2^2 \tag{RIP} \\
+	&=(1\pm\ep) \sum_i \|x_{(i)}\|^2 \tag{Triangle inequality}\\
+	&= (1\pm\ep) \|x\|_2^2 \\
+	&= (1 \pm \ep)
+\end{align*}
+
+Now for $B$. Let $x_{(-1)} = (x_{(2)}, \ldots, x_{(n/k)})$.
+\begin{align*}
+B &= D_{x(1)} \Pi_{(1)}^T \Pi_{(-1)} D_{x(-1)} \\
+\Rightarrow \sigma^T B \sigma &= \sigma_{(1)} D_{x(1)} \Pi_{(1)}^T \Pi_{(-1)} D_{x(-1)} \sigma_{(-1)} \\
+\end{align*}
+Let $v = \sigma_{(1)} D_{x(1)} \Pi_{(1)}^T \Pi_{(-1)} D_{x(-1)}$. We will prove the bound on $\sigma^T B \sigma$ by first bounding $v$ as follows.
+\begin{claim}
+$\|v\|_2 = O(\ep/\sqrt{k})$.
+\end{claim}
+\begin{proof}
+$\|v\|_2 = \sup_{\|y\| = 1} \langle v, y\rangle$. And
+\begin{align*}
+\langle v, y \rangle &= \sigma_{(1)} D_{x(1)} \Pi_{(1)}^T \Pi_{(-i)} \Pi_{(-1)} D_{x(-1)} y_{(-1)} \\
+	&= \sum_{j > 1} \sigma_{(1)} D_{x(1)} \Pi_{(1)}^T \Pi_{(j)} D_{x(j)} y_{(j)} \\
+	&= \sum_{j > 1} x_{(1)} D_{\sigma(1)} \Pi_{(1)}^T \Pi_{(j)} D_{x(j)} y_{(j)} \\
+	&\leq \sum_{j > 1} \|x_{(1)}\|_2 \cdot \|D_{\sigma(1)}\| \cdot \| \Pi_{(1)}^T \Pi_{(j)}\| \|D_{x(j)}\| \|y_{(j)}\|_2
+\end{align*}
+Now we know trivially that $\|x_{(1)}\|_2 \leq 1$ and that the operator norm of $D_\sigma$ equals 1. Also, by RIP we know that $\Pi_{(1)}\Pi_{(j)} \leq O(\ep)$ since $j \neq 1$. Finally, $\|D_{x(j)}\|$ is just $\|x\|_\infty$. Putting this together, we get
+\begin{align*}
+\langle v, y \rangle &\leq \sum_{j>1} O(\ep) \|x_{(j)}\|_\infty \|y_{(j)}\|_2 \\
+	&\leq \sum_{j>1} O(\ep) \left( \frac{\|x_{(j-1)}\|_1}{k} \right) \|y_{(j)}\|_2 \tag{shelling} \\
+	&\leq \sum_{j>1} O(\ep) \left( \frac{\|x_{(j-1)}\|_2}{\sqrt{k}} \right) \|y_{(j)}\|_2 \tag{Cauchy-Schwarz} \\	
+	&\leq \frac{O(\ep)}{\sqrt{k}} \sum_{j > 1} \|x_{(j-1)}\|_2 \cdot \| y_{(j)}\|_2 \\
+	&\leq \frac{O(\ep)}{\sqrt{k}} \sum_{j>1} \left( \|x_{(j-1)}\|_2^2 + \| y_{(j)}\|_2^2 \right) \tag{AM-GM} \\
+	&\leq \frac{O(\ep)}{\sqrt{k}}
+\end{align*}
+\end{proof}
+
+Going back to our proof about $\sigma^T B \sigma$, we then see that
+\begin{align*}
+P(|\sigma^T B \sigma| > c\ep) &= P_{\sigma_{(-1)}}(|v^T \sigma| > c\ep) \\
+	&\lesssim e^{-c'\ep^2/\|v\|_2^2} \tag{Khintchine} \\
+	&= 2^{-\Omega(k)}
+\end{align*}
+
+So now the only thing left is to address $C$. We do this using Hanson-Wright, noting that $C$ has no non-zero diagonal entries which means that $E(\sigma^T C \sigma) = 0$. So H-W gives us that
+\begin{align*}
+P(|\sigma^T C \sigma| > \lambda) \lesssim e^{-c' \lambda^2 / \|C\|_F^2} + e^{-c'\lambda/\|C\|}
+\end{align*}
+setting $\lambda = c\ep$ yields the result, provided we bound the norms. We do so below.
+\begin{align*}
+\|C\|_F^2 &= \sum_{i,j} \| D_{x(i)} \Pi_{(i)}^T \Pi_{(j)} D_{x(j)} \|_F^2 \\
+	&\leq \sum_{i\neq j} \left(\| D_{x(i)} \| \cdot \|\Pi_{(i)}^T \Pi_{(j)}\| \cdot \| D_{x(j)}\|_F\right)^2 \tag{$\|AB\|_F \leq \|A\| \cdot \|B\|_F$} \\
+	&\leq O(\ep^2) \sum_{i\neq j} \| x(i) \|_\infty^2 \cdot \| x(j)\|_2^2 \tag{RIP since $i \neq j$, and $D$ matrices are diagonal} \\
+	&\leq \frac{O(\ep^2)}{k} \sum_{i \neq j} \| x_{(i-1)} \|_2^2 \cdot \| x_{(j)}\|_2^2 \tag{shelling + norm inequalities} \\
+	&\leq \frac{O(\ep^2)}{k} \left( \sum_i \|x_{(i)}\|_2^2 \right)^2 \tag{monomials a superset of the terms in previous line} \\
+	&\leq \frac{O(\ep^2)}{k}
+\end{align*}
+
+\begin{align*}
+\|C\| &= \sup_{\|y\|_2 = 1} |y^T C y| \\
+	&= \left| \sum_{i \neq j} y_{(i)} D_{x(i)} \Pi_{(i)}^T \Pi_{(j)} D_{x(j)} y_{(j)} \right| \\
+	&\leq \left| \sum_{i \neq j} \| y_{(i)} \|_2 \cdot \|D_{x(i)}\| \cdot \| \Pi_{(i)}^T \Pi_{(j)}\| \cdot \| D_{x(j)} \| \cdot \|y_{(j)}\|_2 \right| \\
+	&\leq \frac{O(\ep)}{k} \sum_{i \neq j} \|y_{(i)}\|_2 \cdot \|x_{(i-1)}\|_2 \cdot \|x_{(j-1)}\|_2 \cdot \|y_{(j)}\|_2 \tag{shelling twice}\\
+	&\leq \frac{O(\ep)}{k} \left( \sum_{i>1} \| y_{(i)}\|_2 \cdot \|x_{(i-1)}\|_2 \right)^2 \\
+	&\leq \frac{O(\ep)}{k} \left( \sum_i \frac{1}{2}(\|y_{(i)}\|_2^2 + \|x_{(i-1)}\|_2^2 \right)^2 \tag{AM-GM} \\
+	&= O\left(\frac{\ep}{k} \right)
+\end{align*}
+Plugging these bounds into H-W completes the proof of Krahmer-Ward.
+
+Before we leave the topic, we observe that K-W can be used to prove "Gordon-like" theorems, because we can construct a matrix $SH$ that is RIP across many different scales simultaneously. K-W then gives us that $SHD_\sigma$ is DJL, and the fact that DJL implies "Gordon-like" theorems can then be used to obtain the result.
+
+\section{Sparse reconstruction faster than basis pursuit?}
+We showed that basis pursuit can give $\ell_2/\ell_1$ sparse signal recovery. But basis pursuit can be slow if, e.g. we're looking at an image with 1M pixels. It turns out there are faster ways to do it. The algorithms are mostly iterative. Today we'll look at {\em iterative hard thresholding}, due to \cite{BD09}.
+
+Let's first write down the algorithm. The algorithm takes as input $(y, \Pi, T)$ where $y$ is the encoded signal, $T$ is an iteration count, and $y = \Pi x + e$ where $e$ denotes an error term. Let $H_k(z)$, the "hard-thresholding operator", restrict $z$ to its largest $k$ entries in magnitude. The algorithm is:
+\begin{enumerate}
+\item
+$x^{[1]} \leftarrow 0$.
+\item
+For $i = 1$ to $T$:
+	\begin{enumerate}
+	\item $x^{[i]} \leftarrow H_k(x^{[i]} + \Pi^T(y - \Pi x^{[i]}))$
+	\end{enumerate}
+\item
+return $x^{[T+1]}$.
+\end{enumerate}
+We observe that this algorithm makes sense if we pretend that $e= 0$ and that $\Pi^T \Pi =I$. Because then $\Pi^T(y - \Pi x^{[i]}) = x - x^{[i]}$.
+
+\begin{theorem}
+If $\Pi$ satisfies $(\ep, 3k)$-RIP for $\ep < 1/(4\sqrt{2})$, then
+\[
+\| x^{[T]} - x\|_2 \lesssim 2^{-T} \| H_k(x)\|_2 + \|x - H_k(x)\|_2 + O\left(\frac{1}{\sqrt{k}} \right) \cdot\|x - H_k(x)\|_1 + \|e\|_2
+\]
+\end{theorem}
+\begin{proof}
+Let $x^k$ denote $H_k(x)$. We will assume that $x = x^k$; the rest we put into the noise.  As formal justification, we write $y = \Pi x + e$ as $y = \Pi (x_k + x - x_k) + e = \Pi x_k + \tilde{e}$ for $\tilde{e} = e + \Pi(x - x_k)$. Now note $\|\tilde{e}\|_2 \le \|e\|_2 + \|\Pi (x - x_k)\|_2$. Then define $S_1$ as the coordinates of the largest $k$ entries (in magnitude) of $x$, $S_2$ the next $k$ largest, etc. Then
+\begin{align*}
+\|\Pi (x - x_k)\|_2 &= \|\Pi \sum_{j>1} x_{S_j}\|_2\\
+{}&\le \sum_{j>1} \|\Pi x_{S_j}\|_2\\
+{}&\le \sqrt{1+\eps}\cdot \left(\|x_{S_2}\|_2 + \sum_{j>2} \|x_{S_j}\|_2\right)\text{ (by RIP)}\\
+{}&\le \sqrt{1+\eps}\cdot \left(\|x_{S_2}\|_2 + \sum_{j>2} \|x_{S_j}\|_\infty\cdot \sqrt{k}\right)\\
+{}&\le \sqrt{1+\eps}\cdot \left(\|x_{S_2}\|_2 + \sum_{j>2} \|x_{S_{j-1}}\|_1\cdot \frac{1}{\sqrt{k}}\right) \text{ (shelling)}\\
+{}&\le \sqrt{1+\eps}\cdot \left(\|x - x^k\|_2 + \frac 1{\sqrt{k}}\|x - x^k\|_1\right)
+\end{align*}
+Hence, going forward we can assume $x = x^k$. 
+
+Define $r^{[t]} = x^k - x^{[t]}$, and define $a^{[t+1]} = x^{[t]} + \Pi^T(y - x^{[t]})$. This implies that $x^{[t+1]} = H_k(a^{[t+1]})$. We define $\Gamma_k^* = \text{support}(x^k) \subset [n]$, and $\Gamma^{[t]} = \text{support}(x^{[t]})$, and $B^{[t]} = \Gamma_k^* \cup \Gamma^{[t]}$.
+
+What we want is
+\begin{align*}
+\|x - x^{[t+1]}\|_2 &= \|x^k_{B^{[t+1]}} - x^{[t+1]}_{B^{[t+1]}}\|_2 \\
+	&\leq \|x_{B^{[t+1]}} - a_{B^{[t+1]}}\|_2 + \|a_{B^{[t+1]}} - x^{[t+1]}_{B^{[t+1]}} \|_2 \\
+	&\leq 2\|x_{B^{[t+1]}} - a_{B^{[t+1]}}\|_2 \tag{definitions} \\
+	&= 2 \|x_{B^{[t+1]}} - x^{[t]}_{B^{[t+1]}} - (\Pi^T(y - \Pi x^{[t]}))_{B^{[t+1]}} \|_2 \\
+	&= 2 \| r^{[t]}_{B^{[t+1]}} - (\Pi^T \Pi r^{[t]})_{B^{[t+1]}} - \Pi_{B^{[t+1]}}e \|_2 \\
+	&= 2 \| r^{[t]}_{B^{[t+1]}} - \Pi^T_{B^{[t+1]}} \Pi r^{B^{[t+1]}} - \Pi^T_{B^{[t]} - B^{[t+1]}} \Pi r^{B^{[t]} - B^{[t+1]}} - \Pi_{B^{[t+1]}}e \|_2 \tag{$r = r_{B^{[t+1]}} + r_{B^{[t]} - B^{[t+1]}}$} \\
+	&\leq 2 \| I -  \Pi^T_{B^{[t+1]}}  \Pi_{B^{[t+1]}} \| \cdot \| r^{[t]}_{B^{[t+1]}} \|_2
+		+ 2\|  \Pi^T_{B^{[t+1]}} \Pi_{B^{[t]} - B^{[t+1]}} \| \cdot \| r^{[t]}_{B^{[t]} - B^{[t+1]}}\|_2 + \| \Pi_{B^{[t+1]}} \| \cdot \|e\|_2 \\
+	&\leq 2 \ep \| r^{[t]}_{B^{[t+1]}}\|_2 + 2\ep \|r^{[t]}_{B^{[t]} - B^{[t+1]}}\|_2 + 2\sqrt{1 + \ep} \|e\|_2 \\
+	&= 2\ep (\| r^{[t]}_{B^{[t+1]}}\|_2 + \|r^{[t]}_{B^{[t]} - B^{[t+1]}}\|_2) + 2 \sqrt{1 + \ep} \|e\|_2
+\end{align*}
+Now we recall that when $x$ and $y$ have disjoint support, we have in general that $\|x\|_2 + \|y\|_2 \leq \sqrt{2} \|x+y\|_2$. This means that our bound is at most
+\begin{align*}
+2\sqrt{2} \ep \|r^{[t]}\|_2 + 2 \sqrt{1+\ep} \|e\|_2 \leq \frac{1}{2} \|r^{[t]}\|_2 + 3 \|e\|_2
+\end{align*}
+and so by choosing our constants correctly we can make the induction on $t$ go through.
+\end{proof}
+
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+\bibitem{BD09}
+Thomas Blumensath, Mike E. Davies
+\newblock A simple, efficient and near optimal algorithm for compressed sensing.
+\newblock {\em ICASSP}, 2009.
+
+\bibitem{KW11}
+Felix Krahmer, Rachel Ward.
+\newblock New and improved Johnson-Lindenstrauss embeddings via the Restricted Isometry Property.
+\newblock {\em SIAM J. Math. Anal.}, 43(3):1269--1281, 2011.
+\end{thebibliography}
+
+
+\end{document}

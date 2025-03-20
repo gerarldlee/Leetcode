@@ -1,0 +1,288 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{url}
+\usepackage{xspace}
+\usepackage[usenames]{color}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\langle #1 \rangle}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\eqdef}{\mathbin{\stackrel{\rm def}{=}}}
+\newcommand{\lts}{\mathbin{\substack{<\\ *}}\xspace}
+\newcommand{\gts}{\mathbin{\substack{>\\ *}}\xspace}
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{todo:} \textit{#1}}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+\newtheorem{definition}{Definition}
+\newtheorem{claim}{Claim}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+\newcommand{\Figure}[1]{Figure~\ref{fig:#1}}
+\newtheorem{question}{Question}
+
+\newcommand{\EquationName}[1]{\label{eq:#1}}
+\newcommand{\ClaimName}[1]{\label{clm:#1}}
+\newcommand{\LemmaName}[1]{\label{lem:#1}}
+\newcommand{\CorollaryName}[1]{\label{cor:#1}}
+\newcommand{\SectionName}[1]{\label{sec:#1}}
+\newcommand{\TheoremName}[1]{\label{thm:#1}}
+\newcommand{\RemarkName}[1]{\label{rem:#1}}
+\newcommand{\FigureName}[1]{\label{fig:#1}}
+\newcommand{\QuestionName}[1]{\label{que:#1}}
+
+\newcommand{\Equation}[1]{Eq.\:\eqref{eq:#1}}
+\newcommand{\Claim}[1]{Claim~\ref{clm:#1}}
+\newcommand{\Lemma}[1]{Lemma~\ref{lem:#1}}
+\newcommand{\Corollary}[1]{Corollary~\ref{cor:#1}}
+\newcommand{\Section}[1]{Section~\ref{sec:#1}}
+\newcommand{\Theorem}[1]{Theorem~\ref{thm:#1}}
+\newcommand{\Remark}[1]{Remark~\ref{rem:#1}}
+\newcommand{\Question}[1]{Question~\ref{que:#1}}
+
+\newcommand{\Eqsub}[1]{\eqref{eq:#1}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{9 --- Sept 29, 2017}{Fall 2017}{Prof. Jelani Nelson}{Mitali Bafna}
+
+\section{Fast JL transform}
+
+Typically we have some high-dimensional computational geometry problem, and we use JL to speed up our algorithm in two steps: (1) apply a JL map $\Pi$ to reduce the problem to low dimension $m$, then (2) solve the lower-dimensional problem. As $m$ is made smaller, typically (2) becomes faster. However, ideally we would also like step (1) to be as fast as possible. In this section, we investigate two approaches to speed up the computation of $\Pi x$.
+
+One of the analyses will make use of the following Chernoff bound.
+
+\begin{theorem}[Chernoff bound]\TheoremName{chernoff}
+	Let $X_1,\ldots,X_n$ be independent random variables in $[0, \tau]$, and write $\mu := \E \sum_i X_i$. Then
+	$$
+	\forall \eps > 0,\ \Pr(|\sum_i X_i - \mu| > \eps\mu) < 2 \left(\frac{e^\eps}{(1+\eps)^{1+\eps}}\right)^{\mu/\tau}
+	$$
+\end{theorem}
+
+The approach we cover here was investigated by Ailon and Chazelle \cite{AilonC09}. This approach gives a running time to compute $\Pi x$ of roughly $O(d\log d )$. They called their transformation the {\em Fast Johnson-Lindenstrauss Transform (FJLT)}. A construction similar to theirs, which we will analyze here, is the $m\times n$ matrix $\Pi$ defined as
+\begin{equation}
+\Pi = \sqrt{\frac dm}SHD \EquationName{fjlt}
+\end{equation}
+where $S$ is an $m\times d$ sampling matrix with replacement (each row has a $1$ in a uniformly random location and zeroes elsewhere, and the rows are independent), $H$ is a {\em bounded orthonormal system}, and $D= \mathop{diag}(\alpha)$ for a vector $\alpha$ of $d$ independent Rademachers. A bounded orthonormal system is a matrix $H\in\mathbb{C}^{d\times d}$ such that $H^* H = I$ and $\max_{i,j} |H_{i,j}| \le 1/\sqrt d$. For example, $H$ can be the Fourier matrix or Hadamard matrix. 
+
+The motivation for the construction \Eqsub{fjlt} is speed: $D$ can be applied in $O(d)$ time, $H$ in $O(d\log d)$ time (e.g.\ using the Fast Fourier Transform or divide and conquer in the case of the Hadamard matrix), and $S$ in $O(m)$ time. Thus, overall, applying $\Pi$ to any fixed vector $x$ takes $O(d\log d)$ time. Compare this with using a dense matrix of Rademachers, which takes $O(md)$ time to apply.
+
+We will now give some intuition behind why such a $\Pi$ works. Consider the sampling matrix $S$ which samples a random coordinate of $x$. If the norm of $x$ is spread out among its coordinates then in expectation the norm of $Sx$ is the norm of $x$. But what do we do in the case where $x$ has mass only on a few coordinates. It is known that a Fourier matrix spreads out the mass of vectors with highly concentrated mass and vice versa. So we multiply $S$ with $H$ and to handle the case where $H$ concentrates the mass of vectors with their mass spread out we finally multiply $x$ in the beginning by $D_\alpha$.
+
+\subsection{Analysis of \cite{AilonC09}}
+
+We will show that for $m\gtrsim \eps^{-2}\log(1/\delta)\log(d/\delta)$, the random $\Pi$ described in \Eqsub{fjlt} provides DJL.  We will consider the case of $H$ as the normalized Hadamard matrix, so that every entry of $H$ is in $\{-1/\sqrt d, 1/\sqrt d\}$.
+
+\begin{theorem}\TheoremName{fjlt}
+	Let $x\in\R^n$ be an arbitrary unit norm vector, and suppose $0 < \eps, \delta < 1/2$. Also let $\Pi = \sqrt{\frac dm} S H D$ as described above with a number of rows equal to $m\gtrsim \eps^{-2}\log(1/\delta)\log(n/\delta)$. Then
+	$$
+	\Pr_\Pi(| \|\Pi x\|_2^2 - 1 | > \eps ) < \delta .
+	$$
+\end{theorem}
+\begin{proof}
+	Define $y = HDx$. The goal is to first show that $\|HDx\|_\infty = O(\sqrt{\log(d/\delta)/ n})$ with probability $1-\delta/2$, then conditioned on this event, that $(1-\eps) \le \|\frac dm S y\|_2^2\le (1+\eps)$ with probability $1-\delta/2$.
+	
+	For the first event, note 
+	$$
+	y_i = (HDx)_i = \sum_{j=1}^n \sigma_j\cdot (\frac 1{\sqrt d}\gamma_{i,j} x_j) = \inprod{\sigma, z^i}  ,
+	$$
+	where $|\gamma_{i,j}| = 1$ and $z^i$ is the vector with $(z^i)_j = \frac 1{\sqrt d}\gamma_{i,j} x_j$. Thus by Khintchine's inequality
+	$$
+	\forall i,\ \Pr(|y_i| > \sqrt{\frac{2\log(4d/\delta)}n}) < 2 e^{-\log(d/\delta)} = \frac{\delta}{2d} .
+	$$
+	Thus by a union bound,
+	$$
+	\Pr(\|y\|_\infty > \sqrt{\frac{2\log(4d/\delta)}n}) = \Pr(\exists i:\ |y|_i > \sqrt{\frac{2\log(4d/\delta)}n}) < \frac{\delta}2 .
+	$$
+	Now, let us condition on this event that $\|y\|_\infty^2 \le 2\log(4d/\delta)/n := \tau/d$. For $i\in [m]$, define $X_i = d\cdot y_i^2$. By the Chernoff bound above,
+	$$
+	\Pr(|\sum_{i=1}^m X_i - m| > \eps m) < 2 \left(\frac{e^\eps}{(1+\eps)^{1+\eps}}\right)^{m/\tau} ,
+	$$
+	which is at most $\delta/2$ for $m\gtrsim \eps^{-2}\log(1/\delta)\log(d/\delta)$.
+\end{proof}
+
+\begin{remark}\RemarkName{useP}
+	\textup{
+		Note that the FJLT as analyzed above provides suboptimal $m$. If one desired optimal $m$, one can instead use the embedding matrix $\Pi' \Pi$,where $\Pi$ is the FJLT and $\Pi'$ is, say, a dense matrix with Rademacher entries having the optimal $m' = O(\eps^{-2}\log(1/\delta))$ rows. The downside is that the runtime to apply our embedding worsens by an additive $m\cdot m'$. \cite{AilonC09} slightly improved this additive term (by an $\eps^2$ multiplicative factor) by replacing the matrix $S$ with a random sparse matrix $P$.
+	}
+\end{remark}
+
+Can a better analysis be given? Unfortunately not by much: the quadratic dependence $\log^2(1/\delta)$ needs to be there by an example of Eric Price. The bad case is $x$ has $1/d^{1/4}$ on the first $\sqrt d$ coordinates, and imagine $\delta \ll 2^{-\sqrt d}$.
+
+\subsection{Analysis based on RIP}
+
+Here we give a different analysis, based on combining the main results of \cite{KrahmerW11} and \cite{RudelsonV08} which use the method of chaining, as seen in the last lecture.
+
+First we have to give a definition.
+
+\begin{definition}
+	We say a matrix $\Pi\in\R^{m\times n}$ satisfies the {\em $(\eps,k)$-restricted isometry property} (or {\em RIP} for short) if for all $k$-sparse vectors $x$ of unit Euclidean norm,
+	$$
+	1-\eps \le \|\Pi x\|_2^2 \le 1+\eps .
+	$$
+\end{definition}
+
+Using the fact that the operator norm of a matrix $\|M\|$ is equal to $\sup_{x}\|x^TMx\|$, it follows that being $(\eps,k)$-RIP is equivalent to
+$$
+\sup_{\substack{T\subset [n]}{|T| = k}} \| I_k - (\Pi^{(T)})^* \Pi^{(T)} \| < \eps ,
+$$
+where $\Pi^{(T)}$ is the $m\times |T|$ matrix obtained by restricting $\Pi$ to the columns in $T$.
+
+As we will see later in the course, this notion of RIP is useful for {\em compressed sensing}, which is closely related to the heavy hitters problem. For now, we will just use it to obtain fast JL by combining it with the following theorem of \cite{KrahmerW11}.
+
+\begin{theorem}\TheoremName{kw}
+	There exists a universal constant $C>0$ such that the following holds. Suppose $A$ satisfies $(\eps/C, k)$-RIP for $k \ge C\log(1/\delta)$, and let $\alpha \in \{-1,1\}^n$ be chosen uniformly at random. Then for any $x\in\R^n$ of unit norm
+	$$
+	\Pr_\alpha (| \|A D_\alpha x\|_2^2 - 1 | > \eps) < \delta .
+	$$
+	In other words, the probability distribution $\Pi = AD_\alpha$ over matrices, induced by $\alpha$, satisfies the distributional JL property.
+\end{theorem}
+
+We will not prove \Theorem{kw} here, but we will show that the matrix $\sqrt{\frac dm}SH$ satisfies RIP with positive probability for fairly small $m$. That is, there does {\em some} choice of few rows of a bounded orthonormal system that gives RIP (though unfortunately we do not know which explicit set, though see \cite{BourgainDFKK11}).
+
+A number of bounds on the best $m$ to achieve RIP for sampling Fourier/Hadamard rows were given, starting with the work of Cand\'{e}s and Tao \cite{CandesT06}. Then subsequent works gave better bounds \cite{RudelsonV08,Bourgain14,HavivR16}. An analysis was also given for a related construction in \cite{NelsonPW14}. We will give the analysis of \cite{RudelsonV08} since it is most similar to what we saw in the last lecture.
+
+Recall for $T\subset \R^n$,
+$$
+r(T) := \E_\sigma \sup_{x\in T} |\inprod{\sigma, x}| .
+$$
+Last lecture we did not include the absolute values, but it does not make much of a difference (the Khintchine tail bound only differs by a factor of two). Also recall that we showed
+$$
+r(T) \lesssim \Delta(T, \|\cdot\|_2) ,
+$$
+where for $T$ a set of vectors of at most unit $\|\cdot\|$ norm,
+$$
+\Delta(T, \|\cdot\|) \simeq \sum_{k=1}^\infty \frac 1{2^k}\cdot \lg^{1/2}\mathcal N(T, \|\cdot\|, \frac 1{2^k}) \simeq \int_0^\infty \lg^{1/2} \mathcal N(T, \|\cdot\|, u)du \simeq \inf_{\{T_r\}} \sum_{r=1}^\infty 2^{r/2}\cdot \sup_{x\in T} \|x - T_r\| .
+$$
+This was the Dudley bound. Let us now show that for RIP, $m = \Omega(\eps^{-2}k\log^4 n)$ suffices.
+
+We will analyze a slightly different construction, just for ease of notation. Instead of sampling $m$ rows from $H$, we will simply keep each row with probability $m/d$, independently. Let $\eta_i$ be an indicator for whether we keep row $i$. Also, let us define $x^i$ to equal the $i$th row of $\sqrt d \cdot H$, so $x^i \in \{-1,1\}^n$.
+
+We let $\beta = \E_\mu \sup_{|T| = k} \| I_k - \frac{1}{m} \sum_i \mu_i z_i^{(T)} (z_i^{(T)})^T \| $ and we will now get an upper bound for $\beta$ in terms of $\sqrt{\beta}$.
+
+
+\begin{align*}
+&\E_\mu \sup_{|T| = k} \| I_k - \frac{1}{m} \sum_i \mu_i z_i^{(T)} (z_i^{(T)})^T \| \\
+= &\E_\mu \sup_{|T| = k} \| \E_{\mu'}(\frac{1}{m} \sum_i \mu_i' z_i^{(T)} (z_i^{(T)})^T - \frac{1}{m} \sum \mu_i z_i^{(T)} (z_i^{(T)})^T) \| \\
+\leq &\E_{\mu,\mu'}\frac{1}{m} \sup_{|T| = k} \|  \sum_i \mu_i' z_i^{(T)} (z_i^{(T)})^T - \sum \mu_i z_i^{(T)} (z_i^{(T)})^T) \|  &\text{Jensen's inequality}\\
+= &\frac{1}{m}\E_{\mu,\mu',\sigma} \sup_{|T| = k} \|  \sum_i \sigma_i(\mu_i' - \mu_i) z_i^{(T)} (z_i^{(T)})^T \|  &\text{By symmetrization over }\sigma\\
+\leq &\frac{2}{m}\E_{\mu} \E_{\sigma} \sup_{|T| = k} \|  \sum_i \sigma_i \mu_i z_i^{(T)} (z_i^{(T)})^T \|  &\text{Triangle inequality}\\
+= &\frac{2}{m}\E_{\mu} \E_{\sigma} \sup_{|T| = k}\sup_{x \in \R^n} \|  \sum_{i \in [d]} \sigma_i \mu_i \inprod{x,z_i^{(T)}}^2 \|  &\text{Using the defn of operator norm of a matrix}\\
+= &\frac{2}{m}\E_{\mu} \E_{\sigma} \sup_{|T| = k}\sup_{x \in D_2^{d,k}} \|  \sum_{i \in [d]} \sigma_i \mu_i \inprod{x,z_i^{(T)}}^2 \|  &\text{where } D_2^{d,k} = \text{ set of all k-sparse unit vectors in } \R^d \\
+\end{align*}
+
+We let, $T_{\mu} = \{ \mu_1 \inprod{x,z_1}^2,\ldots, \mu_d \inprod{x,z_d}^2, x \in D_2^{d,k}\}$ and $r(T_\mu) = \E \sup_{z \in T_\mu} |\inprod{\sigma,z} |$.
+
+Dudley's inequality gives us that $r(T) \leq \Delta(T,l_2)$.
+
+Let $g(x) = (\mu_1\inprod{x,z_1},\ldots,\mu_d\inprod{x,z_d})$ and $g(y)$ is defined similarly.
+	
+We have that,
+
+$$\|g(x) - g(y)\|_2 \leq \max_{1 \leq j \leq d} |\inprod{z_j,x-y}|\cdot2\sqrt{m}\cdot(\beta + 1)^{1/2}.$$	
+
+So we get that,
+
+$$\beta \leq \sqrt{\beta + 1} \frac{\Delta(D_2^{d,k}, \|\cdot\|)}{\sqrt{m}},$$
+
+which implies that $\beta^2 - CR\beta -CR \leq 0$.
+
+
+
+
+
+
+
+
+\bibliographystyle{alpha}
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{BDF{\etalchar{+}}11}
+
+\bibitem[AC09]{AilonC09}
+Nir Ailon and Bernard Chazelle.
+\newblock The fast {Johnson}--{Lindenstrauss} transform and approximate nearest
+  neighbors.
+\newblock {\em {SIAM} J. Comput.}, 39(1):302--322, 2009.
+
+\bibitem[BDF{\etalchar{+}}11]{BourgainDFKK11}
+Jean Bourgain, Stephen Dilworth, Kevin Ford, Sergei Konyagin, and Denka
+  Kutzarova.
+\newblock Explicit constructions of {RIP} matrices and related problems.
+\newblock {\em Duke Mathematical Journal}, 159(1):145--185, 2011.
+
+\bibitem[Bou14]{Bourgain14}
+Jean Bourgain.
+\newblock An improved estimate in the restricted isometry problem.
+\newblock {\em Geometric Aspects of Functional Analysis}, 2116:65--70, 2014.
+
+\bibitem[CT06]{CandesT06}
+Emmanuel~J. Cand\'{e}s and Terence Tao.
+\newblock Near-optimal signal recovery from random projections: universal
+  encoding strategies?
+\newblock {\em IEEE Trans. Inform. Theory}, 52(12):5406--5425, 2006.
+
+\bibitem[HR16]{HavivR16}
+Ishay Haviv and Oded Regev.
+\newblock The restricted isometry property of subsampled fourier matrices.
+\newblock In {\em Proceedings of the Twenty-Seventh Annual {ACM-SIAM} Symposium
+  on Discrete Algorithms (SODA)}, pages 288--297, 2016.
+
+\bibitem[KW11]{KrahmerW11}
+Felix Krahmer and Rachel Ward.
+\newblock New and improved {Johnson}-{Lindenstrauss} embeddings via the
+  {Restricted} {Isometry} {Property}.
+\newblock {\em SIAM J. Math. Anal.}, 43(3):1269--1281, 2011.
+
+\bibitem[NPW14]{NelsonPW14}
+Jelani Nelson, Eric Price, and Mary Wootters.
+\newblock New constructions of {RIP} matrices with fast multiplication and
+  fewer rows.
+\newblock In {\em Proceedings of the 25th Annual ACM-SIAM Symposium on Discrete
+  Algorithms (SODA)}, pages 1515--1528, January 2014.
+
+\bibitem[RV08]{RudelsonV08}
+Mark Rudelson and Roman Vershynin.
+\newblock On sparse reconstruction from {Fourier} and {Gaussian} measurements.
+\newblock {\em Comm. Pure Appl. Math.}, 61(8):1025--1045, 2008.
+
+\end{thebibliography}
+
+\end{document}

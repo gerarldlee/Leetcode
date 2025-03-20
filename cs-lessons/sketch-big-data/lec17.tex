@@ -1,0 +1,336 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage[noend]{algpseudocode}
+\usepackage{url}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+\newtheoremstyle{case}{}{}{}{}{}{:}{ }{}
+\theoremstyle{case}
+\newtheorem{case}{Case}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\Bigo}{\mathcal{O}}
+\newcommand{\aaa}{\mathbf{a}}
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{17 --- October 31, 2017}{Fall 2017}{Prof.\ Piotr Indyk}{Cenk Baykal}
+
+% Overview
+\section{Overview}
+In the last lecture, we introduced the Sparse Fourier Transform (SFT) problem and discussed approaches under the assumption that the Fourier Transform of the input signal was 1-sparse, i.e., the input signal had a single non-zero Fourier coefficient. In particular, we covered the constant-time Two Point Sampling algorithm for the case of noiseless signals, and extended it to handle the noisy case, resulting in an algorithm based on a randomized binary search with a running time of $\Bigo(\log n \log \log n)$. %that was capable of handling the case of noisy signals. 
+
+In this lecture, we generalize to the $k$-sparse case for $k>1$ in the absence of noise. We will cover an approach based on \textit{isolating} large coefficients via judicious down sampling, with the goal of reducing the general $k$-sparse problem into multiple, easy-to-solve $1$-sparse subproblems. 
+
+\section{Isolation via Aliasing/Down-sampling}
+We will achieve isolation of coefficients using sub-sampling in the time domain, which as it turns out, corresponds to aliasing in the frequency domain. For ease of presentation, we will cover a simple-to-implement aliasing-based method that succeeds with constant probability and has an average case runtime complexity of $\Bigo(k \log n)$. 
+
+The intuition behind our algorithm is that down sampling collapses the spectrum to something much shorter, effectively reducing the size of the problem, $n$. We will argue that under the assumption that the original spectrum has randomly distributed (as opposed to adversarially-chosen) entries, collisions do not occur too frequently, enabling us to disambiguate the collapsed spectrum.
+
+% a Birthday Paradox-like argument that under the assumption that 
+
+% the following assumptions: (i) the non-zero Fourier coefficient entries are randomly distributed 
+
+The following theorem formalizes the fact that down sampling in the time domain corresponds to aliasing in the Fourier spectrum.
+
+\begin{figure}[htb]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/aliasing.png}
+    \caption{Visualization of the Aliasing Theorem. Sub-sampling in the time domain corresponds to aliasing in the frequency domain.}
+\end{figure}
+
+\begin{theorem}[Aliasing Theorem]
+\label{thm:aliasing}
+Given a signal $\aaa = (a_0, \ldots, a_{n-1})$ of length $n$ and a parameter $L \in \mathbb{N}_{+}$ that divides $n$, consider the vector $a' = (a_0, a_L, a_{2L}, \ldots, )$ with $n/L$ entries. Then,
+$$
+\hat{a}_u' = \sum_{l = 0}^{L - 1} \hat{a}_{u + \frac{n}{L} \cdot l}.
+$$
+\end{theorem}
+\begin{proof}
+See \cite{aliasing-theorem}.
+\end{proof}
+
+\section{AliasingFFT: SFT in $\Bigo(k^2 \log k)$ Time}
+
+\begin{algorithm}
+\setstretch{1.2}
+  \caption{Aliasing FFT.
+   \label{alg:aliasing-fft}}
+  \begin{algorithmic}[1]
+    \Function{AliasingFFT}{$a$}
+		\State{$L \gets n/k^2$}
+        \State{\textit{Sample two corresponding sequences of signals, each of length} $k^2$}
+		\State{$\aaa' \gets \{a_0, a_L, a_{2L}, \ldots\}$}
+        \State{$\aaa'' \gets \{a_1, a_{L+1}, a_{2L + 1}, \ldots\}$}
+        \State{Run FFT on $\aaa'$ and $\aaa''$ to obtain $\hat{\aaa}'$ and $\hat{\aaa}''$}
+        \State{Recover $\hat{\aaa}$ by applying Two Point Sampling for each non-zero $\hat{\aaa}_u'$}
+        
+		\Return $\hat{\aaa}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+The basic idea behind our algorithm is to take the full spectrum consisting of $n$ entries and collapse it to $C k^2$ for some constant $C \ge 1$. For simplicity, we will henceforth assume $C = 1$, although other constants larger than $1$ can be used to boost the success probability to higher constants. The following theorem establishes that given a signal $\aaa$ of length $n$, Alg.~\ref{alg:aliasing-fft} can recover the Fourier coefficients, $\hat{\aaa}$ with probability at least $1/2$ in $\Bigo(k^2 \log k)$ time.
+
+\begin{theorem}[Isolation by Aliasing]
+Suppose that $\hat{\aaa}$ is generated by summing up $k$ Fourier coefficients in positions selected independently and uniformly at random from $\{0 \ldots, n-1\}$, i.e.,
+\begin{equation}
+\hat{\aaa} = \sum_{t = 1}^k b_t \, e_{j(t)},
+\end{equation}
+where $b_1,\ldots,b_t$ are the corresponding magnitudes, $j(1), \ldots, j(t)$ are the corresponding uniformly drawn random indices, and $e_i$ refers to $i \text{th}$ the standard basis vector. Then, given the signal $\aaa$, we can recover $\hat{\aaa}$ in $\Bigo(k^2 \log k)$ time with probability at least $1/2$.
+\end{theorem}
+\begin{proof}
+First, we remark that by the Aliasing Theorem and the time-shift theorem:
+\begin{align*}
+\aaa_u' &= \sum_{l = 0}^{L - 1} \hat{a}_{u + \frac{n}{L} \cdot l}  \\
+\aaa_u'' &= \sum_{l = 0}^{L - 1} \hat{a}_{u + \frac{n}{L} \cdot l} \omega^{u + l \cdot \frac{n}{L}}.
+\end{align*}
+Thus, recovery of the coefficients can indeed be performed on Line 7 by applying the Two Sampling Algorithm from the previous lecture for each non-zero in $\hat{\aaa}_u'$.
+
+To prove our claim, observe that it suffices to prove that with probability at least $1/2$, each non-zero coordinate in $\hat{\aaa}'$ only receives a contribution from a single Fourier component, i.e., there are no collisions in any of the bins. The failure probability is bounded by the probability that there exists an index such that the sum is composed of 2 or more terms, thus we have,
+$$
+\Pr(\text{Failure}) \leq \binom{k}{2} \Pr(\text{Collision}) = \frac{k (k-1)}{2} \times \frac{L}{n} = \frac{k (k-1)}{2} \times \frac{1}{k^2} < 1/2,
+$$
+where we used the union bound to argue over all $\binom{k}{2}$ possible pairs that can possibly collide. Thus, Alg.~\ref{alg:aliasing-fft} succeeds with probability at least 1/2.
+
+Moreover, the runtime is dominated by two calls to FFT with inputs of length $k^2$, thus Alg.~\ref{alg:aliasing-fft} runs in $\Bigo(k^2 \log k)$ time.
+\end{proof}
+
+\section{AliasingFFT+: Reducing $\Bigo(k^2 \log k)$ to $\Bigo(k \log n)$}
+In this section, we present an algorithm that improves upon Alg.~\ref{alg:aliasing-fft} and runs in $\Bigo(k \log n)$ time. The algorithm we will present was discovered independently in 2013 by Ghazi et al. \cite{ghazi2013}, Pawar et al. \cite{pawar2013}, and Hsieh et al. \cite{hsieh2013}.
+
+Henceforth, we impose the following assumptions on the problem:
+\begin{enumerate}
+\item The locations, i.e., indices, of the non-zero Fourier coefficient entries are random and independent \label{asm:random}. That is, we need the locations of the Fourier peaks in $\hat{\aaa}$ to be randomly generated.
+\item $n = p \cdot q$ where the integers $p$ and $q$ are co-prime, with $p < q$. \label{asm:co-prime}
+\item $k < q$ and $k,p,q = \theta(\sqrt{n})$. \label{asm:bounds}
+\item $k < \eps p$ for a fixed constant $\eps \in (0, 1)$. Note: in the context of the grid representation described below and shown in Fig.~\ref{fig:pictorial}, this assumption implies that there is less than one non-zero entry per column / row in expectation.
+\end{enumerate}
+We remark that Assumption~\ref{asm:random} was also required for the analysis of the previous AliasingFFT algorithm. Moreover, the algorithm that we will discuss can be extended to run in time $\Bigo(k \log n)$ in the case of a slightly relaxed version of Assumption~\ref{asm:bounds} where $k = o(\sqrt{n})$.
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/isolation-by-aliasing.png}
+    \caption{Visual depiction of isolation by aliasing, where a collision occurs in one entry. Our analysis shows via a Birthday paradox-like argument that for a properly spaced out (i.e., choice of parameter $L$), subsampling procedure, collisions do not occur with constant probability.}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+  \begin{minipage}{0.33\textwidth}
+  \centering
+ \includegraphics[width=1\textwidth]{figures/pictorial.png}
+   \end{minipage}%   
+   \hfill
+   \begin{minipage}{0.65\textwidth}
+  \centering
+ \includegraphics[width=1\textwidth]{figures/collapsing.png} 
+ \centering
+   \end{minipage}%
+    \caption{Left) Pictorial representation of binning using two co-prime aliasing filters. Right) Illustration of the frequency subtraction process.}
+    \label{fig:pictorial}
+\end{figure}
+
+\subsection{Algorithm}
+The main idea behind our algorithm is a simple two step iterative process: (i) identify isolated frequencies in one filter and (ii) subtract them from the other, and repeat finitely many times. Another way to think about this process is to think of the frequency coefficients $\hat{a}_u$ as a two-dimension grid, i.e., map each frequency $u$ to the unique matrix entry (since $p$ and $q$ are co-prime) given by $(u \mod q, u \mod p)$ and note that downsampling by $p$ or $q$ collapses columns or rows in the frequency domain by summing along the columns / rows (see Fig.~\ref{fig:pictorial}). Note that this is a valid representation since $(u \mod q, u \mod p)$ is a bijection between $\{0, 1, \ldots, n-1\}$ and $(\{0, 1, \ldots, p-1\} \times \{0,1,\ldots, q-1\}$ for $p,q$ co-prime.
+
+The intuition behind our algorithm is that by using a peeling process in the form of collapsing rows and columns, we use the row and column aliasing operations to bin the frequencies in each row and column. Since the frequency grid is only sparsely populated (in expectation, see Assumption~4), some of the rows and columns are likely to have exactly one coefficient, which can be recovered using the Two Point Sampling method that we saw in the last lecture and also leveraged in Alg.~\ref{alg:aliasing-fft}. After recovering the coefficient, we can remove its contribution (see in Fig.~\ref{fig:pictorial}) and proceed with the remaining signal in a self-reducing manner, until $\Bigo(\log n)$ iterations have been executed.
+
+\begin{algorithm}[H]
+\setstretch{1}
+  \caption{Aliasing FFT+.
+   \label{alg:aliasing-fft-plus}}
+  \begin{algorithmic}[1]
+    \Function{AliasingFFT+}{$a, p, q$}
+		\State{$T \gets \{0, 1, \ldots, 2s\}$ for $s = \Bigo(1)$}
+        		\State{$a^{t,L} \gets a_{t + L}, a_{t + 2L}, \ldots,$ for $t \in T, \, L \in \{p,q\}$}
+
+        \State{$\hat{a}^{t,L} \gets \text{FFT}(a^{t,L})$}
+		\Comment{Run FFT to obtain $\hat{a}^{t,L}_u = \sum_{l = 0}^{L - 1} \hat{a}_{u + \frac{n}{L} \cdot l} \omega^{\left(u + \frac{n}{L} \cdot l \right) t}$}
+        \State{$\hat{c}^{t, L} \gets \hat{a}^{t,L}$}
+        \State{$C \gets \emptyset$} 
+        \Comment{Keep track of recovered coefficients}
+		\For{iterations $i=1,\ldots, \Bigo(\log n)$} 
+			\State{$\hat{c}^{t, L} \gets \text{SubtractCoeffs}(\hat{a}^{t,L}, C, T)$}
+            \State{$C \gets C \cup \text{Recover}(\hat{c}^{t,L}, p, T)$}
+			\State{$\hat{c}^{t, L} \gets \text{SubtractCoeffs}(\hat{a}^{t,L}, C, T)$}
+            \State{$C \gets C \cup \text{Recover}(\hat{c}^{t,L}, q, T)$}
+		\EndFor
+		\Return $C$
+    \EndFunction
+    \Statex
+    \Function{SubtractCoeffs}{$\hat{a}^{t,L}, C, T$}
+    	\State $\hat{c}^{t,L} \gets \hat{a}^{t,L}$
+		\For{$(v,i) \in C, t \in T, L \in \{p, q\}$}
+        	\State{$u \gets i \mod n/L$}
+            \State{$\hat{c}^{t,L}_u \gets \hat{a}^{t,L}_u - v \omega^{t \, i}$}
+        \EndFor
+        \Return $\hat{c}^{t,L}$
+    \EndFunction
+    \Statex
+        \Function{Recover}{$\hat{c}^{t,L}, L, T$}
+        \State{$C' \gets \emptyset$
+}
+        	\For{$u = 0,\ldots, n/L - 1$}
+        	\State{Apply two-point sampling on $\hat{c}_u^{0,L}$ and $\hat{c}_u^{1,L}$ to obtain the coefficient, index pair $(v,i)$}
+            \If{$\hat{c}_u^{t,L} - v \omega^{t i} = 0$ for all $t \in T$} \Comment{Isolation Test}
+            	\State{$C' \gets C' \cup \{(v, i)\}$}
+            \EndIf
+            \EndFor
+            \Return $C'$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+\subsection{Analysis}
+We subdivide the analysis of Alg.~\ref{alg:aliasing-fft-plus} into analyzing three components: running time, convergence, and correctness.
+
+\paragraph{Running time}
+Computation of $\hat{a}^{t,L}$, for $L \in \{p, q\}$ (Line 4) takes $\Bigo((p+q) \log n)$ time. The SubtractCoeffs (x2) sub-procedure takes $\Bigo(k)$ time per invocation (Lines 8 and 10) and $\text{Recover}(\hat{c}^{t,L}, p, T)$ and $\text{Recover}(\hat{c}^{t,L}, q, T)$ (Lines 9 and 11) take time $\Bigo(p)$ and $\Bigo(q)$ respectively.
+
+Since the algorithm runs for at most $\Bigo(\log n)$ iterations and since $p,q,k = \theta(\sqrt{n})$ by Assumption~\ref{asm:bounds}, the overall time complexity of Alg.~\ref{alg:aliasing-fft-plus} is $\Bigo(k \log n)$.
+
+\paragraph{Convergence} Note that the process gets suck if either of the following occurs:
+\begin{enumerate}
+	\item There is an alternating row/column cycle with two entries per each row/column, or
+    \item There is a chain of length $> \Bigo(\log n)$.
+\end{enumerate}
+To address the probability of the first event occurring, note that the probability of a cycle of length $2 l$ occurring is at most
+$$
+p^l q^l \times \left(\frac{\eps}{q}\right)^{2l} < \eps^{2l},
+$$
+since there are at most $p^l q^l$ cycles of length $2l$ and each entry is non-zero with probability $\eps/q$. Union bounding over all possible cycle lengths, we get that the summation over all $l$ converges to a small constant for sufficiently small $\eps$.
+
+To bound the probability of the second event occurring, note that   there are $pq$ possible starting positions for the path, and each entry is non-zero with probability $\eps/q$. Thereafter, the probability of each entry being non-zero remains $\eps / q$, but there are now at most $q$ choices in the current row/column (since we assumed $p < q$ by Assumption~\ref{asm:co-prime}). Thus, 
+the probability that a chain of length $l' > c \log n$ exists is bounded above by
+$$
+p q \left(\frac{\eps}{q}\right) \left(q \times \frac{\eps}{q}\right)^{l'} = o(1),
+$$
+for large enough $c$ and $l' > c \log n$.
+
+Putting it all together, we conclude that Alg.~\ref{alg:aliasing-fft-plus} does not get stuck with constant probability.
+
+\paragraph{Correctness}
+As the final component of our analysis, we will establish that our algorithm is correct with constant probability. To do so, we formalize the (probabilistic) correctness of the Isolation Test (Line 21 of Alg.~\ref{alg:aliasing-fft-plus}) by the following Lemma.
+
+\begin{lemma}[Probabilistic Correctness of Isolation Test]
+Let $s = 2$. If for all $t \in T = \{0,1,\ldots, 2s\}$, we have
+$$
+\hat{a}^{t,L}_u = \sum_{l = 0}^{L - 1} \hat{a}_{u + \frac{n}{L} \cdot l} \omega^{\left(u + \frac{n}{L} \cdot l\right) t} = 0,
+$$
+then
+$$
+\Pr\left(\hat{a}_{u + \frac{n}{L} \cdot l} = 0 \,\, \forall{l \in \{0, 1, \ldots, L -1\}}\right) > 1 - \frac{C}{n}.
+$$
+\end{lemma}
+\begin{proof}
+Let $m$ be the number of non-zeros in $\hat{a} = \hat{a}_u, \hat{a}_{u + \frac{n}{L}},\hat{a}_{u + \frac{n}{2L}},\ldots$. We subdivide the proof into three cases:
+\begin{case}[$m \leq s$]
+Then, the solution to the linear system
+$$
+\sum_{v} \hat{a}_v \omega^{vt} = 0 \,\,\,\,\, \forall{t \in T},
+$$
+must be $\hat{a} = 0$, since the Vandermonde matrix $V = [\omega^{vt}]$ has full rank.
+\end{case}
+\begin{case}[$s < m < \Bigo(\log n)$]
+Choose $\hat{a}$ by selecting $(m-s)$-sparse $\hat{a}'$ first and complement it with $s$-sparse $\hat{a}''$, so that $\hat{a} = \hat{a}' + \hat{a}''$. Let $V_T$ denote the Vandermonde matrix given by the partial Fourier matrix that is restricted to the rows in $T$. We consider the event $V_T(\hat{a}' + \hat{a}'') = 0$ and thus we have
+\begin{align*}
+\Pr(V_T(\hat{a}' + \hat{a}'') = 0|\hat{a}'
+) &= \Pr(V_T \hat{a}'' = - V_T \hat{a}' | \hat{a}') \\
+&\leq \frac{1}{ \binom{L - (m-s)}{s}} \\
+&< \frac{C}{n},
+\end{align*}
+where we used the fact that there is at most one $s$-sparse $\hat{a}''$ such that $V_T \hat{a}'' = -V_T \hat{a}'$ and $L = \theta(\sqrt{n})$ by Assumption~\ref{asm:bounds} since $L$ corresponds to either $p$ or $q$.
+\end{case}
+\begin{case}[$m > \Bigo(\log n)$]
+Since the probability of having a non-zero coefficient is $\eps/L$, the probability of having more than $\Bigo(\log n)$ non-zero coefficients is at most $1/n$. 
+\end{case}
+\end{proof}
+
+Putting it all together, we have that our algorithm runs in $\Bigo(k \log n)$ time and succeeds (i.e., is correct and does not get stuck) with constant probability.
+
+% \section{Applications}
+% Applications of Sparse Fourier Transform range from optimizing time both in GPS-related operations and hardware to spectrum sensing. We refer the reader to refs...
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+% \bibitem{AlonMS99}
+% Noga~Alon, Yossi~Matias, Mario~Szegedy.
+% \newblock The Space Complexity of Approximating the Frequency Moments.
+% \newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+% \bibitem{AlonMS99}
+% Noga~Alon, Yossi~Matias, Mario~Szegedy.
+% \newblock The Space Complexity of Approximating the Frequency Moments.
+% \newblock {\em J. Comput. Syst. Sci.}, 58(1):137--147, 1999.
+
+\bibitem{ghazi2013}
+Badih~Ghazi, Haitham~Hassanieh, Piotr~Indyk, Dina~Katabi, Eric~Price, Lixin~Shi.
+\newblock Sample Optimal Average-Case Sparse Fourier Transform in Two Dimensions.
+\newblock {\em Allerton}, 2013.
+
+\bibitem{pawar2013}
+Sameer~Pawar, Kannan~Ramchandran.
+\newblock Computing a k-sparse n-length Discrete Fourier Transform using at most 4k samples and O(k log k) complexity.
+\newblock {\em ISIT}, 2013.
+
+\bibitem{hsieh2013}
+S.-H.~Hsieh, C.-S. Lu, S.-C.~Pei.
+\newblock Sparse fast fourier transform by downsampling.
+\newblock {\em IEEE International Conference on Acoustics, Speech and Signal Processing}, 2013.
+
+\bibitem{aliasing-theorem}
+\url{http://www.dsprelated.com/dspbooks/mdft/Downsampling_Theorem_Aliasing_Theorem.html}
+
+
+\end{thebibliography}
+
+\end{document}

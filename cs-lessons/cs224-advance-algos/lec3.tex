@@ -1,0 +1,209 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 224: Advanced Algorithms } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{3 --- January 31, 2017}{Spring 2017}{Prof.\ Jelani Nelson}{Saketh Rama}
+
+\section{Overview}
+
+In the last lecture we covered Y-fast tries and Fusion Trees.
+
+In this lecture we start our discussion of hashing. We will study load balancing, $k$-wise independence, and the dynamic dictionary problem solved using hashing with chaining and linear probing.
+
+\section{Load Balancing}
+
+Formally, consider jobs with IDs in the universe $[u],$ and machines labeled $1, \dots, m.$ The task of \emph{load balancing} studies the assignment of jobs to machines so that no machine is too overloaded. For example, we could have a centralized scheduler which decides where jobs should go. However, local decisions for scheduling are preferable for complexity reasons -- this motivates our study of hashing.
+
+The idea is to have a ``random'' function $h : [u] \to [m].$
+
+\subsection{Chernoff Bound}
+
+We will assume there are $n$ jobs in the system, with $n \ll u$, and focus on the case where $m = n.$ Studying this case will motivate our statement and proof of \emph{Chernoff bounds}.
+
+\subsubsection{Application of Bound}
+
+Load balancing corresponds to a small probability $\Pr(\text{max load of any machine } > T)$. We can restate this as follows:
+
+\begin{align*}
+\Pr(\text{max load of any machine } > T) &= \Pr(\exists \text{ machine } i : load(i) > T) \\
+&\leq \sum_{i = 1}^n \Pr(load(i) > T) \\
+&= n \cdot \Pr(load(i) > T)
+\end{align*}
+
+where the inequality follows from the union bound. We can now apply the Chernoff bound, which will prove later.
+
+\begin{lemma}
+\textbf{Chernoff Bound (Discrete Case).} Let random variables $X_1, \dots, X_R \in \{0, 1\}$ be independent, with $X = \sum_i X_i$ and $\E[X] = \mu.$ Then for all $\delta > 0,$ $$\Pr(X > (1 + \delta) \mu) < \left(\frac{e^\delta}{(1 + \delta)^{1 + \delta}}\right)^\mu$$
+\end{lemma}
+
+To apply this to hashing, define $R = n$ indicator variables $$X_i = \begin{cases} 1 & h(i) = 1 \\ 0 & \text{o.w.} \end{cases}.$$ Then $$\mu = \E[X] = \sum_i \E[X_i] = n \cdot \frac{1}{n} = 1.$$
+
+We can now analyze the probability in load balancing.
+
+\begin{align*}
+\Pr(load(1) > T) \cdot n < \frac{e^{T-1}{T^T}} \cdot n \\
+< \left(\frac{e}{T}\right)^T \cdot n < n \cdot e^T \cdot (1/T)^T
+\end{align*}
+
+By setting $T = \Theta\left(\frac{\lg n}{\lg \lg n}\right)$ such that $(1/T)^T \ll 1/n^2,$ we get $n \cdot e^T \cdot (1/T)^T < 1/n^{1 - o(1)}.$
+
+In load balancing jargon, we say that if the left-hand condition is satisfied, then the max load is $O\left(\frac{\lg n}{\lg \lg n}\right)$ \emph{\textbf{with high probability}}.
+
+\subsubsection{Proof of Bound}
+
+Because $X_i$ is Bernoulli, $\E[X_i] = p_i$ implies $\mu = \sum_i p_i.$ We will make use of the following inequality to bound the probability using an expectation.
+
+\begin{lemma}
+\textbf{Markov's Inequality.} Let $X$ be a nonnegative r.v. Then for all $\lambda > 0,$ $$\Pr(X > \lambda) < \frac{\E[X]}{\lambda}.$$
+\end{lemma}
+
+Because $f$ is strictly increasing, we can say that $$\Pr(X > (1 + \delta) \mu) = \Pr(f(x) > f((1 + \delta)\mu)).$$ As a somewhat magical step, choose $f(z) = e^{tz},$ such that we can guess at the form of $z.$
+
+\begin{align*}
+\Pr(e^{tX} > e^{t(1 + \delta) \mu}) &< e^{-t (1 + \delta) \mu} \cdot \E(e^{t\sum_i X_i}) \text{   (by Markov's inequality)} \\
+&= e^{-t (1 + \delta) \mu} \cdot \E(\prod_i e^{t X_i}) = e^{-t (1 + \delta) \mu} \cdot \prod_i \E( e^{t X_i}) \\
+&= e^{-t (1 + \delta) \mu} \cdot \prod_i (1 - p_i + p_i \cdot e^t) \\
+&\leq e^{-t (1 + \delta) \mu} \cdot \prod_i (e^{p_i (e^t - 1)}) \\
+&= e^{-t (1 + \delta) \mu} \cdot e^{\mu(e^t - 1)}
+\end{align*}
+
+This establishes that $\Pr(X > (1 + \delta) \mu) < \left(\frac{e^\delta}{(1 + \delta)^{1 + \delta}}\right)^\mu.$
+
+The above proof required a magical step of guessing at the function's form. We can also consider Chernoff bounds more intuitively as a moment bound for large $p$ in the expression derived from a repeated application of Markov's inequality: $$\Pr(|X - \E[X]|^p) < \frac{\E(|X - \E[X]|)^p}{\lambda^p}.$$
+
+\subsection{Alternative Analysis}
+
+We can also approach load balancing more directly.
+
+\begin{align*}
+\Pr{(\text{max load } > T)} < n \cdot \Pr(load(1) > T) \\
+&= n \cdot \Pr(\exists T \text{ jobs mapping to machine 1}) \\
+&< n \cdot \binom{n}{T} \frac{1}{n^T}
+\end{align*}
+
+We can bound $\frac{1}{n^T}$ as follows. For $I = \{i_1, \dots, i_T\}$ with $i_1 < \dots < i_T,$ let $$X_I = \begin{cases} 1 & \text{if all $i$'s map to 1} \\ 0 & \text{o.w.}\end{cases}.$$ Then $$\Pr(\exists T \text{ jobs mapping to } 1) = \Pr(\exists I : X_I = 1) \leq \sum_I \Pr(X_I = 1)$$ by the union bound.
+
+Note that $$\binom{n}{T} \cdot \frac{1}{n^T} = \frac{n!}{T!(n-T!)}\cdot \frac{1}{n^T} = \frac{n(n-1) \cdots (n-T+1)}{T!} \cdot \frac{1}{n^T} < \frac{1}{T!}.$$ 
+
+Here, we can either use Stirling's approximation or be sloppier with the inequality $T! > (T/2)^{T/2}.$ We choose the latter, and so $\frac{1}{T!} < \frac{1}{q^q}$ where $q = T/2.$ This quantity is much smaller than $1/n$ for $T = q = \Theta\left(\frac{\lg n}{\lg\lg n}\right).$
+
+\section{$k$-wise Independence}
+
+It turns out that the above analysis only requires $k$-wise independence (where $k = T$), a concept which we will now study.
+
+Note that $\Pr(X_I = 1) = \Pr_h(\land_{j=1}^T h(i_j) = 1) = \prod_{j = 1}^T \Pr_h(h(i_j) = 1) = (1/n)^T,$ where the probability is taken over the randomness of the hash function.
+
+\begin{definition} A family $\mathcal{H}$ of functions $h : [u] \to [m]$ is a \emph{\textbf{$k$-wise independent} hash family} if for any $i_1 < \dots < i_k \in [u]$ and $y_1, \dots, y_k \in [m],$ we have $$\Pr_{h \in \mathcal{H}}( \land_{j=1}^T h(i_j) = y_j) = \prod_{j = 1}^k \Pr_h(h(i_j) = y_j).$$
+\end{definition}
+
+This condition is useful because a totally random hash function would require $u \lg m$ bits to store. With a less restrictive $k$-wise independence, we can get away with less storage.
+
+Note that if $\mathcal{H}$ is the set of all functions mapping $[u]$ to $[m]$, then a random $h \in \mathcal{H}$ is what we just analyzed.
+
+\subsection{Example}
+
+Let $u = p$ where $p$ is prime, with $p \geq 2m.$ Define $\mathcal{H} = \{ h : h(x) = \sum_{i = 0}^{k - 1} a_i x^i \bmod{p} \}.$ Then $|\mathcal{H}| = p^k,$ and so $\lg |\mathcal{H}| = k \lg p$ bits.
+
+We will omit the analysis of this example for the purposes of this course. It can be derived using polynomial interpolation.
+
+\section{Dynamic Dictionary Problem}
+
+The dynamic dictionary problem is a data structure problem. The goal is to maintain items $S \subseteq [u]$ as keys where each $x \in S$ has an associated value in the universe $[u]$ subject to the following operations:
+
+\begin{enumerate}
+\item $insert(x, v)$ -- associate key $x$ with $v$
+\item $query(x)$ -- return value of key $x$
+\item $del(x)$ -- remove $x$ from $S$
+\end{enumerate}
+
+\subsection{First Solution: Hashing with Chaining}
+
+We can define an array $A[1 \dots m]$ whose entries are pointers to linked lists with key-value pairs as nodes. The hash function maps the universe into this array.
+
+It turns out that if $\mathcal{H}$ is 2-wise independent with $m \geq |S|,$ then $\E[\text{time per op}] = o(1).$ The analysis of this is available in the notes for CS 124/125 and CLRS.
+
+\subsection{Second Solution: Linear Probing}
+
+The approach we will focus on in this course is linear probing. We again have an array $A[1 dots m].$ To insert a key $k$, we start at $h(k)$ and move right until we find an empty slot. (For now, we will consider the simpler case which does not support deletions.)
+
+Linear probing first appeared in an IBM 701 program by Samuel, Amdahl, and Boehme in 1954, and was subsequently analyzed by Knuth in 1963 in the case where $\mathcal{H}$ is all functions \cite{Knuth63}.
+
+Knuth showed that if $m \geq (1 + \epsilon)^n,$ where $n = |S|,$ then $\E(\text{time per op}) \leq O(1/\epsilon^2).$
+
+Pagh, Pagh, and Ru\v zi\'c showed more recently that if $m \geq c \cdot n$ (e.g., $c = 3$ works), then 5-wise independence guarantees constant expected time as well, which we will prove in the next lecture.
+
+In the case of 4-wise independence, P\v atra\c scu and Thorup showed that there exist $\mathcal{H}$ which have expected runtime $\Omega(\lg n),$ which is \emph{not} constant.
+
+\bibliographystyle{alpha}
+
+\begin{thebibliography}{42}
+
+\bibitem{Knuth63}
+Donald~Knuth.
+\newblock {\sl The Art of Computer Programming} (2nd ed.).
+\newblock Addison Wesley, pp. 513--558, 1998.
+
+\bibitem{Pagh11}
+
+Anna~Pagh, Rasmus~Pagh, and Milan~Ru\v zi\'c.
+\newblock Linear probing with 5-wise independence.
+\newblock {\sl SIAM Review} 53.3 (2011):547-558, 2011.
+
+\bibitem{Patrascu10}
+Mihai~P\v atra\c scu, and Mikkel~Thorup. 
+\newblock On the $k$-independence required by linear probing and minwise independence.
+\newblock {\sl International Colloquium on Automata, Languages, and Programming}. Springer Berlin Heidelberg, 2010.
+
+\end{thebibliography}
+
+\end{document}

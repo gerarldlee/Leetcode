@@ -1,0 +1,347 @@
+\documentclass[11pt]{article}
+\usepackage{
+    amsmath,
+    amssymb,
+    amsthm,
+    enumitem,
+    filecontents,
+    mathtools
+}
+
+\begin{filecontents}{bibliography-lecture01.bib}
+@article{Morris78,
+    author = {Morris, Robert},
+    title = {Counting large numbers of events in small registers},
+    journal = {Commun. ACM},
+    
+    volume = {21},
+    number = {10},
+    pages = {840--842},
+    
+    month = {10},
+    year = {1978},
+}
+
+@article{DanielsonL42,
+    author = {Danielson, Gordon C. and Lanczos, Cornelius},
+    title = {Some improvements in practical Fourier analysis and their application to x-ray scattering from liquids},
+    journal = {J. Franklin Inst.},
+    
+    volume = {233},
+    number = {4},
+    pages = {365--380},
+    
+    month = {4},
+    year = {1942},
+}
+
+@article{CooleyT65,
+    author = {Cooley, James W. and Tukey, John W.},
+    title = {An algorithm for the machine calculation of complex Fourier series},
+    journal = {Math. Comp.},
+    
+    volume = {19},
+    number = {90},
+    pages = {297--301},
+    
+    month = {4},
+    year = {1965},
+}
+\end{filecontents}
+
+\newcommand{\eps}{\varepsilon}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\DeclarePairedDelimiter\inprod{\langle}{\rangle}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf Sketching Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{01 --- August 31, 2017}{Fall 2017}{Prof.\ Jelani Nelson}{Vinh-Kha Le}
+
+\section{Overview}
+
+In this lecture, we overviewed the six main topics covered in the course, reviewed important inequalities from probability theory, and examined Robert Morris's method of counting large numbers in a small register~\cite{Morris78}.
+
+\section{Topics Covered in the Course}
+
+This course is divided into six topics: sketching, streaming, dimensionality reduction, large-scale matrix computations, compressed sensing, and the sparse Fourier transform. Some of these topics overlap, and some of them require similar techniques to solve. The overarching theme of this course is to handle situations where a data set is so large or a computation is so complex that a naive approach would require an impractical amount of memory or time.
+
+\subsection*{Topic 1: Sketching}
+Sketching is the compression $C(x)$ of some data set $x$ that allows us to query $f(x)$. There are some things we might want when we are designing such a $C(x)$. Perhaps, we want $f$ to take on two arguments instead of one, as is the case when we want to compute $f(x, y)$ from $C(x)$ and $C(y)$. Often, we want $C(x)$ to be composable. In other words, if $x = x_1x_2x_3\ldots{}x_n$, we want to be able to compute $C(xx_{n + 1})$ using just $C(x)$ and $x_{n + 1}$.
+
+\subsection*{Topic 2: Streaming}
+If a data set is really large, it may not be possible to store or process all the data at the same time, as we do with the word RAM model. A stream is a sequence of data elements that comes in bit by bit, like items on a conveyor belt. Streaming is the act of processing these data elements on the fly as they arrive. The goal of streaming is to answers queries within the constraints of sublinear memory.
+
+\subsection*{Topic 3: Dimensionality Reduction}
+There are many instances in the real world where we encounter data sets with high dimensionality. The example brought up in class was the problem of spam filtering. A simple approach to spam detection is the bag-of-words model, where each email can be represented as a high-dimensional vector whose indices come from a dictionary of words and the value at each index is the number of occurrences of the corresponding word. In situations like these where we have a high-dimensional computational geometry problem, we may want to reduce the number of dimensions in pre-processing while preserving the approximate geometric structure.
+
+\subsection*{Topic 4: Large-Scale Matrix Computations}
+Many of the problems that deal with big data end up involving some large-scale matrix computation. Examples of large-scale matrix computations include regression and principal component analysis (PCA). For a least squares regression, we guess that $y = f(x)$ for some vector $x$ of explanatory variables. We want to learn $f$, so we assume that $f(x) = \inprod{\beta, x}$ for some $\beta$. Here, $\inprod{\cdot, \cdot}$ denotes the inner product of two vectors. We collect data points $(x_i, y_i)$ and assume that $y_i = f(x_i) + \epsilon_i$ for some small noise or error term $\epsilon_i$, and from these data points, it is possible to recover a vector of coefficients $\beta = \beta^{\mathrm{LS}}$ that minimizes
+\[
+    \sum_{i = 1}^{n}(y_i - \inprod{\beta, x_i})^2 = \norm{X\beta - y}_2^2
+\]
+by computing $\beta^{\mathrm{LS}} = (X^\top{}X)^{-1}X^\top{}Y$. Here, $\norm{\cdot}_2$ denotes the $L^2$ norm.
+
+\subsection*{Topic 5: Compressed Sensing}
+As we have seen, many of the problems faced in the real world involve linear signals. Sometimes, when we change the basis we use to describe this linear signal, it becomes sparse. This allows us to store far fewer samples than otherwise necessary. Compressed sensing also involves the process of finding a basis in which a linear signal is sparse, taking a small number of linear measurements, and later approximately reconstructing the original signal from the measurements.
+
+\paragraph{Example.} Images can be compressed using a Haar wavelet transform. Here, we describe an example of an implementation of the Haar wavelet transform. A grayscale image is an $n \times n$ matrix of integers ranging from $0$ to $255$, black to white. Divide the image into $2 \times 2$ blocks and label the pixels $a$, $b$, $c$, and $d$. We create four $n/2 \times n/2$ sub-images with the values $w = (a + b + c + d)/4$, $x = (a + d - b - c)/4$, $y = (a + b - c - d)/4$, and $z = (a + c - b - d)/4$. The values of $w$, $x$, $y$, and $z$ are sufficient to represent each quadruple $a$, $b$, $c$, and $d$, and they are normalized so that each can be represented using $8$ bits. Because $a$, $b$, $c$, and $d$ are adjacent each other in the original image, we expect them to have similar values most of the time. When they do not have the same value, it will be on the edge of an object. (Edges are sparse compared to non-edges.) Thus, we expect $x$, $y$, and $z$ to be close to zero most of the time. We can throw away the sub-images made of the pixels $x$, $y$, and $z$. This leaves us the $n/2 \times n/2$ sub-image made of the pixels $w$. If we want an even smaller image, we can apply recursion on the sub-image. JPEG uses a similar procedure that cuts a $256 \times 256$ image into $8 \times 8$ subimages.
+
+\subsection*{Topic 6: Sparse Fourier Transform}
+For some fixed integer $n$, let $F_n = [F_{jk}]$ be the matrix furnished by the terms
+\[
+    F_{jk} = e^{-2\pi{}ijk/n}
+\]
+and let $x = (x_1, x_2, \ldots, x_n)$ be a sequence of complex numbers. The discrete Fourier transform (DFT) sends $x$ to $F_nx$. In 1942, Danielson and Lanczos published an algorithm that computed the DFT in $O(n\log{n})$ floating-point operations (FLOPS)~\cite{DanielsonL42}. In 1965, Cooley and Tukey published a more general version of the fast Fourier transform (FFT)~\cite{CooleyT65}. Cooley and Tukey are often credited with the discovery of the modern generic FFT algorithm, but in an unpublished manuscript from 1805, Gauss had already found a similar algorithm and used it to interpolate the orbits of Pallas and Juno. For more information, please see refer to the \textit{Theoria Interpolationis Methodo Nova Tractata}. The sparse Fourier transform (SFT) is an algorithm that computes the Fourier transform in time $O(k\log{n})$ if the output of the DFT is exactly $k$-sparse. If the output of the DFT is approximately $k$-sparse, SFT can approximate the Fourier transform in time that is approximately but a little worse than $O(k\log{n})$.
+
+\section{Approximate Counting}
+
+We will now discuss our first detailed example of a sketching algorithm. In the following, we discuss a problem first studied in \cite{Morris78}.
+
+\paragraph{Problem.} Design an algorithm that monitors a sequence of events and upon request can output (an estimate of) the number of events thus far. More formally, create a data structure that maintains a single integer $n$ and supports the following operations.
+\begin{itemize}[noitemsep]
+    \item \verb|init();| sets $n \leftarrow 0$
+    \item \verb|update();| increments $n \leftarrow n + 1$
+    \item \verb|query();| outputs $n$ or an estimate of $n$
+\end{itemize}
+Before any operations are performed, we assume that $n = 0$. A trivial algorithm stores $n$ as a sequence of $\ceil{\log{n}} = O(\log{n})$ bits (a counter). If we want \verb|query();| to return the exact value of $n$, this is the best we can do. Suppose for some such algorithm, we use $f(n)$ bits to store the integer $n$. There are $2^{f(n)}$ configurations for these bits. In order for the algorithm to be able to store the exact value of all integers up to $n$, the number of configurations must be greater than or equal to the number $n$. Hence,
+\[
+    2^{f(n)} \geq n \Rightarrow f(n) \geq \log{n}.
+\]
+The goal is to use much less space than $O(\log{n})$, and so we must instead answer \verb|query();| with some estimate $\tilde{n}$ of $n$. We would like this $\tilde{n}$ to satisfy
+\begin{equation} 
+    \mathbb{P}(\abs{\tilde{n} - n} > \eps{}n) < \delta, \label{eqn:epsdelta}
+\end{equation} 
+for some $0 < \eps,\delta < 1$ that are given to the algorithm up front.
+
+Morris's algorithm provides such an estimator for some $\eps,\delta$ that we will analyze shortly. The algorithm works as follows:
+\begin{itemize}[noitemsep]
+    \item \verb|init();| sets $X \leftarrow 0$
+    \item \verb|update();| increments $X$ with probability $2^{-X}$
+    \item \verb|query();| outputs $\tilde{n} = 2^X - 1$
+\end{itemize}
+Intuitively, the variable $X$ is attempting to store a value that is approximately $\log_2{n}$. Before giving a rigorous analysis in Section~\ref{analysis}, we first give a probability review. 
+
+\section{Probability Review}
+
+We are mainly discussing discrete random variables. For this section we consider random variables as taking values in some set $S \subset \R$. Recall the expectation of $X$ is defined to be 
+\[
+    \mathbb{E}{X} = \sum_{j \in S}j \cdot \mathbb{P}(X = j).
+\]
+We now state a few basic lemmas and facts without proof.
+
+\begin{lemma}[Linearity of expectation]
+For all reals $a$ and $b$ and random variables $X$ and $Y$,
+\begin{align} 
+    \mathbb{E}(aX + bY) = a \cdot \mathbb{E}{X} + b \cdot \mathbb{E}{Y}.
+\end{align} 
+\end{lemma}
+
+\begin{lemma}[Markov]
+If $X$ is a nonnegative random variable, then for all $\lambda > 0$,
+\[
+    \mathbb{P}(X > \lambda) < \frac{\mathbb{E}{X}}{\lambda}
+\]
+\end{lemma}
+
+\begin{lemma}[Chebyshev]
+Under the same conditions as Markov,
+\begin{align}
+    \mathbb{P}(\abs{X - \mathbb{E}{X}} > \lambda) < \frac{\mathbb{E}(X - \mathbb{E}{X})^2}{\lambda^2} = \frac{\operatorname{Var}[X]}{\lambda^2}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+Observe that
+\[
+    \mathbb{P}(\abs{X - \mathbb{E}X} > \lambda) = \mathbb{P}((X - \mathbb{E}X)^2 > \lambda^2).
+\]
+The claim follows by Markov's inequality.
+\end{proof}
+
+Note that
+\[
+    \mathbb{P}(\abs{X - \mathbb{E}X} > \lambda) = \mathbb{P}(\abs{X - \mathbb{E}X}^p > \lambda^p)
+\]
+for all $p \geq 1$. If we apply Markov's inequality to this statement, we get a more general version of Chebyshev's inequality:
+\begin{align}
+    \mathbb{P}(\abs{X - \mathbb{E}X} > \lambda) < \frac{\mathbb{E}\abs{X - \mathbb{E}X}^p}{\lambda^p}.
+\end{align}
+This is very similar to the statement of Chebyshev's inequality encountered in measure theory. By a calculation and picking $p$ optimally one can also obtain the following ``Chernoff bound.'' We show a different proof below, of a weaker statement.
+
+\begin{lemma}[Chernoff]
+Suppose $X_1, X_2, \ldots, X_n$ are independent random variables with $X_i \in [0, 1]$. Let $X = \sum_{i = 1}^{n}{X_i}$ with $\mu = \mathbb{E}X$. If $0 < \epsilon < 1$, then
+\begin{align}
+    \mathbb{P}(\abs{X - \mathbb{E}X} > \eps\mu) \leq 2 \cdot e^{-\eps^2\mu/3}.
+\end{align}
+\end{lemma}
+
+\begin{proof}
+We will prove a weaker statement: we assume that the $X_i$ are independent Bernoulli. Let $X_i = 1$ with probability $p_i$ and $X_i = 0$ otherwise. Note then $\mu = \sum_{i = 1}^{n}{p_i}$. Furthermore, we also do not attempt to achieve the constant $1/3$ in the exponent, but are happy to settle for any fixed constant. For the upper tail, we have for any $t > 0$ that
+\begin{align}
+\nonumber \mathbb{P}(X > (1+\eps)\mu) &= \mathbb{P}\left(e^{tX} > e^{t(1+\eps)\mu}\right)\\
+\nonumber{}&\le e^{-t(1+\eps)\mu}\cdot \mathbb{E} e^{tX}\text{ (Markov)}\\
+\nonumber{}& = e^{-t(1+\eps)\mu}\cdot \mathbb{E} e^{\sum_i t X_i}\\
+\nonumber{}& = e^{-t(1+\eps)\mu}\cdot \mathbb{E} \prod_i e^{t X_i}\\
+\nonumber{}& = e^{-t(1+\eps)\mu}\cdot \prod_i \mathbb{E} e^{t X_i}\text{ (independence)}\\
+\nonumber{}& = e^{-t(1+\eps)\mu}\cdot \prod_i (1-p_i + p_i e^t)\\
+\nonumber{}& = e^{-t(1+\eps)\mu}\cdot \prod_i (1 + p_i(e^t-1))\\
+\nonumber{}& \le e^{-t(1+\eps)\mu}\cdot \prod_i e^{p_i(e^t-1)}\text{ (since }1+x\le e^x\text{)}\\
+\nonumber{}& = e^{-t(1+\eps)\mu + (e^t - 1)\mu}\\
+{}& = \left(\frac{e^\eps}{(1+\eps)^{1+\eps}}\right)^\mu\text{ (set }t = \ln(1+\eps)\text{)} \label{eqn:end-chernoff}
+\end{align}
+There are two regimes of interest for Eqn.~\eqref{eqn:end-chernoff}. When $\eps<2$, by Taylor's theorem we have $\ln(1+\eps) = \eps - \eps^2/2 + O(\eps^3)$. Then replacing $(1+\eps)^{1+\eps}$ by $e^{(1+\eps)\ln(1+\eps)}$ and applying Taylor's theorem, this leads to $\eqref{eqn:end-chernoff}\simeq e^{-\Theta(\eps^2\mu)}$ in that regime. When $\eps>2$ we have $\ln(1+\eps)=\Theta(\ln(\eps))$, in which case the tail bounds becomes $\eps^{-\Theta(\eps\mu)}$. The lower tail analysis for $\mathbb{P}(X < (1-\eps)\mu)$ is similar, noting that $X < (1-\eps)\mu$ iff $e^{-tX} > e^{-t(1-\eps)\mu}$. We then apply Markov then analyze $\mathbb{E} e^{-tX}$ and eventually set $t = -\ln(1-\eps)$. The right hand side then becomes $(e^{-\eps}/(1-\eps)^{1-\eps})^\mu$.
+\end{proof}
+
+\section{Analysis of Morris's Algorithm}\label{analysis}
+
+Let $X_n$ denote $X$ in Morris's algorithm after $n$ updates.
+
+\begin{claim}\label{claim:expectation}
+For Morris's algorithm, $\mathbb{E}2^{X_n} = n + 1$.
+\end{claim}
+
+\begin{proof}
+We will prove by induction. Consider the base case where $n = 0$. We have initialized $X \leftarrow 0$ and have yet to increment it. Thus, $X_n = 0$, and $\mathbb{E}2^{X_n} = n + 1$. Now suppose that $\mathbb{E}2^{X_n} = n + 1$ for some fixed $n$.
+
+We have
+\allowdisplaybreaks
+\begin{equation}
+\begin{split}
+    \mathbb{E}2^{X_{n + 1}} &= \sum_{j = 0}^{\infty}{\mathbb{P}(X_n = j) \cdot \mathbb{E}(2^{X_{n + 1}} \mid X_n = j)} \\
+        &= \sum_{j = 0}^{\infty}{\mathbb{P}(X_n = j) \cdot \left(2^j\left(1 - \frac{1}{2^j}\right) + \frac{1}{2^j} \cdot 2^{j + 1}\right)} \\
+        &= \sum_{j = 0}^{\infty}{\mathbb{P}(X_n = j)2^j} + \sum_{j}{\mathbb{P}(X_n = j)} \\
+        &= \mathbb{E}2^{X_n} + 1 \\
+        &= (n + 1) + 1.
+\end{split}
+\end{equation}
+This completes the inductive step.
+\end{proof}
+
+It is now clear why we output our estimate of $n$ as $\tilde{n} = 2^X - 1$: it is an unbiased estimator of $n$. In order to show \eqref{eqn:epsdelta} however, we will also control on the variance of our estimator. This is because, by Chebyshev's inequality,
+\begin{align}
+\mathbb{P}(|\tilde{n}-n|>\varepsilon n) < \frac{1}{\varepsilon^2n^2}\cdot \mathbb{E}(\tilde{n}-n)^2=\frac{1}{\varepsilon^2n^2} \cdot \mathbb{E}(2^X-1-n)^2.
+\end{align}
+When we expand the above square, we find that we need to control $\mathbb{E}2^{2X_n}$. The proof of the following claim is by induction, similar to that of Claim~\ref{claim:expectation}.
+
+\begin{claim}
+For Morris's algorithm, we have
+\begin{align}
+\mathbb{E}2^{2X_n} = \frac{3}{2}n^2+\frac{3}{2}n+1.
+\end{align}
+\end{claim}
+\begin{proof}
+We again prove this by induction. It is clearly true for $n=0$. Then
+\allowdisplaybreaks
+\begin{align*}
+\mathbb{E} 2^{2X_{n+1}} &= \sum_j \mathbb{P}(2^{X_n} = j) \cdot \mathbb{E}(2^{2X_{n+1}} \mid 2^{X_n} = j)\\
+&= \sum_j \mathbb{P}(2^{X_n} = j) \cdot \left(\frac{1}{j}\cdot 4j^2 + \left(1- \frac{1}{j}\right)\cdot j^2\right)\\
+&= \sum_j \mathbb{P}(2^{X_n} = j) \cdot (j^2 + 3j)\\
+&= \mathbb{E} 2^{2X_n} + 3\cdot \mathbb{E} 2^{X_n}\\
+&= \left(\frac 32n^2 + \frac 32n + 1\right) + \left(3n + 3\right)\\
+&= \frac 32(n+1)^2 + \frac 32(n+1) + 1
+\end{align*}
+This completes the inductive step.
+\end{proof}
+
+Now note $\operatorname{Var}[Z]$ in general is equal to $\mathbb{E}Z^2 - (\mathbb{E}Z)^2$. This implies that
+\[
+    \mathbb{E} (\tilde{n} - n)^2 = \text{Var}[2^{X_n} - 1] = (1/2)n^2 - (1/2)n - 1 < (1/2)n^2
+\]
+and thus
+\begin{align}
+\mathbb{P} (|\tilde{n}-n|>\varepsilon n)<\frac{1}{\varepsilon^2n^2}\cdot \frac{n^2}{2}=\frac{1}{2\varepsilon^2} , \label{guarantee}
+\end{align}
+which is not particularly meaningful since the right hand side is only better than $1/2$ failure probability when $\eps \ge 1$ (which means the estimator may very well always be $0$).
+
+\subsection{Morris+}
+To decrease the failure probability of Morris's basic algorithm, we instantiate $s$ independent copies of Morris's algorithm and average their outputs. That is, we obtain independent estimators $\tilde{n}_1,\ldots,\tilde{n}_s$ from independent instantiations of Morris's algorithm, and our output to a query is
+$$
+\tilde{n} = \frac 1s\sum_{i=1}^s \tilde{n}_i
+$$
+Since each $\tilde{n}_i$ is an unbiased estimator of $n$, so is their average. Furthermore, since variances of independent random variables add, and multiplying a random variable by some constant $c = 1/s$ causes the variance to be multiplied by $c^2$, the right hand side of (\ref{guarantee}) becomes 
+$$
+\mathbb{P} (|\tilde{n}-n|>\varepsilon n) < \frac{1}{2s\varepsilon^2}< \delta
+$$ 
+for $s> 1/(2\eps^2\delta) = \Theta(1/(\eps^2\delta))$.
+
+\subsection{Morris++}
+
+It turns out there is a simple technique (which we will see often) to reduce the dependence on the failure probability $\delta$ from $1/\delta$ to $\log(1/\delta)$. The technique is as follows.
+
+We run $t$ instantiations of Morris+, each with failure probability $\frac{1}{3}$. Thus, for each one, $s=\Theta(1/\varepsilon^2)$. We then output the median estimate from all the $s$ Morris+ instantiations. Note that the expected number of Morris+ instantiations that succeed is at least $2t/3$. For the median to be a bad estimate, at most half the Morris+ instantiations can succeed, implying the number of succeeding instantiations deviated from its expectation by at least $t/6$. Define
+
+\begin{equation}
+  Y_i=\begin{cases}
+    1, & \text{if the $i$-th Morris+ instantiation succeeds.}\\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{equation}
+
+Then by the Chernoff bound, 
+
+\begin{align}
+\mathbb{P}\left(\sum_{i = 1}^{t}{Y_i}\le \frac{t}{2}\right) \le \mathbb{P}\left(\abs*{\sum_{i = 1}^{t} Y_i - \mathbb{E}\sum_{i = 1}^{t} Y_i} \ge \frac{t}{6}\right) \le 2e^{-t/3}<\delta
+\end{align}
+for $t\in \Theta(\lg(1/\delta))$.
+
+\paragraph{Overall space complexity.} Note the space is a ranadom variable. We will not show it here, but one can show that the total space complexity is, with probability $1-\delta$, at most
+$$
+O(\eps^{-2}\lg(1/\delta)(\lg\lg(n/(\eps\delta)))) 
+$$
+bits. In particular, for constant $\eps,\delta$ (say each $1/100$), the total space complexity is $O(\lg\lg n)$ with constant probability. This is exponentially better than the $\log n$ space achieved by storing a counter.
+
+\paragraph{An improvement}
+One issue with the above is that the space is $\Omega(\eps^{-2}\lg\lg n)$ for $(1+\eps)$-approximation, but the obvious lower bound is only $O(\lg(\lg_{1+\eps} n)) = O(\lg(1/\eps) + \lg\lg n)$. This can actually be achieved. Instead of incrementing the counter with probability $1/2^X$, we do it with probability $1/(1+a)^X$ and choose $a>0$ appropriately. We leave it to the reader as an exercise to find the appropriate value of $a$ and to figure out how to answer queries.
+
+\nocite{*}
+
+\bibliographystyle{alpha}
+
+\bibliography{bibliography-lecture01}
+
+\end{document}

@@ -1,0 +1,279 @@
+%!TEX program = xelatex
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{filecontents}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS 229r: Algorithms for Big Data } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+\newcommand{\on}{\operatorname}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\Var}{\on{\bf Var}}
+% \newcommand{\E}{\mathbb{E}}
+% \newcommand{\Pr}{\mathbb{P}}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{filecontents}{\jobname.bib}
+@book{kushi2006,
+  author = {Kushilevitz, Eyal},
+  title = {Communication complexity},
+  publisher = {Cambridge University Press},
+  year = {2006},
+  address = {Cambridge},
+  isbn = {978-0521029834}
+}
+
+@inproceedings{IndykW03,
+  author    = {Piotr Indyk and
+               David P. Woodruff},
+  title     = {Tight Lower Bounds for the Distinct Elements Problem},
+  booktitle = {Proceedings of the 44th Symposium on Foundations of Computer Science (FOCS)},
+  pages     = {283--288},
+  year      = {2003},
+}
+
+@inproceedings{Woodruff04,
+  author    = {David P. Woodruff},
+  title     = {Optimal space lower bounds for all frequency moments},
+  booktitle = {Proceedings of the Fifteenth Annual {ACM-SIAM} Symposium on Discrete
+               Algorithms (SODA)},
+  pages     = {167--175},
+  year      = {2004},
+}
+
+@article{GuhaM09,
+  author    = {Sudipto Guha and
+               Andrew McGregor},
+  title     = {Stream Order and Order Statistics: Quantile Estimation in Random-Order
+               Streams},
+  journal   = {{SIAM} J. Comput.},
+  volume    = {38},
+  number    = {5},
+  pages     = {2044--2059},
+  year      = {2009},
+}
+
+@article{ChakrabartiR12,
+  author    = {Amit Chakrabarti and
+               Oded Regev},
+  title     = {An Optimal Lower Bound on the Communication Complexity of {Gap}-{Hamming}-{Distance}},
+  journal   = {{SIAM} J. Comput.},
+  volume    = {41},
+  number    = {5},
+  pages     = {1299--1317},
+  year      = {2012},
+}
+
+@article{jayram2008one,
+  title={The One-Way Communication Complexity of Hamming Distance.},
+  author={Jayram, TS and Kumar, Ravi and Sivakumar, D},
+  journal={Theory of Computing},
+  volume={4},
+  number={1},
+  pages={129--135},
+  year={2008}
+}
+\end{filecontents}
+
+\usepackage{natbib}
+
+\begin{document}
+
+\lecture{Lecture 9 --- October 1, 2015}{Fall 2015}{Prof.\ Jelani Nelson}{Rachit Singh}
+
+\section{Overview}
+
+In the last lecture we covered the distance to monotonicity (DTM) and longest increasing subsequence (LIS) problems.
+
+In this lecture we will talk about how to prove space lower bounds for a variety of problems using communication complexity.
+
+\section{Space lower bounds}
+
+We're going to see some sophisticated techniques to prove space lower bounds. These are all proved via something called \textbf{communication complexity}. The problems we're going to look at today are $F_0$ (distinct elements) - specifically any algorithm that solves $F_0$ within a factor of $\epsilon$ must use $\Omega(1/\epsilon^2 + \log n)$ bits. We're also going to discuss $\bf{median}$, or randomized exact median, which requires $\Omega(n)$ space. Finally, we'll talk about $F_p$ or $\norm{x}_p$, which requires $\Omega(n^{1 - 2/p})$ space for a 2-approximation. 
+
+\subsection{2 player communication complexity}
+Suppose we have Alice and Bob, and a function $f: X \times Y \to \{0, 1\}$. Alice gets $x \in X$, and Bob gets $y \in Y$. They want to compute $f(x, y)$. Suppose that Alice starts the conversation. Suppose she sends a message $m_1$ to Bob. Then Bob replies with $m_2$, and so on. After $k$ iterations, someone can say that $f(x, y)$ is determined. The goal for us is to minimize the total amount of communcation, or $\sum_{i = 1}^k|m_i|$, where the absolute value here refers to the length of the binary string.
+
+\smallskip
+
+A \textbf{communicaton protocol} is a way of conversing agreed upon ahead of time, where Alice and Bob both know $f$. There's obvious the two obvious protocols, where Alice sends $\log X$ bits to send $x$, or where Bob sends $y$ via $\log Y$ bits to Alice. The goal is to either beat these trivial protocols or prove that none exists.
+
+\smallskip
+
+There's a natural connection between communicaton complexity and space lower bounds as follows: a communication complexity lower bound can yield a streaming lower bound. We'll restrict our attention to 1-way protocols, where Alice just sends messages to Bob. Suppose that we had a lower bound for a communication problem - Alice has $x \in X$, and Bob has $y \in Y$ and we know that the lower bound (LB) on the optimal communcation complexity is $\overrightarrow{D}(f)$. The $D$ here refers to the fact that the communication protocol is deterministic. If there's a streaming problem, then Alice can run her streaming algorithm on $x$, the first half of the stream, and send the memory contents across to Bob, who can then load it and pass $y$, the second half of the stream, and calculate $f(x, y)$, the final answer. So the minimal amount of space necessary is $\overrightarrow{D}(f)$. 
+
+\subsection{$F_0$}
+Exact and deterministic $F_0$ requires $\Omega(n)$ space (we saw this in class via the compression argument, but we want to rephrase in the communication complexity argument). We'll use a reduction - if comm. complexity is hard, then the $F_0$ problem must also be hard, because otherwise we could use the above argument. We use the \emph{equality problem} (EQ), which is where $f(x, y) = x == y$. We claim $D(EQ) = \omega(n)$. This is pretty simple to prove in the one-way protocol, by using the pigeonhole principle, as before. 
+
+\smallskip
+
+We're going to reduce EQ to $F_0$. Suppose that there exists a streaming algorithm $A$ for $F_0$ that uses $S$ bits of space. Alice is going to run $A$ on her stream $x$, and then send the memory contents to Bob. Bob then queries $F_0$, and then for each $i \in y$, he can append and query as before, and solve the equality problem. However, this solves EQ, which requires $\Omega(n)$ space, so $S$ must be $\Omega(n)$. This is just a rephrasing of the earlier argument in terms of communication complexity. 
+
+\smallskip
+
+Now, a few definitions: 
+\begin{itemize}
+  \item $D(f)$ is the optimal cost of a deterministic protocol 
+  \item $R^{\on{pub}}_\delta(f)$ is the optimal cost of the random protocol with failure probability $\delta$ such that there is a shared random string (written in the sky or something).
+  \item $R^{\on{pri}}_\delta(f)$ is the same as above, but each of Alice/Bob have private random strings.
+  \item $D_{\mu, s}(f)$ is the optimal cost of a deterministic protocol with failure probability $\delta$ where $(x, y) \thicksim \mu$. 
+\end{itemize}
+
+\smallskip
+
+\begin{claim}
+  $D(f) \geq R^{\on{pri}}_\delta(f) \geq R^{\on{pub}}_\delta(f) \geq D_{\mu, s}(f)$
+\end{claim}
+
+\begin{proof}
+  The first inequality is clear, since we can just simulate the problem. The second inequality follows from the following scheme: Alice just uses the odd bits, and Bob just uses the even bits in the sky. The final inequality follows from an indexing argument: suppose that $P$ is a public random protocol with a random string $s$, $\forall (x, y) \Pr(P_s \text{correct}) \geq 1 - \delta$. Then there exists an $s^*$ such that the probability of $P_s$ succeeding is large. Note that $s^*$ depends on $\mu$.
+\end{proof}
+
+If we want to do a lower bound on deterministic algorithms, we want to lower bound $D(f)$. If we want to do the lower bound of a randomized algorithm, we want to lower bound $R^{\on{pri}}_\delta(f)$. We need Alice to communicate the random bits over to Bob so that he can continue running the algorithm, and we need to \emph{include} these bits in the cost since we store the bits in memory. So, to lower bound randomized algorithms, we lower bound $D_{\mu, s}(f)$. 
+
+\smallskip
+
+If you want to learn more, you can read a book called \emph{Communication Complexity} by Kushilevitz and Nisan \cite{kushi2006}. Fun fact: you can solve EQ using public randomness with constant number of bits. If you want to solve it using private randomness for EQ, you need $\log n$ bits. Alice picks a random prime, and she sends $x \mod p$ and sends across $x \mod p$ and the prime. Neumann's theorem says that you can reverse the middle inequality in the above at a cost of $\log n$ (i.e. the LHS is smaller than $\log n$ times the RHS).
+
+\smallskip
+
+We're going to show that \emph{INDEX}, the problem of finding the $j$th element of a streamed vector, is hard. Then, we'll show that this reduces to \emph{GAPHAM}, or Gap Hamming which'll reduce to $F_0$. Also, INDEX reduces to \emph{MEDIAN}. Finally, \emph{$\text{DISJ}_t$} reduces (with $t = (2n)^{1/p}$) to $F_p$, $p > 2$.
+
+\smallskip
+
+\subsection{Index}
+INDEX is a two-player problem. Alice gets $x \in \{0, 1\}^n$, and Bob gets $j \in [n]$, and $INDEX(x, j) = x_j$. 
+
+\begin{claim}
+  $R^{\on{pub} \rightarrow}_\delta(INDEX) \geq (1 - \mathfrak{H}_2(\delta))n$, where $\mathfrak{H}_2(\delta) = \delta\log (\delta) + (1 - \delta)\log(1 - \delta)$, the entropy function. If $\delta \approx 1/3$. 
+\end{claim}
+
+In fact, it's true that the distributional complexity has the same lower bound. The reason this is hard is because it's one way - Alice doesn't know which bit to send to Bob. 
+
+\subsection{Information Theory crash course}
+
+Mostly definitions, but you can check out \emph{Essentials of Information Theory} by Cover and Thomas for more details.
+
+Definitions: if we have a random variable $X$, then 
+\begin{itemize}
+  \item $H(X) = \sum_x p_x \log(p_x)$ (\emph{entropy})
+  \item $H(X, Y) = \sum_{(x, y)}p_{x, y}\log p_{x, y}$ (\emph{joint entropy})
+  \item $H(X|Y) = \E_y(H(X | Y = y))$ (\emph{conditional entropy})
+  \item $I(X, Y) = H(X) - H(X|Y)$ (\emph{mutual information}) (note that this is a symmetric quantity)
+\end{itemize}
+The \emph{entropy} is the amount of information or bits we need to send to communicate $x \in X$ in expectation. This can be achieved via Huffman coding (in the limit). The mutual information is how much of $X$ we get by communicating $Y$.
+
+\smallskip
+
+Here are some basic lemmas involving these equalities
+\begin{lemma}
+  \
+  \begin{itemize}
+    \item Chain rule: $H(X, Y) = H(X) + H(Y|X)$ 
+    \item Chain rule for mutual information: $I(X, Y|Z) = I(X, Z) + I(Y, Z|X)$
+    \item Subadditivity: $H(X, Y) \leq H(X) + H(Y)$ 
+    \item Chain rule + subadditivity: $H(X|Y) \leq H(X)$.
+    \item Basic $H(X) \leq \log|\on{supp}(X)|$.
+    \item $H(f(X)) \leq H(X) \quad \forall f$ (no free lunch)
+  \end{itemize}
+\end{lemma}
+
+\smallskip
+
+\begin{theorem}
+\textbf{Fano's Inequality}
+
+Formally, if there exist two random variables $X, Y$ and a predictor $g$ such that $\Pr(g(Y) \neq X) \leq \delta)$, then $H(X|Y) \leq H_2(\delta) + \delta\cdot\log_2(|\on{supp}(X)| - 1)$. 
+\end{theorem}
+Note that if $X$ is a binary random variable then the second term vanishes. Intuitively, if all you have is $Y$, and based on $Y$ you make a guess of $X$. Then if you're able to guess well, then they must be correlated in some way. Note that for small $\delta$, $H_2(\delta) \approx \delta$. Now we'll go back to INDEX, and our earlier claim.
+
+\subsection{INDEX revisited}
+Let $\Pi$ be the transcript of the optimal communication protocol. It's a one-way protocol here, so it's just what Alice said. So, we know that $R^{\on{pub}}_\delta(INDEX) \geq H(\Pi) \geq I(\Pi, \text{input})= I(\Pi, \text{input})$
+
+\smallskip
+
+We know that for all $x$ and for all $j$, $\Pr_s(\text{Bob is correct}) \geq 1 - \delta$, which implies that for all $j$, $\Pr_{X \thicksim \on{Unif}}\Pr_s(\text{Bob is correct}) \geq 1 - \delta$, which them implies that by Fano, 
+$$H(X_j|\Pi) \geq H_2(\delta)$$
+Note that $\Pi$ is a random variable because of the random string in the sky, and also because it is dependent on $X$. 
+
+\smallskip
+
+Note that we have 
+\begin{align*}
+  |\Pi| &\geq I(X; \Pi) \\
+  &= \sum_{i = 1}^n I(X_i;\Pi|X_1, \ldots X_{i - 1}) \ (\text{chain rule n times}) \\
+  &= \sum_i H(X_i | X^{< i}) - H(X_i | \Pi, X^{< i})\\
+  &\geq \sum_i 1 - H_2(\delta) = n(1 - H_2(\delta))
+\end{align*}
+Now that we have INDEX, let's use it to prove another lower bound, namely MEDIAN. We want a randomized, exact median of $x_1, \ldots x_n$ with probability $1 - \delta$. We'll use a reduction (see \cite{GuhaM09}). 
+
+\smallskip
+
+Claim: INDEX on $\{0, 1\}^n$ reduces to MEDIAN with $m = 2n + 2$, with string length $2n - 1$. To solve INDEX, Alice inserts $2 + x_1, 4 + x_2, 6 + x_3 \ldots$ into the stream, and Bob inserts $n - j$ copies of 0, and another $j-1$ copies of $2n + 2$.
+
+\smallskip
+
+Suppose that $n = 3$ and $x = 101_2$. Then Alice will choose $3, 4, 7$ out of $2, 3, 4, 5, 6, 7$. Bob cares about a particular index, suppose the first index. Bob is going to make this stream length $5$, such that the median of the stream is exactly the index he wants. Basically, we can insert 0 or $2n + 2$ exactly where we want, moving around the $j$ index to be the middle, which then we can then output.
+
+\subsection{INDEX $\to$ GAPHAM $\to$ $F_0$}
+
+GAPHAM (Gap Hamming): Alice gets $x \in \{0, 1\}^n$ and Bob gets $y \in \{0, 1\}^n$. They're promised that the Hamming distance $\Delta(x, y) > n/2 + c\sqrt{n}$ or $\Delta(x, y) < n/2 - c\sqrt{n}$ for some constant $c$, and we need to decide which.
+
+\smallskip
+
+The reduction INDEX $\to$ GAPHAM was shown by \cite{jayram2008one}, implying an $\Omega(n)$ lower bound for GAPHAM. The lower bound $R^{\on{pub}\rightarrow}_{1/3}(\mathrm{GAPHAM}) = \Omega(n)$ was also shown earlier, without this reduction, by \cite{IndykW03,Woodruff04}. It was later shown that even if you allow yourself an arbitrary number of rounds, you still need $\Omega(n)$ communication \cite{ChakrabartiR12}. 
+
+\smallskip
+
+An $F_0$ algorithm that fails with probability $1/3$ and gives a $(1 + \epsilon)$ approximation requires $\Omega(1/\epsilon^2)$ space (assume that $1/\epsilon^2 < n$).
+
+Proof: Reduce from GAPHAM. Alice and Bob get $t$ bit vectors, where $t = \Theta(1/\epsilon^2)$. Note that $c\sqrt{t}\le \epsilon t/3$. Now, note that $2F_0 = |\on{supp}(x)| + |\on{supp}(y)| + \Delta(x, y)$. Alice sends the streaming memory and $|\on{supp}(x)|$ which is $S + \log t$ bits (where $S$ is the space complexity of the streaming algorithm for $F_0$ approximation). Bob knows $2(1 \pm \epsilon)F_0 = 2F_0 \pm \epsilon t/2$. Then he can estimate $\tilde{\Delta} = 2F_0 \pm \epsilon t/2 - \|\on{supp}(x)| + |\on{supp}(y)|= \Delta \pm \epsilon t/2$ and can decide GAPHAM. Thus $S + \log t = \Omega(t)$, implying $S = \Omega(t)$.
+
+\bibliographystyle{alpha}
+\bibliography{\jobname}
+
+\end{document}
